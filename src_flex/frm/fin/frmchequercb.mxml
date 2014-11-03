@@ -1,0 +1,84 @@
+<?xml version="1.0" encoding="utf-8"?>
+<mx:TitleWindow xmlns:mx="http://www.adobe.com/2006/mxml" layout="absolute" close="titlewindow_closeHandler(event)"
+				creationPolicy="all"
+				width="702" height="308" showCloseButton="true"
+				creationComplete="titlewindow_creationCompleteHandler(event)" xmlns:skins="skins.*"
+				title="Cadastro de Cheque">
+<mx:Script>
+	<![CDATA[
+		import classes.Util;
+		
+		import mx.rpc.events.FaultEvent;
+		
+		import classes.UtilRetornoBanco;
+		
+		import mx.collections.ArrayCollection;
+		import mx.core.FlexGlobals;
+		import mx.events.CloseEvent;
+		import mx.events.FlexEvent;
+		import mx.managers.PopUpManager;
+		import mx.rpc.events.ResultEvent;
+		
+		import service.bco.Bco_BancoService;
+
+		private var retorno:UtilRetornoBanco;
+		public var util:Util = new Util();
+		private var ArrayBanco:ArrayCollection;
+		private var ro_bcobanco:Bco_BancoService = Bco_BancoService.getInstance();
+		protected function titlewindow_creationCompleteHandler(event:FlexEvent):void
+		{
+			this.width = FlexGlobals.topLevelApplication.mdiCanvas.width - 200;
+			this.height = FlexGlobals.topLevelApplication.mdiCanvas.height - 100;
+			
+			this.x = 0;
+			this.y = 0;
+			
+			ro_bcobanco.ComboBox("nmbanco","cdbanco",createArrayBanco,defaultFaultHandler);
+			
+		}
+		private function createArrayBanco(event:ResultEvent):void{
+			ArrayBanco = event.result as ArrayCollection;
+		} 
+		protected function titlewindow_closeHandler(event:CloseEvent):void
+		{
+			PopUpManager.removePopUp(this);
+		}
+		private function defaultFaultHandler(e:FaultEvent):void{
+			this.enabled = true;
+			retorno = new UtilRetornoBanco;
+			retorno.RetornoBanco(e);
+			mensagem.text = "";
+		}
+	]]>
+</mx:Script>
+    		<mx:VBox width="100%" height="100%">
+				<mx:Label width="100%" id="mensagem" text="" styleName="lblerro"/>
+				<mx:HBox width="100%">
+					<mx:Form width="100%" height="100%" id="form_a">
+						<mx:FormItem label="Banco" horizontalAlign="center" width="288" required="true">
+							<skins:TextButtonText id="txtcdbanco" tabela="bco_banco" titulo="Banco"/>
+						</mx:FormItem>
+						<mx:FormItem label="Agencia:" required="true">
+							<skins:TextInput_Maiusculo id="txtagencia" width="216"/>
+						</mx:FormItem>
+					</mx:Form>
+					<mx:Form width="100%" height="100%" id="form_b">
+						<mx:FormItem label="Conta:" required="true">
+							<skins:TextInput_Maiusculo id="txtconta" width="216"/>
+						</mx:FormItem>
+						<mx:FormItem label="Número:" required="true">
+							<skins:TextInput_Maiusculo id="txtnumero" width="216"/>
+						</mx:FormItem>
+					</mx:Form>
+				</mx:HBox>
+				<mx:DataGrid id="dg_chequercb" width="100%" height="100%" >
+					<mx:columns>
+						<mx:DataGridColumn headerText="Banco" dataField="nmbanco"/>
+						<mx:DataGridColumn headerText="Agencia" dataField="agencia"/>
+						<mx:DataGridColumn headerText="Conta" dataField="conta"/>
+						<mx:DataGridColumn headerText="Número" dataField="numero"/>
+					</mx:columns>
+				</mx:DataGrid>
+			</mx:VBox>
+<skins:CtrlBar_Buttons id="ctrlbar"/>	
+</mx:TitleWindow>

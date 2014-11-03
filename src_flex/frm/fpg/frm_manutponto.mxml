@@ -1,0 +1,190 @@
+<?xml version="1.0" encoding="utf-8"?>
+<s:TitleWindow xmlns:fx="http://ns.adobe.com/mxml/2009" 
+			   xmlns:s="library://ns.adobe.com/flex/spark" 
+			   xmlns:mx="library://ns.adobe.com/flex/mx" width="580" height="414"
+			   close="titlewindow1_closeHandler(event)"
+			   creationComplete="titlewindow1_creationCompleteHandler(event)"
+			   title="Manutenção" xmlns:skins="skins.*">
+	<fx:Declarations>
+		<!-- Place non-visual elements (e.g., services, value objects) here -->
+	</fx:Declarations>
+	<fx:Script>
+		<![CDATA[
+			import classes.Util;
+			import classes.UtilMensagens;
+			import classes.UtilNamesPesquisa;
+			import classes.UtilRetornoBanco;
+			
+			import mx.collections.ArrayCollection;
+			import mx.events.CloseEvent;
+			import mx.events.FlexEvent;
+			import mx.managers.PopUpManager;
+			import mx.rpc.events.FaultEvent;
+			import mx.rpc.events.ResultEvent;
+			
+			import service.fpg.Fpg_DefHorarioService;
+			import service.fpg.Fpg_HorarioTrabalhoService;
+			import service.fpg.Fpg_PontoService;
+			import service.procedure.Fpg_Ponto_TrocadoService;
+			import service.view.View_Pto_PontoService;
+			
+			import vo.adm.SystemVO;
+			import vo.fpg.Fpg_HorarioTrabalhoVO;
+			import vo.fpg.Fpg_PontoVO;
+			import vo.procedure.Fpg_Ponto_TrocadoVO;
+			import vo.view.View_Pto_PontoVO;
+			
+			[Bindable] private var isValid:Boolean = false;
+			private var retorno:UtilRetornoBanco;
+			private var util:Util = new Util();
+			private var ro_ponto:Fpg_PontoService = Fpg_PontoService.getInstance();
+			public var fpg_pontoVO:Fpg_PontoVO;
+			private var systemvo:SystemVO = SystemVO.getInstance();
+			private var ArrayDefHorario:ArrayCollection;
+			private var ro_defhorario:Fpg_DefHorarioService = Fpg_DefHorarioService.getInstance();
+			private var ro_pontotrocado:Fpg_Ponto_TrocadoService = Fpg_Ponto_TrocadoService.getInstance();
+			public var pontotrocadoVO:Fpg_Ponto_TrocadoVO;
+			private var ro_viewponto:View_Pto_PontoService = View_Pto_PontoService.getInstance();
+			private var viewpontoVO:View_Pto_PontoVO;
+			public var fpg_horatrabalho:Fpg_HorarioTrabalhoVO;
+			private var ro_horatrabalho:Fpg_HorarioTrabalhoService = Fpg_HorarioTrabalhoService.getInstance();
+			
+			
+			protected function titlewindow1_closeHandler(event:CloseEvent):void
+			{
+				// TODO Auto-generated method stub
+				PopUpManager.removePopUp(this);
+				
+			}
+			
+			protected function titlewindow1_creationCompleteHandler(event:FlexEvent):void
+			{
+				// TODO Auto-generated method stub
+				bt_alterar.addEventListener(MouseEvent.CLICK,alterar);
+				bt_trocar.addEventListener(MouseEvent.CLICK,trocar);
+				
+				ro_defhorario.ComboBox("nmdefhorario","id_defhorario",createcb_defhorario,defaultFaultHandler);
+				
+//				ro_horatrabalho.select(fpg_horatrabalho,horatrabalhoResult,defaultFaultHandler);
+				
+			}
+			private function horatrabalhoResult(e:ResultEvent):void{
+				hr_previsto.text = "Previsto: "+ "Hr. Entrada: " + util.formatHora(e.result[0]["h_entrada"]) + "Saída Interv." + util.formatHora(e.result[0]["int_saida"]) + "Entrada Interv." + util.formatHora(e.result[0]["int_entrada"]) 
+						+ "Hr. Saída" + util.formatHora(e.result[0]["h_saida"]) + " = " + e.result[0]["horasprevistas"] ;
+			}
+			private function createcb_defhorario(event:ResultEvent):void{
+				ArrayDefHorario = event.result as ArrayCollection;
+				cb_de.dataProvider = ArrayDefHorario;
+				cb_para.dataProvider = ArrayDefHorario;
+			}
+			private function trocar(e:Event):void{
+				if(cb_de.selectedIndex == 0 || cb_para.selectedIndex == 0){
+					mensagem.text = "Selecione os Dois Campos: De / Para";
+				} else {
+					this.enabled = false;
+					pontotrocadoVO.id1 = cb_de.selectedItem.data;
+					pontotrocadoVO.id2 = cb_para.selectedItem.data;
+					
+					ro_pontotrocado.Procedure(pontotrocadoVO,trocarResult,defaultFaultHandler);
+					
+				}
+			}
+			private function trocarResult(e:ResultEvent):void{
+				this.enabled = true;
+				mensagem.text = UtilMensagens.OperacaoRealizadaSucesso;
+				
+				viewpontoVO = new View_Pto_PontoVO;
+				viewpontoVO.id_ponto = fpg_pontoVO.id_ponto;
+				
+				ro_viewponto.select(viewpontoVO,null,viewpontoResult,defaultFaultHandler);
+			}
+			private function viewpontoResult(e:ResultEvent):void{
+				horario_ent.text = e.result[0]["horario_ent"];
+				horario_sai.text = e.result[0]["horario_sai"];
+				intervalo_sai.text = e.result[0]["intervalo_sai"];
+				intervalo_ent.text = e.result[0]["intervalo_ent"];
+			}
+			private function alterar(e:Event):void{
+				this.enabled = false;
+				isValid = util.validateForm(form);
+				if (!isValid){
+					mensagem.text = UtilMensagens.PreenchaCampo;
+				} else {
+					popular();
+					ro_ponto.atualizar(fpg_pontoVO,alterarResult,defaultFaultHandler);
+				}
+					
+			}
+			private function alterarResult(e:ResultEvent):void{
+				this.enabled = true;
+				mensagem.text = UtilMensagens.OperacaoRealizadaSucesso;
+			}
+			private function popular():void{
+				
+				fpg_pontoVO.fpg_idjustificativa = fpg_idjustificativa.txt_id.text.length <= 0 ? null : fpg_idjustificativa.txt_id.text;
+				fpg_pontoVO.adm_id_operador = fpg_idjustificativa.txt_id.text.length <= 0 ? null : systemvo.id_operador; 
+				fpg_pontoVO.fpg2_idjustificativa = fpg2_idjustificativa.txt_id.text.length <= 0 ? null : fpg2_idjustificativa.txt_id.text;
+				fpg_pontoVO.adm2_id_operador = fpg2_idjustificativa.txt_id.text.length <= 0 ? null : systemvo.id_operador;
+				fpg_pontoVO.fpg3_idjustificativa = fpg3_idjustificativa.txt_id.text.length <= 0 ? null : fpg3_idjustificativa.txt_id.text;
+				fpg_pontoVO.adm3_id_operador = fpg3_idjustificativa.txt_id.text.length <= 0 ? null : systemvo.id_operador;
+				fpg_pontoVO.fpg4_idjustificativa = fpg4_idjustificativa.txt_id.text.length <= 0 ? null : fpg4_idjustificativa.txt_id.text;
+				fpg_pontoVO.adm4_id_operador = fpg4_idjustificativa.txt_id.text.length <= 0 ? null : systemvo.id_operador;
+				
+				fpg_pontoVO.folga = cb_situacaodia.selectedItem.data;
+				
+				fpg_pontoVO.nmoperador = systemvo.nickname;
+				
+				fpg_pontoVO.obs = txtobs.text.length <= 0 ? null : txtobs.text; 
+				
+			}	
+			private function defaultFaultHandler(e:FaultEvent):void{
+				this.enabled = true;
+				retorno = new UtilRetornoBanco;
+				retorno.RetornoBanco(e);
+				mensagem.text = "";
+			}
+			
+		]]>
+	</fx:Script>
+	<mx:VBox width="100%" height="100%">
+		<mx:Label width="100%" id="mensagem" text="" styleName="lblerro"/>
+		<mx:Form width="100%" height="100%" id="form">
+			<mx:FormItem direction="horizontal" label="Situação Dia:" required="true">
+				<mx:ComboBox id="cb_situacaodia" selectedIndex="0"/>
+			</mx:FormItem>
+			<mx:FormItem direction="horizontal" label="Horário Entrada">
+				<s:TextInput id="horario_ent" enabled="false"/>
+				<skins:TextButtonText id="fpg_idjustificativa" tabela="{UtilNamesPesquisa.fpg_justificativa}" titulo="Justificativa"/>
+			</mx:FormItem>
+			<mx:FormItem direction="horizontal" label="Saída Intervalo">
+				<s:TextInput id="intervalo_sai" enabled="false"/>
+				<skins:TextButtonText id="fpg3_idjustificativa" tabela="{UtilNamesPesquisa.fpg_justificativa}" titulo="Justificativa"/>
+			</mx:FormItem>
+			<mx:FormItem direction="horizontal" label="Entrada Intervalo">
+				<s:TextInput id="intervalo_ent" enabled="false"/>
+				<skins:TextButtonText id="fpg4_idjustificativa" tabela="{UtilNamesPesquisa.fpg_justificativa}" titulo="Justificativa"/>
+			</mx:FormItem>
+			<mx:FormItem direction="horizontal" label="Horário Saida">
+				<s:TextInput id="horario_sai" enabled="false"/>
+				<skins:TextButtonText id="fpg2_idjustificativa" tabela="{UtilNamesPesquisa.fpg_justificativa}" titulo="Justificativa"/>
+			</mx:FormItem>
+			<mx:FormItem width="526" label="Obs.:" direction="horizontal">
+				<s:TextArea id="txtobs" width="430" height="81"/>
+			</mx:FormItem>
+			<mx:HBox width="100%" horizontalAlign="center">
+				<mx:Label text="De:"/>
+				<mx:ComboBox id="cb_de" selectedIndex="0"/>
+				<mx:Label text="Para:"/>
+				<mx:ComboBox id="cb_para" selectedIndex="0"/>
+				<mx:Button label="Trocar" id="bt_trocar"/>
+			</mx:HBox>
+			<s:Label id="hr_previsto" width="100%"/>
+		</mx:Form>		
+	</mx:VBox>
+	<s:controlBarContent>
+		<mx:HBox id="ctr_bar" width="100%" height="100%" horizontalAlign="center">
+			<s:Button id="bt_alterar" label="Gravar" styleName="editButton"/>
+			<s:Button label="Limpar" styleName="clearButton"/>
+		</mx:HBox>
+	</s:controlBarContent>
+</s:TitleWindow>

@@ -1,0 +1,397 @@
+<?xml version="1.0" encoding="utf-8"?>
+<MDIWindow xmlns="flexmdi.containers.*"
+		   xmlns:mx="http://www.adobe.com/2006/mxml"
+		   xmlns:s="library://ns.adobe.com/flex/spark"
+		   xmlns:skins="skins.*"
+		   width="846" height="514" creationComplete="init()"
+		   title="Cadastro Cheque">
+	
+	<mx:Script>
+		<![CDATA[
+			import classes.*;
+			
+			import flash.events.Event;
+			import flash.events.FocusEvent;
+			import flash.events.KeyboardEvent;
+			import flash.events.MouseEvent;
+			
+			import mx.collections.ArrayCollection;
+			import mx.controls.Alert;
+			import mx.controls.Button;
+			import mx.controls.Text;
+			import mx.controls.dataGridClasses.DataGridColumn;
+			import mx.core.FlexGlobals;
+			import mx.events.CloseEvent;
+			import mx.events.IndexChangedEvent;
+			import mx.events.ItemClickEvent;
+			import mx.events.ListEvent;
+			import mx.rpc.events.FaultEvent;
+			import mx.rpc.events.ResultEvent;
+			import mx.validators.EmailValidator;
+			import mx.validators.Validator;
+			
+			import service.bco.Bco_ChequeRcService;
+			
+			import vo.bco.Bco_ChequeRcVO;
+			
+			[Bindable] private var isValid:Boolean = false;
+			private var util:Util = new Util();
+			private var retorno:UtilRetornoBanco;
+
+			private var ro_chequerc:Bco_ChequeRcService = Bco_ChequeRcService.getInstance();
+
+			private var bco_chequercVO:Bco_ChequeRcVO;
+			
+			private function initButtons():void{
+				ctrlbar.removeAllChildren();
+				
+				if (tbnav.selectedIndex == 0){
+					ctrlbar.addChildAt(ctrlbar.bt_pesquisar,0);
+					ctrlbar.addChildAt(ctrlbar.bt_inserir,1);
+					ctrlbar.addChildAt(ctrlbar.bt_alterar,2);
+					ctrlbar.addChildAt(ctrlbar.bt_excluir,3);
+					ctrlbar.addChildAt(ctrlbar.bt_limpar,4);
+					
+				} else if (tbnav.selectedIndex == 1){
+					ctrlbar.addChildAt(ctrlbar.bt_pesquisar,0);
+					ctrlbar.addChildAt(ctrlbar.bt_inserir,1);
+					ctrlbar.addChildAt(ctrlbar.bt_alterar,2);
+					ctrlbar.addChildAt(ctrlbar.bt_excluir,3);
+					ctrlbar.addChildAt(ctrlbar.bt_limpar,4);
+				}
+				
+			}
+			
+			private function init():void{
+				
+				
+				this.width = FlexGlobals.topLevelApplication.mdiCanvas.width;
+				this.height = FlexGlobals.topLevelApplication.mdiCanvas.height;
+				
+				this.x = 0;
+				this.y = 0;
+				
+				initButtons();
+				
+				ctrlbar.bt_pesquisar.addEventListener(MouseEvent.CLICK,selecionar);
+				ctrlbar.bt_inserir.addEventListener(MouseEvent.CLICK,inserir);
+				ctrlbar.bt_alterar.addEventListener(MouseEvent.CLICK,alterar);
+				ctrlbar.bt_excluir.addEventListener(MouseEvent.CLICK,deletar);
+				ctrlbar.bt_limpar.addEventListener(MouseEvent.CLICK,limpar);
+				
+//				txtcpf.addEventListener(FocusEvent.FOCUS_OUT,localizaCPF);
+//				txtcnpj.addEventListener(FocusEvent.FOCUS_OUT,localizaCNPJ);
+				
+//				txtdt_emissao.selectedDate = util.dthoje();
+				
+			}
+			private function tbcomplete(event:IndexChangedEvent):void{
+				var currentIndex:int=event.newIndex;
+				if (currentIndex == 0){
+					initButtons();
+					ctrlbar.enabled = true;
+				}else if (currentIndex == 1){
+//					util.limpar_formulario(form_enderecoa);
+//					util.limpar_formulario(form_enderecob);
+//					if(txtid_fornecedor.text.length > 0){
+//						initButtons();
+//						selecionar(event);
+//					} else {
+//						ctrlbar.enabled = false;
+//					}
+				}
+			}
+			protected function lf_dtemissao(item:Object, column:DataGridColumn):String{
+				return util.formatData_DDMMYYYY(item.dt_emissao);	
+			}
+			protected function lf_dtvencto(item:Object, column:DataGridColumn):String{
+				return util.formatData_DDMMYYYY(item.dt_vencto);	
+			}
+//			protected function lf_estado(item:Object, column:DataGridColumn):String{
+//				var retorno:Object = util.selecionarArray(item.id_cidade,"id_cidade",ArrayCidade);
+//				
+//				retorno = util.selecionarArray(retorno.id_estado,"id_estado",ArrayEstado);
+//				return retorno.nmestado;
+//			}
+			private function selecionar(e:Event):void{
+				this.enabled = false;
+				if (tbnav.selectedIndex == 0){
+					popular();
+					ro_chequerc.select(bco_chequercVO,createDataGrid,defaultFaultHandler);
+				} else if (tbnav.selectedIndex == 1){
+//					popular_endereco();
+//					ro_forend.select(for_forendVO,createDataGrid,defaultFaultHandler);
+				}
+			}
+			private function createDataGrid(e:ResultEvent):void{
+				this.enabled = true;
+				if (tbnav.selectedIndex == 0){
+					dg_cheque.dataProvider = e.result;
+				} else if (tbnav.selectedIndex == 1){
+//					dg_endereco.dataProvider = e.result;
+				} 
+			}
+			
+			private function inserir(e:Event):void{
+				if (tbnav.selectedIndex == 0){
+					isValid = util.validateForm(form_chequea);
+					isValid = util.validateForm(form_chequeb) && isValid;
+					if (!isValid){
+						mensagem_cheque.text = UtilMensagens.PreenchaCampo;
+					} else {
+						this.enabled = false;
+						popular();
+						ro_chequerc.inserir(bco_chequercVO,inserirResult,defaultFaultHandler);
+					}
+				} else if (tbnav.selectedIndex == 1){
+//					isValid = util.validateForm(form_enderecoa);
+//					isValid = util.validateForm(form_enderecob) && isValid;
+//					if (!isValid){
+//						mensagem_parcela.text = UtilMensagens.PreenchaCampo;
+//					} else {
+//						this.enabled = false;
+//						popular_endereco();
+//						ro_forend.inserir(for_forendVO,inserirResult,defaultFaultHandler);
+//					}
+				}
+			}
+			private function inserirResult(e:ResultEvent):void{
+				this.enabled = true;
+				if (tbnav.selectedIndex == 0){
+					txtid_chequerc.text = e.result.toString();
+				} else if (tbnav.selectedIndex == 1){
+//					txtid_forend.text = e.result.toString();
+				}
+				selecionar(e);
+			}
+			private function alterar(e:Event):void{
+				if (tbnav.selectedIndex == 0){
+					isValid = util.validateForm(form_chequea);
+					isValid = util.validateForm(form_chequeb) && isValid;
+					if (!isValid){
+						mensagem_cheque.text = UtilMensagens.PreenchaCampo;
+					} else {
+						this.enabled = false;
+						popular();
+						ro_chequerc.atualizar(bco_chequercVO,alterarResult,defaultFaultHandler);
+					}
+				} else if (tbnav.selectedIndex == 1){
+//					isValid = util.validateForm(form_enderecoa);
+//					isValid = util.validateForm(form_enderecob) && isValid;
+//					if (!isValid){
+//						mensagem_endereco.text = UtilMensagens.PreenchaCampo;
+//					} else {
+//						this.enabled = false;
+//						popular_endereco();
+//						ro_forend.atualizar(for_forendVO,alterarResult,defaultFaultHandler);
+//					}
+				}
+			}
+			private function alterarResult(e:ResultEvent):void{
+				this.enabled = true;
+				if (tbnav.selectedIndex == 0){
+					dg_cheque.dataProvider = e.result;
+				} else if (tbnav.selectedIndex == 1){
+//					dg_endereco.dataProvider = e.result;
+				}
+			}
+			private function deletar(e:Event):void{
+				if (tbnav.selectedIndex == 0){
+					isValid = util.validateForm(form_chequea);
+					isValid = util.validateForm(form_chequeb) && isValid;
+					if (!isValid){
+						mensagem_cheque.text = UtilMensagens.PreenchaCampo;
+					} else {
+						this.enabled = false;
+						popular();
+						ro_chequerc.deletar(bco_chequercVO,deletarResult,defaultFaultHandler);
+					}
+				} else if (tbnav.selectedIndex == 1){
+//					isValid = util.validateForm(form_enderecoa);
+//					isValid = util.validateForm(form_enderecob) && isValid;
+//					if (!isValid){
+//						mensagem_endereco.text = UtilMensagens.PreenchaCampo;
+//					} else {
+//						this.enabled = false;
+//						popular_endereco();
+//						ro_forend.deletar(for_forendVO,deletarResult,defaultFaultHandler);
+//					}
+				}
+			}
+			private function deletarResult(e:ResultEvent):void{
+				this.enabled = true;
+				if (tbnav.selectedIndex == 0){
+					dg_cheque.dataProvider = e.result;
+				} else if (tbnav.selectedIndex == 1){
+//					dg_endereco.dataProvider = e.result;
+				}
+				limpar(e);
+			}
+			private function popular():void{
+				if (tbnav.selectedIndex == 0){
+					bco_chequercVO = new Bco_ChequeRcVO;
+					
+					bco_chequercVO.id_chequerc = txtid_chequerc.text.length > 0 ? txtid_chequerc.text : null;
+					bco_chequercVO.id_alinea = txtid_alinea.txt_id.text.length > 0 ? txtid_alinea.txt_id.text : null;
+					bco_chequercVO.cdbanco = txtcdbanco.txt_id.text.length > 0 ? txtcdbanco.txt_id.text : null;
+					bco_chequercVO.nrchequerc = txtnrchequerc.text.length > 0 ? txtnrchequerc.text : null;
+					bco_chequercVO.cdagenciarc = txtcdagenciarc.text.length > 0 ? txtcdagenciarc.text : null;
+					bco_chequercVO.cdcontarc = txtcdcontarc.text.length > 0 ? txtcdcontarc.text : null;
+					bco_chequercVO.dt_emissao = txtdt_emissao.selectedDate ? txtdt_emissao.selectedDate : null;
+					bco_chequercVO.dt_vencto = txtdt_vencto.selectedDate ? txtdt_vencto.selectedDate : null;
+					bco_chequercVO.valor = txtvalor.text.length > 0 ? txtvalor.text : null;
+					
+				} else if (tbnav.selectedIndex == 1){
+				}
+				
+			}
+			private function limpar(e:Event):void{
+				if (tbnav.selectedIndex == 0){
+					util.limpar_formulario(form_chequea);
+					util.limpar_formulario(form_chequeb);
+					dg_cheque.dataProvider = null
+					mensagem_cheque.text = "";
+					mensagem_parcela.text = "";
+					
+				} else if (tbnav.selectedIndex == 1){
+					util.limpar_formulario(form_enderecoa);
+					util.limpar_formulario(form_enderecob);
+					dg_endereco.dataProvider = null;
+					mensagem_parcela.text = "";
+				}
+			}
+			private function setcampos(e:Event):void{
+				if (tbnav.selectedIndex == 0){
+					txtid_chequerc.text = dg_cheque.selectedItem.id_chequerc;
+					txtid_alinea.txt_id.text = dg_cheque.selectedItem.id_alinea;
+					txtcdbanco.txt_id.text = dg_cheque.selectedItem.cdbanco;
+					txtnrchequerc.text = dg_cheque.selectedItem.nrchequerc;
+					txtcdagenciarc.text = dg_cheque.selectedItem.cdagenciarc;
+					txtcdcontarc.text = dg_cheque.selectedItem.cdcontarc;
+					txtdt_emissao.selectedDate = dg_cheque.selectedItem.dt_emissao;
+					txtdt_vencto.selectedDate = dg_cheque.selectedItem.dt_vencto;
+					txtvalor.text = dg_cheque.selectedItem.valor;
+					
+					
+				} else if (tbnav.selectedIndex == 1){
+//					txtcomplemento_end.text = dg_endereco.selectedItem.complemento;
+//					txtbairro_end.text = dg_endereco.selectedItem.bairro;
+//					txtid_forend.text = dg_endereco.selectedItem.id_forend;
+//					txtcep_end.text = dg_endereco.selectedItem.cep;
+//					txtendereco_end.text = dg_endereco.selectedItem.endereco;
+//					txtid_cidade.txt_id.text = dg_endereco.selectedItem.id_cidade;
+//					var retorno:Object = util.selecionarArray(dg_endereco.selectedItem.id_cidade,"id_cidade",ArrayCidade);
+//					txtid_cidade.txt_nome.text = retorno.nmcidade;
+				}
+				
+			}
+			private function defaultFaultHandler(e:FaultEvent):void{
+				this.enabled = true;
+				retorno = new UtilRetornoBanco;
+				retorno.RetornoBanco(e);
+				
+				if (tbnav.selectedIndex == 0){
+					mensagem_cheque.text = "";
+				} else if (tbnav.selectedIndex == 1){
+					mensagem_parcela.text = "";
+				}
+			}
+
+		]]>
+	</mx:Script>
+     <mx:TabNavigator id="tbnav" width="100%" height="100%" change="tbcomplete(event)" creationPolicy="all">
+    		<mx:Canvas id="c_cheque" label="Cheque" width="100%" height="100%">
+    		<mx:VBox width="100%" height="100%">
+				<mx:Label width="100%" id="mensagem_cheque" text="" styleName="lblerro"/>
+				<mx:HBox width="100%">
+					<mx:Form id="form_chequea" width="50%" height="100%">
+						<mx:FormItem label="Id.:">
+							<mx:TextInput id="txtid_chequerc" width="82" editable="false"/>
+						</mx:FormItem>
+						<mx:FormItem label="Alinea:">
+							<skins:TextButtonText id="txtid_alinea" tabela="{UtilNamesPesquisa.bco_alinea}" titulo="Alinea"/>
+						</mx:FormItem>
+						<mx:FormItem label="Cd.Banco:" required="true">
+							<skins:TextButtonText id="txtcdbanco" tabela="bco_banco" titulo="Banco"/>
+						</mx:FormItem>
+						<mx:FormItem label="Nr.Cheque:" required="true">
+							<skins:TextInput_Maiusculo id="txtnrchequerc" />
+						</mx:FormItem>
+						<mx:FormItem label="Cd.Agencia:" required="true">
+							<skins:TextInput_Maiusculo id="txtcdagenciarc" />
+						</mx:FormItem>
+						<mx:FormItem label="Cd.Conta:" required="true">
+							<skins:TextInput_Maiusculo id="txtcdcontarc" />
+						</mx:FormItem>
+					</mx:Form>
+					<mx:Form id="form_chequeb" width="50%" height="100%">
+						<mx:FormItem label="C.N.P.J:">
+							<skins:TextInput_Cnpj id="txtcnpj"  />
+						</mx:FormItem>
+						<mx:FormItem label="C.P.F.:">
+							<skins:TextInput_Cpf id="txtcpf"/>
+						</mx:FormItem>
+						<mx:FormItem label="Dt. Emissão:" required="true">
+							<skins:DateField_Data id="txtdt_emissao"/>
+						</mx:FormItem>
+						<mx:FormItem label="Bom Para:" required="true">
+							<skins:DateField_Data id="txtdt_vencto"/>
+						</mx:FormItem>
+						<mx:FormItem label="Valor:" required="true">
+							<skins:TextInput_Maiusculo id="txtvalor" restrict="0-9\,"/>
+						</mx:FormItem>
+					</mx:Form>
+				</mx:HBox>
+				<mx:DataGrid width="100%" height="100%" id="dg_cheque" itemClick="setcampos(event)" focusEnabled="false">
+					<mx:columns>
+						<mx:DataGridColumn headerText="Id." width="60" dataField="id_chequerc"/>
+						<mx:DataGridColumn headerText="Cd.Banco" dataField="cdbanco"/>
+						<mx:DataGridColumn headerText="Nr.Cheque" dataField="nrchequerc"/>
+						<mx:DataGridColumn headerText="Dt. Emissão" dataField="dt_emissao" labelFunction="lf_dtemissao"/>
+						<mx:DataGridColumn headerText="Bom Para" dataField="dt_vencto" labelFunction="lf_dtvencto"/>
+						<mx:DataGridColumn headerText="Valor" visible="false" dataField="rg"/>
+					</mx:columns>
+				</mx:DataGrid>
+			</mx:VBox>
+	</mx:Canvas>
+	<mx:Canvas id="c_endereco" label="Vincular / Parcela" width="100%" height="100%" enabled="{txtid_chequerc.text.length > 0 ? true : false}">
+    	<mx:VBox width="100%" height="100%">
+			<mx:Label width="100%" id="mensagem_parcela" text="" styleName="lblerro"/>
+			<mx:HBox width="100%">
+				<mx:Form id="form_enderecoa" width="50%" height="100%">
+					<mx:FormItem label="Id.:">
+						<mx:TextInput id="txtid_forend" width="82" editable="false"/>
+					</mx:FormItem>
+					<mx:FormItem label="Endereço:" required="true">
+						<mx:TextInput id="txtendereco_end" />
+					</mx:FormItem>
+					<mx:FormItem label="CEP:" required="true">
+						<skins:TextInput_Cep id="txtcep_end" />
+					</mx:FormItem>
+				</mx:Form>
+				<mx:Form id="form_enderecob" width="50%" height="100%">
+					<mx:FormItem label="Bairro:" required="true">
+						<mx:TextInput id="txtbairro_end" />
+					</mx:FormItem>
+					<mx:FormItem label="Cidade:" required="true">
+						<skins:TextButtonText id="txtid_cidade" titulo="Cidade" tabela="{UtilNamesPesquisa.adm_cidade}"
+											   />
+					</mx:FormItem>
+					<mx:FormItem label="Complemento:">
+						<skins:TextInput_Maiusculo id="txtcomplemento_end"/>
+					</mx:FormItem>
+				</mx:Form>
+			</mx:HBox>
+			<mx:DataGrid width="100%" height="100%" id="dg_endereco" itemClick="setcampos(event)" focusEnabled="false">
+				<mx:columns>
+					<mx:DataGridColumn headerText="Id." width="60" dataField="id_forend"/>
+					<mx:DataGridColumn headerText="Endereço" dataField="endereco"/>
+					<mx:DataGridColumn headerText="Bairro" dataField="bairro"/>
+					<mx:DataGridColumn headerText="CEP" dataField="cep"/>
+				</mx:columns>
+			</mx:DataGrid>	
+		</mx:VBox>
+	</mx:Canvas>
+</mx:TabNavigator>
+<skins:CtrlBar_Buttons id="ctrlbar"/>
+</MDIWindow>

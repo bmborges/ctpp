@@ -1,0 +1,238 @@
+<?xml version="1.0" encoding="utf-8"?>
+<MDIWindow resizable="false" 
+	xmlns="flexmdi.containers.*" xmlns:mx="http://www.adobe.com/2006/mxml" 
+	width="686" height="369" title="Cadastro Materia" creationComplete="init()" 
+	layout="absolute" horizontalAlign="center" xmlns:skins="skins.*"
+	xmlns:local="*">
+	<mx:Script>
+		<![CDATA[
+			import classes.Util;
+			
+			import vo.adm.SystemVO;
+			
+			import classes.UtilMensagens;
+			import classes.UtilRetornoBanco;
+			
+			import mx.collections.ArrayCollection;
+			import mx.core.FlexGlobals;
+			import mx.events.IndexChangedEvent;
+			import mx.rpc.events.FaultEvent;
+			import mx.rpc.events.ResultEvent;
+			
+			import service.crs.Crs_MateriaService;
+			
+			import vo.crs.Crs_MateriaVO;
+			
+			[Bindable] private var isValid:Boolean = false;
+			private var util:Util = new Util();
+			private var retorno:UtilRetornoBanco;
+			private var ro_materia:Crs_MateriaService = Crs_MateriaService.getInstance();
+			private var dados_materia:Crs_MateriaVO;
+			private var systemvo:SystemVO = SystemVO.getInstance();
+			
+			private function init():void{
+				
+				
+				this.width = FlexGlobals.topLevelApplication.mdiCanvas.width;
+				this.height = FlexGlobals.topLevelApplication.mdiCanvas.height;
+				
+				this.x = 0;
+				this.y = 0;
+				
+				
+				util.limpar_formulario(form);
+				
+				//seta eventos
+				ctrlbar.bt_pesquisar.addEventListener(MouseEvent.CLICK,selecionar);
+				ctrlbar.bt_inserir.addEventListener(MouseEvent.CLICK,inserir);
+				ctrlbar.bt_alterar.addEventListener(MouseEvent.CLICK,alterar);
+				ctrlbar.bt_excluir.addEventListener(MouseEvent.CLICK,deletar);
+				ctrlbar.bt_limpar.addEventListener(MouseEvent.CLICK,limpar);
+				ctrlbar.bt_imprime.addEventListener(MouseEvent.CLICK,imprime);
+				
+				ctrlbar.addChildAt(ctrlbar.bt_pesquisar,0);
+				ctrlbar.addChildAt(ctrlbar.bt_inserir,1);
+				ctrlbar.addChildAt(ctrlbar.bt_alterar,2);
+				ctrlbar.addChildAt(ctrlbar.bt_excluir,3);
+				ctrlbar.addChildAt(ctrlbar.bt_limpar,4);
+			}
+			private function accordioncomplete(e:IndexChangedEvent):void{
+				var currentIndex:int=e.newIndex;
+				this.title = "Cadastro Materia";
+				ctrlbar.removeAllChildren();
+				if (currentIndex == 1){
+					this.title = "Matéria: " + txt_nmmateria.text;
+					limpar(e);
+					selecionar(e);
+					ctrlbar.addChildAt(ctrlbar.bt_alterar,0);
+					ctrlbar.addChildAt(ctrlbar.bt_imprime,1);
+				} else {
+					ctrlbar.addChildAt(ctrlbar.bt_pesquisar,0);
+					ctrlbar.addChildAt(ctrlbar.bt_inserir,1);
+					ctrlbar.addChildAt(ctrlbar.bt_alterar,2);
+					ctrlbar.addChildAt(ctrlbar.bt_excluir,3);
+					ctrlbar.addChildAt(ctrlbar.bt_limpar,4);
+				}
+			}			
+			
+			private function create_DataGrid(e:ResultEvent):void{
+				this.enabled = true;
+				dg_materia.dataProvider = e.result;
+			}
+			
+			private function selecionar(e:Event):void{
+				this.enabled = false;
+				if (tb_navigator.selectedIndex == 1){
+					this.enabled = true;
+					txt_ementa.text = dg_materia.selectedItem.ementa;
+				} else {
+					popular_materia();
+					ro_materia.select(dados_materia,create_DataGrid,defaultFaultHandler,null,null);
+				}
+			}
+			
+			private function inserir(e:Event):void{
+				isValid = util.validateForm(form);
+				if (!isValid){
+					mensagem.text = UtilMensagens.PreenchaCampo;
+				} else {
+					this.enabled = false;
+					popular_materia();
+					ro_materia.inserir(dados_materia,inserirResult,defaultFaultHandler);
+				}
+			}
+			
+			private function inserirResult(e:ResultEvent):void{
+				txt_id_materia.text = e.result.toString();
+				selecionar(e);
+			}
+			
+			private function alterar(e:Event):void{
+				if (tb_navigator.selectedIndex == 1){
+					isValid = util.validateForm(form_ea);
+					if (!isValid){
+						mensagem_ementa.text = UtilMensagens.PreenchaCampo;
+					} else {
+						this.enabled = false;
+						popular_materia();
+						dados_materia.ementa = txt_ementa.text;
+						ro_materia.atualizar(dados_materia,alterarResult,defaultFaultHandler);
+					}
+				} else {
+					isValid = util.validateForm(form);
+					if (!isValid){
+						mensagem.text = UtilMensagens.PreenchaCampo;
+					} else {
+						this.enabled = false;
+						popular_materia();
+						ro_materia.atualizar(dados_materia,alterarResult,defaultFaultHandler);
+					}
+				}
+			}
+			private function alterarResult(e:ResultEvent):void{
+				this.enabled = true;
+				dg_materia.dataProvider = e.result;
+			}
+			private function deletar(e:Event):void{
+				isValid = util.validateForm(form);
+				if (!isValid){
+					mensagem.text = UtilMensagens.PreenchaCampo;
+				} else {
+					this.enabled = false;
+					popular_materia();
+					ro_materia.deletar(dados_materia,deletarResult,defaultFaultHandler);
+				}				
+			}
+			private function deletarResult(e:ResultEvent):void{
+				this.enabled = true;
+				dg_materia.dataProvider = e.result;
+				limpar(e);	
+			}
+			private function limpar(e:Event):void{
+				if (tb_navigator.selectedIndex == 1){
+					mensagem_ementa.text = "";
+				} else {
+					mensagem.text = "";
+					util.limpar_formulario(form);
+					dg_materia.dataProvider = null;
+				}
+			}
+			private function setcampos(e:Event):void{
+				txt_id_materia.text = dg_materia.selectedItem.id_materia;
+				txt_nmmateria.text = dg_materia.selectedItem.nmmateria;
+				txt_abreviatura.text = dg_materia.selectedItem.abreviatura;
+			}
+			
+			private function popular_materia():void{
+				dados_materia = new Crs_MateriaVO();
+				dados_materia.id_materia = txt_id_materia.text.length <= 0 ? null : parseInt(txt_id_materia.text);
+				dados_materia.nmmateria = txt_nmmateria.text.length <= 0 ? null : txt_nmmateria.text.toUpperCase();
+				dados_materia.abreviatura = txt_abreviatura.text.length  <= 0 ? null : txt_abreviatura.text.toUpperCase();
+			}
+			private function defaultFaultHandler(e:FaultEvent):void{
+				this.enabled = true;
+				retorno = new UtilRetornoBanco;
+				retorno.RetornoBanco(e);
+				mensagem.text = "";
+				
+			} 
+			public function imprime(e:Event):void{
+				
+				isValid = util.validateForm(form_ea);
+				if (!isValid){
+					mensagem_ementa.text = UtilMensagens.PreenchaCampo;
+				} else {
+					this.enabled = false;
+					mensagem.text = UtilMensagens.RelatorioGerando;
+					var obj:Object = new Object();
+					obj.p_idmateriaini = txt_id_materia.text;
+					obj.p_idmateriafin = txt_id_materia.text;
+					obj.nmoperador = systemvo.nickname;
+					ro_materia.Report(obj,"PDF","Rpt_MateriaEmenta","pdg",imprimeResult,defaultFaultHandler);	
+				}
+			}
+			public function imprimeResult(e:ResultEvent):void{
+				this.enabled = true;
+				mensagem.text = UtilMensagens.RelatorioGerado;
+				util.abrepdf(e.result[0]['destinationUrl']);
+			}
+			
+		]]>
+	</mx:Script>
+<mx:TabNavigator id="tb_navigator" width="100%" height="100%" change="accordioncomplete(event)" creationPolicy="all">
+<mx:Canvas  label="Matéria" width="100%" height="100%">
+		<mx:VBox width="100%" height="100%">
+    			<mx:Label width="100%" id="mensagem" styleName="lblerro"/>
+			<mx:Form id="form" width="100%" paddingTop="0" paddingBottom="0">
+				<mx:FormItem label="Id.:">
+					<mx:TextInput id="txt_id_materia" width="77" editable="false"/>
+				</mx:FormItem>
+				<mx:FormItem label="Materia:" required="true">
+					<skins:TextInput_Maiusculo id="txt_nmmateria" width="276"/>
+				</mx:FormItem>
+				<mx:FormItem label="Abreviação:">
+					<skins:TextInput_Maiusculo id="txt_abreviatura" width="276"/>
+				</mx:FormItem>
+			</mx:Form>
+			<mx:DataGrid  width="100%" height="100%" id="dg_materia" itemClick="setcampos(event)">
+				<mx:columns>
+					<mx:DataGridColumn headerText="Id." dataField="id_materia" width="100"/>
+					<mx:DataGridColumn headerText="Materia" dataField="nmmateria"/>
+					<mx:DataGridColumn headerText="Abreviação" dataField="abreviatura"/>
+				</mx:columns>
+			</mx:DataGrid>
+		</mx:VBox>
+</mx:Canvas>
+<mx:Canvas label="Ementa" width="100%" height="100%"  enabled="{txt_id_materia.text.length > 0 ? true : false}">
+	<mx:VBox width="100%" height="100%">
+		<mx:Label width="100%" id="mensagem_ementa" styleName="lblerro"/>
+		<mx:Form id="form_ea" width="100%" height="100%" paddingTop="0" paddingBottom="0">
+			<mx:FormItem label="Texto Ementa:"  width="100%" height="100%" required="true">
+				<mx:TextArea id="txt_ementa"  width="100%" height="100%"/>
+			</mx:FormItem>
+		</mx:Form>
+	</mx:VBox>
+</mx:Canvas>
+</mx:TabNavigator>
+<skins:CtrlBar_Buttons id="ctrlbar"/>		
+</MDIWindow>

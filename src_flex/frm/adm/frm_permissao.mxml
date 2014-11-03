@@ -1,0 +1,190 @@
+<?xml version="1.0" encoding="utf-8"?>
+<MDIWindow xmlns="flexmdi.containers.*" xmlns:mx="http://www.adobe.com/2006/mxml" width="534" height="398" 
+	creationComplete="init()" title="Permissão" xmlns:skins="skins.*">
+<mx:Script>
+	<![CDATA[
+		import classes.*;
+		
+		import flash.events.Event;
+		import flash.events.MouseEvent;
+		
+		import frm.frm_pesquisar;
+		
+		import mx.collections.*;
+		import mx.controls.Alert;
+		import mx.core.FlexGlobals;
+		import mx.events.ListEvent;
+		import mx.managers.PopUpManager;
+		import mx.rpc.events.FaultEvent;
+		import mx.rpc.events.ResultEvent;
+		import mx.validators.Validator;
+		
+		import service.adm.Adm_PermissaoService;
+		import service.procedure.Adm_PermissaoAutoService;
+		
+		import vo.adm.Adm_operadorVO;
+		import vo.procedure.Adm_PermissaoAutoVO;
+		
+		[Bindable] private var permissaoXML:XML;
+		[Bindable] private var consulta:String;
+		[Bindable] private var p_id:int;
+		[Bindable] private var p_idoperador:int;
+		[Bindable] private var p_operacao:int;
+		[Bindable] private var isValid:Boolean = false;
+		[Bindable] private var adm_operadorVO:Adm_operadorVO;
+		private var adm_permissaoautoVO:Adm_PermissaoAutoVO;
+		private var util:Util = new Util();
+		private var pesquisatitlewindow:frm_pesquisar;
+		private var ro_permissao:Adm_PermissaoService = Adm_PermissaoService.getInstance();
+		private var ro_permissaoauto:Adm_PermissaoAutoService = Adm_PermissaoAutoService.getInstance();
+		private var retorno:UtilRetornoBanco;
+
+		
+		
+		private function init():void{
+			
+			this.width = FlexGlobals.topLevelApplication.mdiCanvas.width;
+			this.height = FlexGlobals.topLevelApplication.mdiCanvas.height;
+			
+			this.x = 0;
+			this.y = 0;
+			
+			
+			bt_pesquisar.addEventListener(MouseEvent.CLICK,selecionar);
+			bt_inserirtodas.addEventListener(MouseEvent.CLICK,inserirtodas);
+			bt_deletartodas.addEventListener(MouseEvent.CLICK,deletartodas);
+			bt_limpar.addEventListener(MouseEvent.CLICK,limpar);
+			
+			//	txtid_admoperador.text = "0";
+			//	var e:Event;
+			//	selecionar(e);
+			//	txtid_admoperador.text = null;
+		}
+		private function inserirtodas(e:Event):void{
+			isValid = util.validateForm(form_a);
+			if (!isValid){
+				mensagem.text = UtilMensagens.PreenchaCampo;
+			} else {
+				popular_operador();
+				adm_permissaoautoVO = new Adm_PermissaoAutoVO;
+				adm_permissaoautoVO.id_operador = txtid_admoperador.txt_id.text;
+				
+				ro_permissaoauto.Procedure(adm_permissaoautoVO,permissaoautoResult,defaultFaultHandler);
+			}
+		}
+		private function permissaoautoResult(e:ResultEvent):void {
+		}
+		private function deletartodas(e:Event):void{
+			isValid = util.validateForm(form_a);
+			if (!isValid){
+				mensagem.text = UtilMensagens.PreenchaCampo;
+			} else {
+				popular_operador();
+				ro_permissao.deletar_todas(adm_operadorVO,resulttree);
+			}
+		}
+		
+		private function selecionar(e:Event):void{
+			isValid = util.validateForm(form_a);
+			if (!isValid){
+				mensagem.text = UtilMensagens.PreenchaCampo;
+			} else {
+				popular_operador();
+				ro_permissao.tree_permissao(adm_operadorVO,resulttree);
+			}
+		}
+		public function resulttree(event:ResultEvent):void{
+			mensagem.text = UtilMensagens.OperacaoRealizadaSucesso;
+			permissaoXML = new XML(event.result.toString());
+		}
+		private function popular_operador():void{
+			adm_operadorVO = new Adm_operadorVO();
+			adm_operadorVO.id_operador = txtid_admoperador.txt_id.text;
+		}
+		
+		private function tree_labelFunc(item:Object):String {
+			var suffix:String = "";
+			if (trPermissions.dataDescriptor.isBranch(item)) {
+				suffix = " (" + item.children().length() + ")";
+			}
+			return item.@label + suffix;
+		}
+		private function limpar(e:Event):void{
+			//	txtid_admoperador.text = "0";
+			//	selecionar(e);
+			util.limpar_formulario(form_a);
+			mensagem.text = null;
+			permissaoXML = null;
+		}
+		private function handleChkClick(event:Event):void{
+			var xId:int = event.currentTarget.selectedItem.@pId;
+			var xchecked:int = event.currentTarget.selectedItem.@checked;
+			if (xchecked == 0 && xId > 0){
+				p_id = xId;
+				p_idoperador = int(txtid_admoperador.txt_id.text);
+				p_operacao = 0;
+				permissaoXML.descendants().(@pId== xId).@checked = "1";
+			} else {
+				p_id = xId;
+				p_idoperador = int(txtid_admoperador.txt_id.text);
+				p_operacao = 1;
+				permissaoXML.descendants().(@pId== xId).@checked = "0";
+			}
+			//Alert.show(p_id+ " "+p_idoperador+" "+p_operacao);
+			ro_permissao.adm_permissao(p_id,p_idoperador,p_operacao,PermissaoResult);
+			//	gateway_statement.adm_permissao();
+		}
+		private function PermissaoResult(e:ResultEvent):void{
+		}
+		
+		private function tree_itemDoubleClick(evt:ListEvent):void {
+			var node:XML = trPermissions.selectedItem as XML;
+			var isOpen:Boolean = trPermissions.isItemOpen(node);
+			trPermissions.expandItem(node, !isOpen);
+		}
+		private function defaultFaultHandler(e:FaultEvent):void{
+			this.enabled = true;
+			mensagem.text = "";
+			retorno = new UtilRetornoBanco;
+			retorno.RetornoBanco(e);
+		}		
+
+	]]>
+</mx:Script>	
+	<mx:Canvas width="100%" height="100%">
+	<mx:VBox width="100%" height="100%">
+	<mx:Label width="100%" id="mensagem" text="" styleName="lblerro"/>
+	<mx:HBox width="100%" height="10%">
+    				<mx:Form id="form_a" width="100%" height="100%">
+    					<mx:FormItem label="Id. Operador" required="true" direction="horizontal" width="100%">
+							<skins:TextButtonText1 id="txtid_admoperador" tabela="adm_operador"/>
+							<!--<skins:TextButtonText id="txtid_admoperador" tabela="{UtilNamesPesquisa.adm_operador}" titulo="Operador" />-->
+    					</mx:FormItem>
+    				</mx:Form>
+    			</mx:HBox>
+    <mx:HBox width="100%" height="10%">
+    	<mx:Label text="Itens do Menu" width="100%" textAlign="center" fontSize="12"/>
+    </mx:HBox>
+    <mx:HBox width="100%" height="100%">
+    	<mx:Tree id="trPermissions" dataProvider="{permissaoXML}" click="handleChkClick(event);"
+			itemRenderer="PermissionsTreeItemRendererV2"
+			itemDoubleClick="tree_itemDoubleClick(event);"
+			doubleClickEnabled="true"
+			showRoot="false"
+			labelField="@pName"
+		 	dataTipField="@pId"
+			borderStyle="none"
+			verticalScrollPolicy="auto"
+			width="100%" height="100%"/>
+		
+    </mx:HBox>
+    </mx:VBox>
+	</mx:Canvas>
+<mx:ControlBar width="100%" horizontalAlign="center" id="ctrlbar">
+    <mx:Button id="bt_pesquisar" label="Pesquisar" styleName="searchButton"/>
+    <mx:Button id="bt_limpar" label="Limpar" styleName="searchButton"/>
+	<mx:Button id="bt_inserirtodas" label="Inserir Todas" styleName="searchButton"/>
+	<mx:Button id="bt_deletartodas" label="Deletar Todas" styleName="searchButton"/>
+</mx:ControlBar>
+
+</MDIWindow>

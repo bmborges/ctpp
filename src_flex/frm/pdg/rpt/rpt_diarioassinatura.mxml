@@ -1,0 +1,128 @@
+<?xml version="1.0" encoding="utf-8"?>
+<MDIWindow xmlns="flexmdi.containers.*" xmlns:mx="http://www.adobe.com/2006/mxml" width="500" height="276" 
+	creationComplete="init()" title="Diário Assinatura" xmlns:skins="skins.*">
+	<mx:Script>
+		<![CDATA[
+			import classes.Util;
+			import classes.UtilMensagens;
+			import classes.UtilNamesPesquisa;
+			import classes.UtilRetornoBanco;
+			
+			import frm.frm_pesquisar;
+			
+			import mx.managers.PopUpManager;
+			import mx.rpc.events.FaultEvent;
+			import mx.rpc.events.ResultEvent;
+			
+			import service.ReportService;
+			import service.pdg.Pdg_DiarioService;
+			
+			import vo.adm.SystemVO;
+			
+			[Bindable] private var isValid:Boolean = false;
+			[Bindable] private var reportUrl:String;
+			public var util:Util = new Util();
+			private var pesquisatitlewindow:frm_pesquisar;
+			private var ro_diario:Pdg_DiarioService = Pdg_DiarioService.getInstance();
+			private var ro_report:ReportService = ReportService.getInstance();
+			private var systemvo:SystemVO = SystemVO.getInstance();
+			private var retorno:UtilRetornoBanco;
+			public function init():void{
+			}
+			
+			public function imprime():void{
+				
+				isValid = util.validateForm(form);
+				if (!isValid){
+					mensagem.text = UtilMensagens.PreenchaCampo;
+				} else {
+					this.enabled = false;
+					mensagem.text = UtilMensagens.RelatorioGerando;
+					
+					var map:Object = new Object();
+					map.p_iddiarioini = parseInt(p_iddiarioini.text);
+					map.p_iddiariofin = parseInt(p_iddiariofin.text);
+					map.p_idoperadorini = parseInt(p_idoperadorini.text);
+					map.p_idoperadorfin = parseInt(p_idoperadorfin.text);
+					map.nmoperador = systemvo.nickname;
+					ro_report.Report(map,"PDF","Rpt_DiarioAssinatura","pdg",imprimeResult,defaultFaultHandler);
+				}
+			}
+			public function imprimeResult(e:ResultEvent):void{
+				this.enabled = true;
+				mensagem.text = UtilMensagens.RelatorioGerado;
+				util.abrepdf(e.result[0]['destinationUrl']);
+			}
+			private function defaultFaultHandler(e:FaultEvent):void{
+				this.enabled = true;
+				mensagem.text = "";
+				retorno = new UtilRetornoBanco;
+				retorno.RetornoBanco(e);
+			}
+			
+			// abre pop up pesquisa                
+			private function openpesquisa(tablename:String,title:String,c:TextInput,r:TextInput):void{
+				
+				pesquisatitlewindow = PopUpManager.createPopUp(this,frm_pesquisar,true) as frm_pesquisar;
+				PopUpManager.centerPopUp(pesquisatitlewindow);
+				
+				pesquisatitlewindow.title = "Pesquisa " + title;
+				pesquisatitlewindow.tablename = tablename;
+				
+				pesquisatitlewindow["list_data_grid"].addEventListener(MouseEvent.DOUBLE_CLICK,closePopUpWindow(tablename,c,r));
+				
+			}
+			private function closePopUpWindow(tablename:String,c:TextInput,r:TextInput):Function {
+				return function(evt:MouseEvent):void{
+					if (tablename == UtilNamesPesquisa.pdg_diario){
+						c.text = String(pesquisatitlewindow.list_data_grid.selectedItem.id_diario);
+						r.text = String(pesquisatitlewindow.list_data_grid.selectedItem.nmmateria);
+					}
+					if (tablename == UtilNamesPesquisa.adm_operador){
+						c.text = String(pesquisatitlewindow.list_data_grid.selectedItem.id_operador);
+						r.text = String(pesquisatitlewindow.list_data_grid.selectedItem.nmoperador);
+					}
+					
+					PopUpManager.removePopUp(pesquisatitlewindow);
+				}
+			}
+			
+			private function limpar():void{
+				util.limpar_formulario(form);
+				mensagem.text = '';
+			}
+		]]>
+	</mx:Script>
+	<mx:VBox width="100%" height="100%">
+	<mx:Label width="100%" id="mensagem" text="" styleName="lblerro"/>
+	<mx:HBox width="100%" height="10%">
+					<mx:Form id="form" width="100%" height="100%">
+						<mx:FormItem label="Diário Inicial:" direction="horizontal" required="true">
+							<mx:TextInput id="p_iddiarioini"  width="89" />
+							<mx:Button width="30" styleName="btpesquisa" click="{openpesquisa(UtilNamesPesquisa.pdg_diario,'Diário',p_iddiarioini,txtnmdiarioini)}"/>
+							<mx:TextInput id="txtnmdiarioini" editable="false" width="100%"/>
+						</mx:FormItem>
+						<mx:FormItem label="Diário Final:" direction="horizontal" required="true">
+							<mx:TextInput id="p_iddiariofin"  width="89" />
+							<mx:Button width="30" styleName="btpesquisa" click="{openpesquisa(UtilNamesPesquisa.pdg_diario,'Diário',p_iddiariofin,txtnmdiariofin)}"/>
+							<mx:TextInput id="txtnmdiariofin" editable="false" width="100%"/>
+						</mx:FormItem>
+						<mx:FormItem label="Operador Inicial:" direction="horizontal">
+							<mx:TextInput id="p_idoperadorini"  width="89" />
+							<mx:Button width="30" styleName="btpesquisa" click="{openpesquisa(UtilNamesPesquisa.adm_operador,'Operador',p_idoperadorini,txtnmoperadorini)}"/>
+							<mx:TextInput id="txtnmoperadorini" editable="false" width="100%"/>
+						</mx:FormItem>
+						<mx:FormItem label="Operador Final:" direction="horizontal">
+							<mx:TextInput id="p_idoperadorfin"  width="89" />
+							<mx:Button width="30" styleName="btpesquisa" click="{openpesquisa(UtilNamesPesquisa.adm_operador,'Operador',p_idoperadorfin,txtnmoperadorfin)}"/>
+							<mx:TextInput id="txtnmoperadorfin" editable="false" width="100%"/>
+						</mx:FormItem>
+					</mx:Form>
+				</mx:HBox>
+
+	</mx:VBox>
+<mx:ControlBar width="100%" horizontalAlign="center" id="ctrlbar">
+    <mx:Button id="bt_imprimir" label="Imprimir" click="{imprime()}" styleName="clearButton"/>
+    <mx:Button id="bt_limpar" label="Limpar" click="limpar()" styleName="searchButton"/>
+</mx:ControlBar>
+</MDIWindow>

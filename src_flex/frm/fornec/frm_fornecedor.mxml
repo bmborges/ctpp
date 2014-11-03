@@ -1,0 +1,767 @@
+<?xml version="1.0" encoding="utf-8"?>
+<MDIWindow xmlns="flexmdi.containers.*"
+		   xmlns:mx="http://www.adobe.com/2006/mxml"
+		   xmlns:s="library://ns.adobe.com/flex/spark"
+		   xmlns:skins="skins.*"
+		   width="846" height="514" creationComplete="init()"
+		   title="Cadastro Fornecedor">
+	
+	<mx:Script>
+		<![CDATA[
+			import classes.*;
+			
+			import mx.core.FlexGlobals;
+			
+			import flash.events.Event;
+			import flash.events.FocusEvent;
+			import flash.events.KeyboardEvent;
+			import flash.events.MouseEvent;
+			
+			import mx.collections.ArrayCollection;
+			import mx.controls.Alert;
+			import mx.controls.Button;
+			import mx.controls.Text;
+			import mx.controls.dataGridClasses.DataGridColumn;
+			import mx.events.CloseEvent;
+			import mx.events.IndexChangedEvent;
+			import mx.events.ItemClickEvent;
+			import mx.events.ListEvent;
+			import mx.rpc.events.FaultEvent;
+			import mx.rpc.events.ResultEvent;
+			import mx.validators.EmailValidator;
+			import mx.validators.Validator;
+			
+			import service.ComboBoxService;
+			import service.adm.Adm_CidadeService;
+			import service.adm.Adm_EstadoService;
+			import service.fornec.For_ContatoService;
+			import service.fornec.For_ForEmailService;
+			import service.fornec.For_ForEndService;
+			import service.fornec.For_ForTelService;
+			import service.fornec.For_FornecedorService;
+			
+			import vo.adm.Adm_CidadeVO;
+			import vo.adm.Adm_EstadoVO;
+			import vo.fornec.For_ContatoVO;
+			import vo.fornec.For_ForEmailVO;
+			import vo.fornec.For_ForEndVO;
+			import vo.fornec.For_ForTelVO;
+			import vo.fornec.For_FornecedorVO;
+			
+			[Bindable] private var ArrayTipoTel:ArrayCollection;
+			[Bindable] private var ArrayCidade:ArrayCollection;
+			[Bindable] private var ArrayEstado:ArrayCollection;
+			[Bindable] private var isValid:Boolean = false;
+			
+			private var util:Util = new Util();
+			private var retorno:UtilRetornoBanco;
+			
+			private var ro_fornecedor:For_FornecedorService = For_FornecedorService.getInstance();
+			private var ro_forend:For_ForEndService = For_ForEndService.getInstance();
+			private var ro_foremail:For_ForEmailService = For_ForEmailService.getInstance();
+			private var ro_fortel:For_ForTelService = For_ForTelService.getInstance();
+			private var ro_cidade:Adm_CidadeService = Adm_CidadeService.getInstance();
+			private var ro_estado:Adm_EstadoService = Adm_EstadoService.getInstance();
+			private var ro_forcontato:For_ContatoService = For_ContatoService.getInstance();
+			
+			private var adm_cidadeVO:Adm_CidadeVO;
+			private var adm_estadoVO:Adm_EstadoVO;
+			private var for_fornecedorVO:For_FornecedorVO;
+			private var for_forendVO:For_ForEndVO;
+			private var for_foremailVO:For_ForEmailVO;
+			private var for_fortelVO:For_ForTelVO;
+			private var for_contatoVO:For_ContatoVO;
+			
+			private function initButtons():void{
+				ctrlbar.removeAllChildren();
+				
+				if (tbnav.selectedIndex == 0){
+					ctrlbar.addChildAt(ctrlbar.bt_pesquisar,0);
+					ctrlbar.addChildAt(ctrlbar.bt_inserir,1);
+					ctrlbar.addChildAt(ctrlbar.bt_alterar,2);
+					ctrlbar.addChildAt(ctrlbar.bt_excluir,3);
+					ctrlbar.addChildAt(ctrlbar.bt_limpar,4);
+					
+				} else if (tbnav.selectedIndex == 1){
+					ctrlbar.addChildAt(ctrlbar.bt_pesquisar,0);
+					ctrlbar.addChildAt(ctrlbar.bt_inserir,1);
+					ctrlbar.addChildAt(ctrlbar.bt_alterar,2);
+					ctrlbar.addChildAt(ctrlbar.bt_excluir,3);
+					ctrlbar.addChildAt(ctrlbar.bt_limpar,4);
+				} else if (tbnav.selectedIndex == 2){
+					ctrlbar.addChildAt(ctrlbar.bt_pesquisar,0);
+					ctrlbar.addChildAt(ctrlbar.bt_inserir,1);
+					ctrlbar.addChildAt(ctrlbar.bt_alterar,2);
+					ctrlbar.addChildAt(ctrlbar.bt_excluir,3);
+					ctrlbar.addChildAt(ctrlbar.bt_limpar,4);
+					
+				} else if (tbnav.selectedIndex == 3){
+					ctrlbar.addChildAt(ctrlbar.bt_pesquisar,0);
+					ctrlbar.addChildAt(ctrlbar.bt_inserir,1);
+					ctrlbar.addChildAt(ctrlbar.bt_alterar,2);
+					ctrlbar.addChildAt(ctrlbar.bt_excluir,3);
+					ctrlbar.addChildAt(ctrlbar.bt_limpar,4);
+					
+				}  else if (tbnav.selectedIndex == 4){
+					ctrlbar.addChildAt(ctrlbar.bt_pesquisar,0);
+					ctrlbar.addChildAt(ctrlbar.bt_inserir,1);
+					ctrlbar.addChildAt(ctrlbar.bt_alterar,2);
+					ctrlbar.addChildAt(ctrlbar.bt_excluir,3);
+					ctrlbar.addChildAt(ctrlbar.bt_limpar,4);
+				}
+				
+			}
+			
+			private function init():void{
+				
+				this.width = FlexGlobals.topLevelApplication.mdiCanvas.width;
+				this.height = FlexGlobals.topLevelApplication.mdiCanvas.height;
+				
+				this.x = 0;
+				this.y = 0;				
+				
+				initButtons();
+				
+				adm_cidadeVO = new Adm_CidadeVO();
+				ro_cidade.select(adm_cidadeVO,createArrayCidade,defaultFaultHandler);
+				
+				adm_estadoVO = new Adm_EstadoVO();
+				ro_estado.select(adm_estadoVO,createArrayEstado,defaultFaultHandler);
+				
+				ctrlbar.bt_pesquisar.addEventListener(MouseEvent.CLICK,selecionar);
+				ctrlbar.bt_inserir.addEventListener(MouseEvent.CLICK,inserir);
+				ctrlbar.bt_alterar.addEventListener(MouseEvent.CLICK,alterar);
+				ctrlbar.bt_excluir.addEventListener(MouseEvent.CLICK,deletar);
+				ctrlbar.bt_limpar.addEventListener(MouseEvent.CLICK,limpar);
+				
+				txtcpf.addEventListener(FocusEvent.FOCUS_OUT,localizaCPF);
+				txtcnpj.addEventListener(FocusEvent.FOCUS_OUT,localizaCNPJ);
+				
+				//	txtdt_cadastro.text = util.dthoje();
+				//	var date_ar:Array = txtdt_cadastro.text.split("/");
+				//	txtdt_cadastro.selectedDate = new Date(date_ar[2], date_ar[1]-1, date_ar[0]);
+				
+				
+			}
+			private function createArrayCidade(e:ResultEvent):void{
+				ArrayCidade = e.result as ArrayCollection;
+			}
+			private function createArrayEstado(e:ResultEvent):void{
+				ArrayEstado = e.result as ArrayCollection;
+			}
+			private function criauser(e:Event):void{
+				
+			}
+			private function localizaCPF(e:Event):void{
+				if(txtcpf.text.length == 14){
+					for_fornecedorVO = new For_FornecedorVO();
+					for_fornecedorVO.cpf = txtcpf.text;
+					
+					ro_fornecedor.select(for_fornecedorVO,localizaCPFResult,defaultFaultHandler);
+				}
+				
+			}
+			private function localizaCPFResult(e:ResultEvent):void{
+				if(int(e.result[0]['id_fornecedor']) > 0){
+					Alert.yesLabel='Sim';
+					Alert.noLabel='Não';
+					Alert.show('C.P.F. Já cadastrado deseja consultar ?','C.P.F. Já Cadastrado',Alert.YES|Alert.NO,this,confirmLocaliza(int(e.result[0]['id_fornecedor'])));
+				}
+			}
+			private function localizaCNPJ(e:Event):void{
+				if(txtcnpj.text.length == 18){
+					for_fornecedorVO = new For_FornecedorVO();
+					for_fornecedorVO.cnpj = txtcnpj.text;
+					
+					ro_fornecedor.select(for_fornecedorVO,localizaCNPJResult,defaultFaultHandler);
+				}
+			}
+			private function localizaCNPJResult(e:ResultEvent):void{
+				if(int(e.result[0]['id_fornecedor']) > 0){
+					Alert.yesLabel='Sim';
+					Alert.noLabel='Não';
+					Alert.show('C.N.P.J. Já cadastrado deseja consultar ?','C.N.P.J. Já Cadastrado',Alert.YES|Alert.NO,this,confirmLocaliza(int(e.result[0]['id_fornecedor'])));
+				}
+			}
+			private function confirmLocaliza(id_fornecedor:int):Function{
+				return function(e:CloseEvent):void{
+					if (e.detail == Alert.YES){
+						limpar(e);
+						
+						for_fornecedorVO = new For_FornecedorVO();
+						for_fornecedorVO.id_fornecedor = id_fornecedor;
+						
+						ro_fornecedor.select(for_fornecedorVO,createDataGrid,defaultFaultHandler);
+					}
+				}
+			}
+			private function tbcomplete(event:IndexChangedEvent):void{
+				this.title = "Cadastro Fornecedor";
+				var currentIndex:int=event.newIndex;
+				if (currentIndex == 0){
+					initButtons();
+					ctrlbar.enabled = true;
+				}else if (currentIndex == 1){
+					this.title = "Fornecedor: " + txtnmfornecedor.text;
+					util.limpar_formulario(form_enderecoa);
+					util.limpar_formulario(form_enderecob);
+					initButtons();
+					selecionar(event);
+				}else if (currentIndex == 2){
+					this.title = "Fornecedor: " + txtnmfornecedor.text;
+					util.limpar_formulario(form_telefonea);
+					util.limpar_formulario(form_telefoneb);
+					initButtons();
+					selecionar(event);
+				}else if (currentIndex == 3){
+					this.title = "Fornecedor: " + txtnmfornecedor.text;
+					util.limpar_formulario(form_email);
+					initButtons();
+					selecionar(event);
+				}else if (currentIndex == 4){
+					this.title = "Fornecedor: " + txtnmfornecedor.text;
+					util.limpar_formulario(form_contato);
+					initButtons();
+					selecionar(event);
+				}
+			}
+			protected function lf_dtcadastro(item:Object, column:DataGridColumn):String{
+				return util.formatData_DDMMYYYY(item.dt_cadastro);	
+			}
+			protected function lf_tipotel(item:Object, column:DataGridColumn):String{
+				var retorno:Object = util.selecionarCombobox(item.id_tipotel,ArrayTipoTel);
+				return retorno.label;
+			}
+			protected function lf_cidade(item:Object, column:DataGridColumn):String{
+				var retorno:Object = util.selecionarArray(item.id_cidade,"id_cidade",ArrayCidade);
+				return retorno.nmcidade;
+			}
+			protected function lf_estado(item:Object, column:DataGridColumn):String{
+				var retorno:Object = util.selecionarArray(item.id_cidade,"id_cidade",ArrayCidade);
+				
+				retorno = util.selecionarArray(retorno.id_estado,"id_estado",ArrayEstado);
+				return retorno.nmestado;
+			}
+			private function selecionar(e:Event):void{
+				this.enabled = false;
+				if (tbnav.selectedIndex == 0){
+					popular_fornecedor();
+					ro_fornecedor.select(for_fornecedorVO,createDataGrid,defaultFaultHandler);
+				} else if (tbnav.selectedIndex == 1){
+					popular_endereco();
+					ro_forend.select(for_forendVO,createDataGrid,defaultFaultHandler);
+				} else if (tbnav.selectedIndex == 2){
+					popular_telefone();
+					ro_fortel.select(for_fortelVO,createDataGrid,defaultFaultHandler);
+				} else if (tbnav.selectedIndex == 3){
+					popular_email();
+					ro_foremail.select(for_foremailVO,createDataGrid,defaultFaultHandler);
+				} else if (tbnav.selectedIndex == 3){
+					popular_email();
+					ro_foremail.select(for_foremailVO,createDataGrid,defaultFaultHandler);
+				} else if (tbnav.selectedIndex == 4){
+					popular_contato();
+					ro_forcontato.select(for_contatoVO,createDataGrid,defaultFaultHandler);
+				}
+			}
+			private function createDataGrid(e:ResultEvent):void{
+				this.enabled = true;
+				if (tbnav.selectedIndex == 0){
+					dg_fornecedor.dataProvider = e.result;
+				} else if (tbnav.selectedIndex == 1){
+					dg_endereco.dataProvider = e.result;
+				} else if (tbnav.selectedIndex == 2){
+					dg_telefone.dataProvider = e.result;
+				} else if (tbnav.selectedIndex == 3){
+					dg_email.dataProvider = e.result;
+				} else if (tbnav.selectedIndex == 4){
+					dg_contato.dataProvider = e.result;
+				}
+			}
+			
+			private function inserir(e:Event):void{
+				if (tbnav.selectedIndex == 0){
+					isValid = util.validateForm(form_fornecedora);
+					isValid = util.validateForm(form_fornecedorb) && isValid;
+					if (!isValid){
+						mensagem_fornecedor.text = UtilMensagens.PreenchaCampo;
+					} else {
+						this.enabled = false;
+						popular_fornecedor();
+						ro_fornecedor.inserir(for_fornecedorVO,inserirResult,defaultFaultHandler);
+					}
+				} else if (tbnav.selectedIndex == 1){
+					isValid = util.validateForm(form_enderecoa);
+					isValid = util.validateForm(form_enderecob) && isValid;
+					if (!isValid){
+						mensagem_endereco.text = UtilMensagens.PreenchaCampo;
+					} else {
+						this.enabled = false;
+						popular_endereco();
+						ro_forend.inserir(for_forendVO,inserirResult,defaultFaultHandler);
+					}
+				} else if (tbnav.selectedIndex == 2){
+					isValid = util.validateForm(form_telefonea);
+					isValid = util.validateForm(form_telefoneb) && isValid;
+					if (!isValid){
+						mensagem_telefone.text = UtilMensagens.PreenchaCampo;
+					} else {
+						this.enabled = false;
+						popular_telefone();
+						ro_fortel.inserir(for_fortelVO,inserirResult,defaultFaultHandler);
+					}
+				} else if (tbnav.selectedIndex == 3){
+					isValid = util.validateForm(form_email);
+					if (!isValid){
+						mensagem_email.text = UtilMensagens.PreenchaCampo;
+					} else {
+						this.enabled = false;
+						popular_email();
+						ro_foremail.inserir(for_foremailVO,inserirResult,defaultFaultHandler);
+					}
+				} else if (tbnav.selectedIndex == 4){
+					isValid = util.validateForm(form_contato);
+					if (!isValid){
+						mensagem_contato.text = UtilMensagens.PreenchaCampo;
+					} else {
+						this.enabled = false;
+						popular_contato();
+						ro_forcontato.inserir(for_contatoVO,inserirResult,defaultFaultHandler);
+					}
+				}
+			}
+			private function inserirResult(e:ResultEvent):void{
+				this.enabled = true;
+				if (tbnav.selectedIndex == 0){
+					txtid_fornecedor.text = e.result.toString();
+				} else if (tbnav.selectedIndex == 1){
+					txtid_forend.text = e.result.toString();
+				} else if (tbnav.selectedIndex == 2){
+					txtid_fortel.text = e.result.toString();
+				} else if (tbnav.selectedIndex == 3){
+				} else if (tbnav.selectedIndex == 4){
+					txtid_forcontato.text = e.result.toString();
+				}
+				selecionar(e);
+			}
+			private function alterar(e:Event):void{
+				if (tbnav.selectedIndex == 0){
+					isValid = util.validateForm(form_fornecedora);
+					isValid = util.validateForm(form_fornecedorb) && isValid;
+					if (!isValid){
+						mensagem_fornecedor.text = UtilMensagens.PreenchaCampo;
+					} else {
+						this.enabled = false;
+						popular_fornecedor();
+						ro_fornecedor.atualizar(for_fornecedorVO,alterarResult,defaultFaultHandler);
+					}
+				} else if (tbnav.selectedIndex == 1){
+					isValid = util.validateForm(form_enderecoa);
+					isValid = util.validateForm(form_enderecob) && isValid;
+					if (!isValid){
+						mensagem_endereco.text = UtilMensagens.PreenchaCampo;
+					} else {
+						this.enabled = false;
+						popular_endereco();
+						ro_forend.atualizar(for_forendVO,alterarResult,defaultFaultHandler);
+					}
+				} else if (tbnav.selectedIndex == 2){
+					isValid = util.validateForm(form_telefonea);
+					isValid = util.validateForm(form_telefoneb) && isValid;
+					if (!isValid){
+						mensagem_telefone.text = UtilMensagens.PreenchaCampo;
+					} else {
+						this.enabled = false;
+						popular_telefone();
+						ro_fortel.atualizar(for_fortelVO,alterarResult,defaultFaultHandler);
+					}
+				} else if (tbnav.selectedIndex == 3){
+					isValid = util.validateForm(form_email);
+					if (!isValid){
+						mensagem_email.text = UtilMensagens.PreenchaCampo;
+					} else {
+						this.enabled = false;
+						popular_email();
+						ro_foremail.atualizar(for_foremailVO,alterarResult,defaultFaultHandler);
+					}
+				} else if (tbnav.selectedIndex == 4){
+					isValid = util.validateForm(form_contato);
+					if (!isValid){
+						mensagem_contato.text = UtilMensagens.PreenchaCampo;
+					} else {
+						this.enabled = false;
+						popular_contato()
+						ro_forcontato.atualizar(for_contatoVO,alterarResult,defaultFaultHandler);
+					}
+				}
+			}
+			private function alterarResult(e:ResultEvent):void{
+				this.enabled = true;
+				if (tbnav.selectedIndex == 0){
+					dg_fornecedor.dataProvider = e.result;
+				} else if (tbnav.selectedIndex == 1){
+					dg_endereco.dataProvider = e.result;
+				} else if (tbnav.selectedIndex == 2){
+					dg_telefone.dataProvider = e.result;
+				} else if (tbnav.selectedIndex == 3){
+					dg_email.dataProvider = e.result;
+				} else if (tbnav.selectedIndex == 4){
+					dg_contato.dataProvider = e.result;
+				}
+			}
+			private function deletar(e:Event):void{
+				if (tbnav.selectedIndex == 0){
+					isValid = util.validateForm(form_fornecedora);
+					isValid = util.validateForm(form_fornecedorb) && isValid;
+					if (!isValid){
+						mensagem_fornecedor.text = UtilMensagens.PreenchaCampo;
+					} else {
+						this.enabled = false;
+						popular_fornecedor();
+						ro_fornecedor.deletar(for_fornecedorVO,deletarResult,defaultFaultHandler);
+					}
+				} else if (tbnav.selectedIndex == 1){
+					isValid = util.validateForm(form_enderecoa);
+					isValid = util.validateForm(form_enderecob) && isValid;
+					if (!isValid){
+						mensagem_endereco.text = UtilMensagens.PreenchaCampo;
+					} else {
+						this.enabled = false;
+						popular_endereco();
+						ro_forend.deletar(for_forendVO,deletarResult,defaultFaultHandler);
+					}
+				} else if (tbnav.selectedIndex == 2){
+					isValid = util.validateForm(form_telefonea);
+					isValid = util.validateForm(form_telefoneb) && isValid;
+					if (!isValid){
+						mensagem_telefone.text = UtilMensagens.PreenchaCampo;
+					} else {
+						this.enabled = false;
+						popular_telefone();
+						ro_fortel.deletar(for_fortelVO,deletarResult,defaultFaultHandler);
+					}
+				} else if (tbnav.selectedIndex == 3){
+					isValid = util.validateForm(form_email);
+					if (!isValid){
+						mensagem_email.text = UtilMensagens.PreenchaCampo;
+					} else {
+						this.enabled = false;
+						popular_email();
+						ro_foremail.deletar(for_foremailVO,deletarResult,defaultFaultHandler);
+					}
+				} else if (tbnav.selectedIndex == 4){
+					isValid = util.validateForm(form_contato);
+					if (!isValid){
+						mensagem_contato.text = UtilMensagens.PreenchaCampo;
+					} else {
+						this.enabled = false;
+						popular_contato()
+						ro_forcontato.deletar(for_contatoVO,deletarResult,defaultFaultHandler);
+					}
+				}
+			}
+			private function deletarResult(e:ResultEvent):void{
+				this.enabled = true;
+				if (tbnav.selectedIndex == 0){
+					dg_fornecedor.dataProvider = e.result;
+				} else if (tbnav.selectedIndex == 1){
+					dg_endereco.dataProvider = e.result;
+				} else if (tbnav.selectedIndex == 2){
+					dg_telefone.dataProvider = e.result;
+				} else if (tbnav.selectedIndex == 3){
+					dg_email.dataProvider = e.result;
+				} else if (tbnav.selectedIndex == 4){
+					dg_contato.dataProvider = e.result;
+				}
+				limpar(e);
+			}
+			private function popular_fornecedor():void{
+				for_fornecedorVO = new For_FornecedorVO();
+				for_fornecedorVO.id_fornecedor = txtid_fornecedor.text.length > 0 ? txtid_fornecedor.text : null;
+				for_fornecedorVO.nmfornecedor = txtnmfornecedor.text.length > 0 ? txtnmfornecedor.text : null;
+				for_fornecedorVO.cnpj = txtcnpj.text.length > 0 ? txtcnpj.text : null;
+				for_fornecedorVO.cpf = txtcpf.text.length > 0 ? txtcpf.text : null;
+				//	par_parceiroVO.id_operador = sys
+				for_fornecedorVO.nmfantasia = txtnmfantasia.text.length > 0 ? txtnmfantasia.text : null;
+				
+			}
+			private function popular_endereco():void{
+				for_forendVO = new For_ForEndVO();
+				for_forendVO.bairro = txtbairro_end.text.length > 0 ? txtbairro_end.text : null;
+				for_forendVO.cep = txtcep_end.text.length > 0 ? txtcep_end.text : null;
+				for_forendVO.endereco = txtendereco_end.text.length > 0 ? txtendereco_end.text : null;
+				for_forendVO.id_cidade = txtid_cidade.txt_id.text.length > 0 ? txtid_cidade.txt_id.text : null;
+				for_forendVO.id_fornecedor = txtid_fornecedor.text;
+				for_forendVO.id_forend = txtid_forend.text.length > 0 ? txtid_forend.text : null;
+				
+			}
+			private function popular_telefone():void{
+				for_fortelVO = new For_ForTelVO();
+				for_fortelVO.descricao = txtdescricao_tel.length > 0 ? txtdescricao_tel.text : null;
+				for_fortelVO.id_fornecedor = txtid_fornecedor.text;
+				for_fortelVO.id_fortel = txtid_fortel.text.length > 0 ? txtid_fortel.text : null;
+				for_fortelVO.numero = txtnumero_tel.text.length > 0 ? txtnumero_tel.text : null;
+			}
+			private function popular_email():void{
+				for_foremailVO = new For_ForEmailVO();
+				for_foremailVO.id_foremail = dg_email.selectedItem ? dg_email.selectedItem.id_foremail : null;
+				for_foremailVO.email = txtemail.text.length > 0 ? txtemail.text : null;
+				for_foremailVO.id_fornecedor = txtid_fornecedor.text;
+				
+			}
+			private function popular_contato():void{
+				for_contatoVO = new For_ContatoVO();
+				for_contatoVO.email = txtemail_contato.text.length <= 0 ? null : txtemail_contato.text;
+				for_contatoVO.id_forcontato = txtid_forcontato.text.length <= 0 ? null : txtid_forcontato.text;
+				for_contatoVO.id_fornecedor = txtid_fornecedor.text;
+				for_contatoVO.nmcontato = txtcontato.text.length <= 0 ? null : txtcontato.text;
+				for_contatoVO.numero = txtnumero_contato.text.length <= 0 ? null : txtnumero_contato.text;
+			}
+			private function limpar(e:Event):void{
+				if (tbnav.selectedIndex == 0){
+					util.limpar_formulario(form_fornecedora);
+					util.limpar_formulario(form_fornecedorb);
+					util.limpar_formulario(form_enderecoa);
+					util.limpar_formulario(form_enderecob);
+					util.limpar_formulario(form_telefonea);
+					util.limpar_formulario(form_telefoneb);
+					util.limpar_formulario(form_email);
+					util.limpar_formulario(form_contato);
+					dg_fornecedor.dataProvider = null
+					dg_endereco.dataProvider = null;
+					dg_telefone.dataProvider = null;
+					dg_contato.dataProvider = null;
+					mensagem_fornecedor.text = "";
+					mensagem_contato.text = "";
+					mensagem_email.text = "";
+					mensagem_endereco.text = "";
+					mensagem_telefone.text = "";
+					
+				} else if (tbnav.selectedIndex == 1){
+					util.limpar_formulario(form_enderecoa);
+					util.limpar_formulario(form_enderecob);
+					dg_endereco.dataProvider = null;
+					mensagem_endereco.text = "";
+				} else if (tbnav.selectedIndex == 2){
+					util.limpar_formulario(form_telefonea);
+					util.limpar_formulario(form_telefoneb);
+					dg_telefone.dataProvider = null;
+					mensagem_telefone.text = "";
+				} else if (tbnav.selectedIndex == 3){
+					util.limpar_formulario(form_email);
+					dg_email.dataProvider = null;
+					mensagem_email.text = "";
+				} else if (tbnav.selectedIndex == 4){
+					util.limpar_formulario(form_contato);
+					dg_contato.dataProvider = null;
+					mensagem_contato.text = "";
+				}
+			}
+			private function setcampos(e:Event):void{
+				if (tbnav.selectedIndex == 0){
+					
+					txtid_fornecedor.text = dg_fornecedor.selectedItem.id_fornecedor;
+					txtnmfornecedor.text = dg_fornecedor.selectedItem.nmfornecedor;
+					txtcnpj.text = dg_fornecedor.selectedItem.cnpj;
+					txtcpf.text = dg_fornecedor.selectedItem.cpf;
+					txtnmfantasia.text = dg_fornecedor.selectedItem.nmfantasia;
+					
+				} else if (tbnav.selectedIndex == 1){
+					txtcomplemento_end.text = dg_endereco.selectedItem.complemento;
+					txtbairro_end.text = dg_endereco.selectedItem.bairro;
+					txtid_forend.text = dg_endereco.selectedItem.id_forend;
+					txtcep_end.text = dg_endereco.selectedItem.cep;
+					txtendereco_end.text = dg_endereco.selectedItem.endereco;
+					txtid_cidade.txt_id.text = dg_endereco.selectedItem.id_cidade;
+					var retorno:Object = util.selecionarArray(dg_endereco.selectedItem.id_cidade,"id_cidade",ArrayCidade);
+					txtid_cidade.txt_nome.text = retorno.nmcidade;
+					
+				} else if (tbnav.selectedIndex == 2){
+					txtdescricao_tel.text = dg_telefone.selectedItem.descricao;
+					txtnumero_tel.text = dg_telefone.selectedItem.numero;
+					txtid_fortel.text = dg_telefone.selectedItem.id_fortel;
+				} else if (tbnav.selectedIndex == 3){
+					txtemail.text = dg_email.selectedItem.email;
+				} else if (tbnav.selectedIndex == 4){
+					txtid_forcontato.text = dg_contato.selectedItem.id_forcontato;
+					txtcontato.text = dg_contato.selectedItem.nmcontato;
+					txtnumero_contato.text = dg_contato.selectedItem.numero;
+					txtemail_contato.text = dg_contato.selectedItem.email;
+				}
+				
+			}
+			private function defaultFaultHandler(e:FaultEvent):void{
+				this.enabled = true;
+				retorno = new UtilRetornoBanco;
+				retorno.RetornoBanco(e);
+				
+				if (tbnav.selectedIndex == 0){
+					mensagem_fornecedor.text = "";
+				} else if (tbnav.selectedIndex == 1){
+					mensagem_endereco.text = "";
+				} else if (tbnav.selectedIndex == 2){
+					mensagem_telefone.text = "";
+				} else if (tbnav.selectedIndex == 3){
+					mensagem_email.text = "";
+				} else if (tbnav.selectedIndex == 4){
+					mensagem_contato.text = "";
+				}
+				
+			}
+
+		]]>
+	</mx:Script>
+     <mx:TabNavigator id="tbnav" width="100%" height="100%" change="tbcomplete(event)" creationPolicy="all">
+    		<mx:Canvas id="c_fornecedor" label="Fornecedor" width="100%" height="100%">
+    		<mx:VBox width="100%" height="100%">
+				<mx:Label width="100%" id="mensagem_fornecedor" text="" styleName="lblerro"/>
+				<mx:HBox width="100%">
+					<mx:Form id="form_fornecedora" width="50%" height="100%">
+						<mx:FormItem label="Id.:">
+							<mx:TextInput id="txtid_fornecedor" width="82" editable="false"/>
+						</mx:FormItem>
+						<mx:FormItem label="C.N.P.J:">
+							<skins:TextInput_Cnpj id="txtcnpj"  />
+						</mx:FormItem>
+						<mx:FormItem label="C.P.F.:">
+							<skins:TextInput_Cpf id="txtcpf"/>
+						</mx:FormItem>
+					</mx:Form>
+					<mx:Form id="form_fornecedorb" width="50%" height="100%">
+						<mx:FormItem label="Nome:" required="true">
+							<mx:TextInput id="txtnmfornecedor" />
+						</mx:FormItem>
+						<mx:FormItem label="Nome Fant:">
+							<mx:TextInput id="txtnmfantasia" maxChars="30" />
+						</mx:FormItem>
+					</mx:Form>
+				</mx:HBox>
+				<mx:DataGrid width="100%" height="100%" id="dg_fornecedor" itemClick="setcampos(event)" focusEnabled="false">
+					<mx:columns>
+						<mx:DataGridColumn headerText="Id." width="60" dataField="id_fornecedor"/>
+						<mx:DataGridColumn headerText="Nome" width="400" dataField="nmfornecedor"/>
+						<mx:DataGridColumn headerText="Dt. Cadastro" dataField="dt_cadastro" labelFunction="lf_dtcadastro"/>
+						<mx:DataGridColumn headerText="R.G." visible="false" dataField="rg"/>
+						<mx:DataGridColumn headerText="C.P.F" dataField="cpf"/>
+						<mx:DataGridColumn headerText="C.N.P.J" dataField="cnpj"/>
+						<mx:DataGridColumn headerText="Obs" visible="false" dataField="obs"/>
+					</mx:columns>
+				</mx:DataGrid>
+			</mx:VBox>
+	</mx:Canvas>
+	<mx:Canvas id="c_endereco" label="Endereço(s)" width="100%" height="100%" enabled="{txtid_fornecedor.text.length > 0 ? true : false}">
+    	<mx:VBox width="100%" height="100%">
+			<mx:Label width="100%" id="mensagem_endereco" text="" styleName="lblerro"/>
+			<mx:HBox width="100%">
+				<mx:Form id="form_enderecoa" width="50%" height="100%">
+					<mx:FormItem label="Id.:">
+						<mx:TextInput id="txtid_forend" width="82" editable="false"/>
+					</mx:FormItem>
+					<mx:FormItem label="Endereço:" required="true">
+						<mx:TextInput id="txtendereco_end" />
+					</mx:FormItem>
+					<mx:FormItem label="CEP:" required="true">
+						<skins:TextInput_Cep id="txtcep_end" />
+					</mx:FormItem>
+				</mx:Form>
+				<mx:Form id="form_enderecob" width="50%" height="100%">
+					<mx:FormItem label="Bairro:" required="true">
+						<mx:TextInput id="txtbairro_end" />
+					</mx:FormItem>
+					<mx:FormItem label="Cidade:" required="true">
+						<skins:TextButtonText id="txtid_cidade" titulo="Cidade" tabela="{UtilNamesPesquisa.adm_cidade}"
+											   />
+					</mx:FormItem>
+					<mx:FormItem label="Complemento:">
+						<skins:TextInput_Maiusculo id="txtcomplemento_end"/>
+					</mx:FormItem>
+				</mx:Form>
+			</mx:HBox>
+			<mx:DataGrid width="100%" height="100%" id="dg_endereco" itemClick="setcampos(event)" focusEnabled="false">
+				<mx:columns>
+					<mx:DataGridColumn headerText="Id." width="60" dataField="id_forend"/>
+					<mx:DataGridColumn headerText="Endereço" dataField="endereco"/>
+					<mx:DataGridColumn headerText="Bairro" dataField="bairro"/>
+					<mx:DataGridColumn headerText="CEP" dataField="cep"/>
+					<mx:DataGridColumn headerText="Cidade" width="200" dataField="id_cidade" labelFunction="lf_cidade"/>
+					<mx:DataGridColumn headerText="UF" dataField="id_estado" labelFunction="lf_estado"/>
+				</mx:columns>
+			</mx:DataGrid>	
+		</mx:VBox>
+	</mx:Canvas>
+	<mx:Canvas id="c_telefone" label="Telefone(s)" width="100%" height="100%" enabled="{txtid_fornecedor.text.length > 0 ? true : false}">
+		<mx:VBox width="100%" height="100%">
+			<mx:Label width="100%" id="mensagem_telefone" text="" styleName="lblerro"/>
+			<mx:HBox width="100%">
+				<mx:Form id="form_telefonea" width="50%" height="100%">
+					<mx:FormItem label="Id.:">
+						<skins:TextInput_Maiusculo id="txtid_fortel" width="82" editable="false"/>
+					</mx:FormItem>
+					<mx:FormItem label="Descrição:" required="true">
+						<mx:TextInput id="txtdescricao_tel" />
+					</mx:FormItem>
+					<mx:FormItem label="Número:" required="true">
+						<skins:TextInput_Tel id="txtnumero_tel"/>
+					</mx:FormItem>
+				</mx:Form>
+				<mx:Form id="form_telefoneb" width="50%" height="100%">
+				</mx:Form>
+			</mx:HBox>
+			<mx:DataGrid width="100%" height="100%" id="dg_telefone" itemClick="setcampos(event)" focusEnabled="false">
+				<mx:columns>
+					<mx:DataGridColumn headerText="Id." width="60" dataField="id_fortel"/>
+					<mx:DataGridColumn headerText="Descrição" dataField="descricao"/>
+					<mx:DataGridColumn headerText="Número" dataField="numero"/>
+				</mx:columns>
+			</mx:DataGrid>		
+		</mx:VBox>
+	</mx:Canvas>
+		 <mx:Canvas id="c_email" label="Email(s)" width="100%" height="100%" enabled="{txtid_fornecedor.text.length > 0 ? true : false}">
+			 <mx:VBox width="100%" height="100%">
+				 <mx:Label width="100%" id="mensagem_email" text="" styleName="lblerro"/>
+				 <mx:HBox width="100%">
+					 <mx:Form id="form_email" width="50%" height="100%">
+						 <mx:FormItem label="Email:" required="true">
+							 <mx:TextInput id="txtemail" />
+						 </mx:FormItem>
+					 </mx:Form>
+				 </mx:HBox>
+				 <mx:DataGrid width="100%" height="100%" id="dg_email" itemClick="setcampos(event)" focusEnabled="false">
+					 <mx:columns>
+						 <mx:DataGridColumn headerText="Email" dataField="email"/>
+					 </mx:columns>
+				 </mx:DataGrid>		
+			 </mx:VBox>
+		 </mx:Canvas>
+		 <mx:Canvas id="c_contato" label="Contato(s)" width="100%" height="100%" enabled="{txtid_fornecedor.text.length > 0 ? true : false}">
+			 <mx:VBox width="100%" height="100%">
+				 <mx:Label width="100%" id="mensagem_contato" text="" styleName="lblerro"/>
+				 <mx:HBox width="100%">
+					 <mx:Form id="form_contato" width="50%" height="100%">
+						 <mx:FormItem label="Id.:">
+							 <skins:TextInput_Maiusculo id="txtid_forcontato" width="82" editable="false"/>
+						 </mx:FormItem>
+						 <mx:FormItem label="Contato:" required="true">
+							 <mx:TextInput id="txtcontato" />
+						 </mx:FormItem>
+						 <mx:FormItem label="Número:" >
+							 <skins:TextInput_Tel id="txtnumero_contato"/>
+						 </mx:FormItem>
+						 <mx:FormItem label="Email:" >
+							 <mx:TextInput id="txtemail_contato" />
+						 </mx:FormItem>
+					 </mx:Form>
+				 </mx:HBox>
+				 <mx:DataGrid width="100%" height="100%" id="dg_contato" itemClick="setcampos(event)" focusEnabled="false">
+					 <mx:columns>
+						 <mx:DataGridColumn headerText="Id." width="60" dataField="id_forcontato"/>
+						 <mx:DataGridColumn headerText="Contato" dataField="nmcontato"/>
+						 <mx:DataGridColumn headerText="Número" dataField="numero"/>
+						 <mx:DataGridColumn headerText="Email" dataField="email"/>
+					 </mx:columns>
+				 </mx:DataGrid>		
+			 </mx:VBox>
+		 </mx:Canvas>	
+</mx:TabNavigator>
+<skins:CtrlBar_Buttons id="ctrlbar"/>
+</MDIWindow>

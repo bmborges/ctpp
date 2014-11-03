@@ -1,0 +1,116 @@
+<?xml version="1.0" encoding="utf-8"?>
+<mx:TitleWindow xmlns:mx="http://www.adobe.com/2006/mxml" 
+	width="770" height="513" title="Baixa Arquivo(s)" creationComplete="init(event)" close="titlewindow1_closeHandler(event)"
+	showCloseButton="true">
+	<mx:Script>
+		<![CDATA[
+			import classes.Util;
+			import classes.UtilRetornoBanco;
+			
+			import mx.events.CloseEvent;
+			import mx.events.FlexEvent;
+			import mx.managers.PopUpManager;
+			import mx.rpc.events.FaultEvent;
+			import mx.rpc.events.ResultEvent;
+			
+			import service.pdg.Pdg_DiarioArquivosService;
+			
+			import vo.pdg.Pdg_DiarioArquivosVO;
+			
+			private var pdg_diarioarquivosVO:Pdg_DiarioArquivosVO;
+			private var ro_diarioarquivos:Pdg_DiarioArquivosService = Pdg_DiarioArquivosService.getInstance();
+			private var retorno:UtilRetornoBanco;
+			[Bindable] private var isValid:Boolean = false;
+			
+			public var id_diariocont:int;
+			public var util:Util = new Util();
+			
+			public function init(e:Event):void{
+				bt_baixar.addEventListener(MouseEvent.CLICK,baixa_arquivo);
+				
+				var segundos : Timer = new Timer(1000, 1); // 1 segundo
+				segundos.addEventListener(TimerEvent.TIMER, selecionar);
+				segundos.start();
+				
+			}
+			public function selecionar(event:Event):void {
+					this.enabled = false;
+					pdg_diarioarquivosVO = new Pdg_DiarioArquivosVO();
+					pdg_diarioarquivosVO.id_diariocont = id_diariocont;
+					ro_diarioarquivos.select(pdg_diarioarquivosVO,selectResult,defaultFaultHandler);
+			}
+			public function selectResult(e:ResultEvent):void{
+				this.enabled = true;
+				dg_arquivos.dataProvider = e.result;
+			}
+			public function baixa_arquivo(e:Event):void{
+				isValid = util.validateForm(form);
+				if (!isValid){
+					mensagem.text = "Selecione um Arquivo";
+				} else {
+					pdg_diarioarquivosVO = new Pdg_DiarioArquivosVO();
+					pdg_diarioarquivosVO.id_diarioarquivos = parseInt(txt_id.text);
+					ro_diarioarquivos.baixar_arquivo(pdg_diarioarquivosVO,baixarResult,defaultFaultHandler);
+				}
+				
+			}
+			private function baixarResult(e:ResultEvent):void{
+				util.abrepdf(e.result[0]['destinationUrl']);
+			}
+			private function limpar(event:Event):void{
+				txt_id.text = "";
+				txt_filename.text = "";
+				txt_descricao.text = "";
+				mensagem.text = "";
+			}
+			private function setcampos(e:Event):void{
+				tb_nav.selectedIndex = 0;
+				txt_id.text = dg_arquivos.selectedItem.id_diarioarquivos;
+				txt_filename.text = dg_arquivos.selectedItem.nmarquivo;
+				txt_descricao.text = dg_arquivos.selectedItem.descricao;
+			}
+			protected function titlewindow1_closeHandler(event:CloseEvent):void		{
+				// TODO Auto-generated method stub
+				PopUpManager.removePopUp(this);
+			}
+			private function defaultFaultHandler(e:FaultEvent):void{
+				this.enabled = true;
+				retorno = new UtilRetornoBanco;
+				retorno.RetornoBanco(e);
+				mensagem.text = "";
+				
+			}
+
+		]]>
+	</mx:Script>
+	<mx:VBox width="100%" height="100%">
+	<mx:Label width="100%" id="mensagem" text="" styleName="lblerro"/>
+	<mx:TabNavigator width="100%"  height="100%" id="tb_nav">
+		<mx:Canvas label="Selecionar" width="100%"  height="100%">
+			<mx:VBox width="100%" height="100%">
+				<mx:Form id="form" width="100%" paddingTop="5" paddingBottom="5">
+					<mx:FormItem label="Id:">
+						<mx:TextInput id="txt_id" width="200" editable="false"/>
+					</mx:FormItem>
+					<mx:FormItem label="Nome do Arquivo:">
+						<mx:TextInput id="txt_filename" width="200" editable="false"/>
+					</mx:FormItem>
+					<mx:FormItem label="Descricao:">
+						<mx:TextArea id="txt_descricao" width="601" height="76" editable="false"/>
+					</mx:FormItem>
+				</mx:Form>
+				<mx:DataGrid width="100%"  height="100%" id="dg_arquivos" itemClick="setcampos(event)">
+					<mx:columns>
+						<mx:DataGridColumn headerText="Id." dataField="id_diarioarquivos" width="60"/>
+						<mx:DataGridColumn headerText="Nome Arquivo" dataField="nmarquivo"/>
+						<mx:DataGridColumn headerText="Descrição" dataField="descricao"/>
+					</mx:columns>
+				</mx:DataGrid>
+			</mx:VBox>
+		</mx:Canvas>
+	</mx:TabNavigator>
+	</mx:VBox>
+<mx:ControlBar width="100%" horizontalAlign="center" id="ctr_bar">
+	<mx:Button id="bt_baixar" label="Baixar" styleName="addButton" enabled="{txt_id.text.length > 0 ? true : false}"/>
+</mx:ControlBar>
+</mx:TitleWindow>

@@ -1,0 +1,346 @@
+<?xml version="1.0" encoding="utf-8"?>
+<MDIWindow xmlns="flexmdi.containers.*" xmlns:mx="http://www.adobe.com/2006/mxml" 
+		   width="782" height="476" title="Cadastro Dados Ahgora" creationComplete="init()"
+		   xmlns:s="library://ns.adobe.com/flex/spark" xmlns:skins="skins.*">
+	<mx:Script>
+		<![CDATA[
+			import classes.Util;
+			import classes.UtilMensagens;
+			import classes.UtilNamesPesquisa;
+			import classes.UtilRetornoBanco;
+			
+			import mx.collections.ArrayCollection;
+			import mx.controls.Alert;
+			import mx.controls.Button;
+			import mx.controls.Text;
+			import mx.controls.TextArea;
+			import mx.core.FlexGlobals;
+			import mx.events.IndexChangedEvent;
+			import mx.rpc.events.FaultEvent;
+			import mx.rpc.events.ResultEvent;
+			
+			import service.fpg.Fpg_CadFuncService;
+			import service.fpg.Fpg_Ponto_DadosAhgoraService;
+			import service.procedure.Fpg_ImportaPonto_AhgoraService;
+			import service.procedure.ProcedureFpg_Ponto_DadosAhgoraService;
+			
+			import vo.adm.SystemVO;
+			import vo.fpg.Fpg_Ponto_DadosAhgoraVO;
+			import vo.procedure.Fpg_ImportaPonto_AhgoraVO;
+			
+			private var ro_dadosahgora:Fpg_Ponto_DadosAhgoraService = Fpg_Ponto_DadosAhgoraService.getInstance();
+			private var ro_cadfunc:Fpg_CadFuncService = Fpg_CadFuncService.getInstance();
+			private var ro_expdadosAhgora:ProcedureFpg_Ponto_DadosAhgoraService = ProcedureFpg_Ponto_DadosAhgoraService.getInstance();
+			private var ro_impbatidas:Fpg_ImportaPonto_AhgoraService = Fpg_ImportaPonto_AhgoraService.getInstance();
+			private var systemvo:SystemVO = SystemVO.getInstance();
+			private var fpg_dadosahgoraVO:Fpg_Ponto_DadosAhgoraVO;
+			private var fpg_impbatidasVO:Fpg_ImportaPonto_AhgoraVO;
+			
+			private var util:Util = new Util();
+			private var retorno:UtilRetornoBanco;
+			private var ArrayFuncionario:ArrayCollection;
+			[Bindable] private var isValid:Boolean = false;
+			
+			private var bt_impDados:Button = new Button;
+			private var bt_expDados:Button = new Button;
+			private var bt_impBatidas:Button = new Button;
+			private var file:FileReference;
+			private var TipoArquivo:String;
+			private var myarray:Array;
+			
+			private function CreateArrayFunc(event:ResultEvent):void{
+				this.enabled = true;
+				ArrayFuncionario = event.result as ArrayCollection;
+			}
+			protected function lf_funcionario(item:Object, column:DataGridColumn):String{
+				var obj:Object = util.selecionarCombobox(item.id_parceiro,ArrayFuncionario);
+				return obj.label;
+			}
+			protected function tabnav_changeHandler(e:IndexChangedEvent):void
+			{
+				var Index:int=e.newIndex;
+				initButtons();
+				if (Index == 0) {
+				} else if (Index == 1){
+				} else if (Index == 2){
+				}
+				
+			}
+			private function init():void{
+				initButtons();
+				
+				this.width = FlexGlobals.topLevelApplication.mdiCanvas.width;
+				this.height = FlexGlobals.topLevelApplication.mdiCanvas.height;
+				
+				this.x = 0;
+				this.y = 0;
+
+				bt_impDados.label = "Importar Dados";
+				bt_impDados.styleName = "procedureButton";
+				bt_expDados.label = "Exportar Dados";
+				bt_expDados.styleName = "procedureButton";
+				bt_impBatidas.label = "Importar Batidas";
+				bt_impBatidas.styleName = "procedureButton";
+				
+				
+				ctrlbar.bt_pesquisar.addEventListener(MouseEvent.CLICK,selecionar);
+				ctrlbar.bt_inserir.addEventListener(MouseEvent.CLICK,inserir);
+				ctrlbar.bt_alterar.addEventListener(MouseEvent.CLICK,alterar);
+				ctrlbar.bt_excluir.addEventListener(MouseEvent.CLICK,deletar);
+				ctrlbar.bt_limpar.addEventListener(MouseEvent.CLICK,limpar);
+				ctrlbar.bt_salvar.addEventListener(MouseEvent.CLICK,SalvaArquivo);
+				bt_impDados.addEventListener(MouseEvent.CLICK,importaDados);
+				bt_expDados.addEventListener(MouseEvent.CLICK,exportaDados);
+				bt_impBatidas.addEventListener(MouseEvent.CLICK,importaBatidas);
+				
+			}
+			private function initButtons():void{
+				ctrlbar.removeAllChildren();
+				if (tb_nav.selectedIndex == 0){
+					
+					ctrlbar.addChildAt(ctrlbar.bt_pesquisar,0);
+					ctrlbar.addChildAt(ctrlbar.bt_alterar,1);
+					ctrlbar.addChildAt(ctrlbar.bt_limpar,2);
+					
+				} else if (tb_nav.selectedIndex == 1){
+					
+					ctrlbar.addChildAt(bt_impDados,0);
+					ctrlbar.addChildAt(bt_expDados,1);
+					ctrlbar.addChildAt(bt_impBatidas,2);
+					ctrlbar.addChildAt(ctrlbar.bt_salvar,3);
+					ctrlbar.addChildAt(ctrlbar.bt_limpar,4);
+					
+				}
+				
+			}
+			private function exportaDados(e:Event):void{
+				this.enabled = false;
+				TipoArquivo = "expDados";
+				ro_expdadosAhgora.Procedure(exportaDadosResult,defaultFaultHandler);
+			}
+			private function importaDados(e:Event):void{
+				this.enabled = false;
+				TipoArquivo = "impDados";
+				file = new FileReference();
+				
+				file.addEventListener(Event.SELECT, onSelect);
+				file.addEventListener(Event.CANCEL, onCancel);
+				
+				var tipos:FileFilter = new FileFilter("Arquivos (*.txt)","*.txt");
+				var tiposArray:Array = new Array(tipos);
+				this.file.browse(tiposArray);
+			}
+			private function importaBatidas(e:Event):void{
+				this.enabled = false;
+				TipoArquivo = "impBatidas";
+				file = new FileReference();
+				
+				file.addEventListener(Event.SELECT, onSelect);
+				file.addEventListener(Event.CANCEL, onCancel);
+				
+				var tipos:FileFilter = new FileFilter("Arquivos (*.txt)","*.txt");
+				var tiposArray:Array = new Array(tipos);
+				this.file.browse(tiposArray);
+			}
+			private function onCancel(event:Event):void {
+				this.enabled = true;
+			}			
+			private function onSelect(event:Event):void {
+				this.file.addEventListener(Event.COMPLETE,onLoadComplete);
+				this.file.addEventListener(IOErrorEvent.IO_ERROR,onLoadError);
+				this.file.load();
+			}
+			private function onLoadComplete(event:Event):void{
+				this.enabled = true;
+				var data:ByteArray = this.file.data;
+				txtArea.text = data.readUTFBytes(data.bytesAvailable);
+				
+				this.file = null;			
+			}
+			private function onLoadError(event:IOErrorEvent):void {
+				this.enabled = true;
+				mensagem_arquivos.text = "Erro ao ler o arquivo";
+			}
+			private function exportaDadosResult(e:ResultEvent):void{
+				this.enabled = true;
+				mensagem_arquivos.text = "Exportação gerada com sucesso";
+				txtArea.text = e.result[0]["retorno"].toString();
+			}
+			private function SalvaArquivo(e:Event):void{
+				if (txtArea.text.length > 0){
+					if (TipoArquivo == "impDados" ){
+						this.enabled = false;
+						ro_dadosahgora.StringJson(txtArea.text,SalvaArquivoResult,defaultFaultHandler);
+					} else if (TipoArquivo == "expDados") {
+						this.enabled = false;
+						file = new FileReference;
+						file.save(txtArea.text,"ArquivoAhgora.txt");
+					} else if (TipoArquivo == "impBatidas"){
+						this.enabled = false;
+						var numlines:int = txtArea.mx_internal::getTextField().numLines;
+						for (var i:int = 0; i < numlines; i++){
+							var linha:String = txtArea.mx_internal::getTextField().getLineText(i);
+							if (linha.length > 20){
+								fpg_impbatidasVO = new Fpg_ImportaPonto_AhgoraVO;
+								fpg_impbatidasVO.registro = linha;
+								fpg_impbatidasVO.operador = systemvo.nickname;
+								
+								ro_impbatidas.Procedure(fpg_impbatidasVO,SalvaArquivoResult,defaultFaultHandler);
+							}
+						}
+					}
+				}
+				
+			}
+			private function impbatidasResult(e:ResultEvent):void{
+				
+			}
+			private function SalvaArquivoResult(e:ResultEvent):void{
+				this.enabled = true;
+				if (TipoArquivo == "impDados" ){
+					mensagem_arquivos.text = "Importação Realizada com Sucesso";
+				} else if (TipoArquivo == "expDados") {
+				} else if (TipoArquivo == "impBatidas"){
+					mensagem_arquivos.text = "Gravação das Batidas Realizada com Sucesso";
+				}
+			}
+			private function create_DataGrid(event:ResultEvent):void {
+				this.enabled = true;
+				dg_dadosahgora.dataProvider = event.result;
+			}
+			private function selecionar(e:Event):void{
+				this.enabled = false;
+				ro_cadfunc.ComboBox("nmfuncionario","id_parceiro",CreateArrayFunc,defaultFaultHandler);
+				popular();
+				ro_dadosahgora.select(fpg_dadosahgoraVO,create_DataGrid,defaultFaultHandler);
+			}
+			private function inserir(e:Event):void{
+				isValid = util.validateForm(form_func1);
+				isValid = util.validateForm(form_func2) && isValid;
+				if (!isValid){
+					mensagem_funcionario.text = UtilMensagens.PreenchaCampo;
+				} else {
+					this.enabled = false;
+					popular();
+					ro_dadosahgora.inserir(fpg_dadosahgoraVO,inserirResult,defaultFaultHandler);
+				}
+			}
+			
+			private function inserirResult(e:ResultEvent):void{
+				this.enabled = true;
+				txtid_parceiro.txt_id.text = e.result.toString();
+				selecionar(e);
+			}
+			
+			private function alterar(e:Event):void{
+				if(tb_nav.selectedIndex == 0){
+					isValid = util.validateForm(form_func1);
+					isValid = util.validateForm(form_func2) && isValid;
+					if (!isValid){
+						mensagem_funcionario.text = UtilMensagens.PreenchaCampo;
+					} else {
+						this.enabled = false;
+						popular();
+						ro_dadosahgora.atualizar(fpg_dadosahgoraVO,alterarResult,defaultFaultHandler);
+					}
+				} else if (tb_nav.selectedIndex == 1){
+					
+				}
+			}
+			private function alterarResult(e:ResultEvent):void{
+				this.enabled = true;
+				dg_dadosahgora.dataProvider = e.result;
+			}
+			private function deletar(e:Event):void{
+				isValid = util.validateForm(form_func1);
+				isValid = util.validateForm(form_func2) && isValid;
+				if (!isValid){
+					mensagem_funcionario.text = UtilMensagens.PreenchaCampo;
+				} else {
+					this.enabled = false;
+					popular();
+					ro_dadosahgora.deletar(fpg_dadosahgoraVO,deletarResult,defaultFaultHandler);
+				}				
+			}
+			private function deletarResult(e:ResultEvent):void{
+				this.enabled = true;
+				dg_dadosahgora.dataProvider = e.result;
+				limpar(e);	
+			}
+			private function limpar(e:Event):void{
+				if (tb_nav.selectedIndex == 0){
+					mensagem_funcionario.text = "";
+					util.limpar_formulario(form_func1);
+					util.limpar_formulario(form_func2);
+					dg_dadosahgora.dataProvider = null;
+				} else if (tb_nav.selectedIndex == 1){
+					mensagem_arquivos.text = "";
+					txtArea.text = "";
+				}
+				
+			}
+			private function setcampos(e:Event):void{
+				txtid_parceiro.txt_id.text = dg_dadosahgora.selectedItem.id_parceiro;
+				txtpasswd.text = dg_dadosahgora.selectedItem.passwd;
+				
+				var obj:Object = util.selecionarCombobox(dg_dadosahgora.selectedItem.id_parceiro,ArrayFuncionario);
+				txtid_parceiro.txt_nome.text =  obj.label;
+				
+			}
+			
+			private function popular():void{
+				fpg_dadosahgoraVO = new Fpg_Ponto_DadosAhgoraVO;
+				fpg_dadosahgoraVO.id_parceiro = txtid_parceiro.txt_id.text.length <= 0 ? null : txtid_parceiro.txt_id.text;
+				fpg_dadosahgoraVO.passwd = txtpasswd.text.length <= 0 ? null : txtpasswd.text.toUpperCase();					
+			}
+			private function defaultFaultHandler(e:FaultEvent):void{
+				this.enabled = true;
+				retorno = new UtilRetornoBanco;
+				retorno.RetornoBanco(e);
+				
+				mensagem_funcionario.text = "";
+				
+			}
+			
+		]]>
+	</mx:Script>
+	<mx:VBox width="100%" height="100%">
+		<mx:TabNavigator id="tb_nav" width="100%" height="100%" change="tabnav_changeHandler(event)">
+			<mx:Canvas label="Dados Ahgora">
+			<mx:VBox width="100%" height="100%">
+			<mx:Label width="100%" id="mensagem_funcionario" styleName="lblerro"/>
+				<mx:HBox width="100%">
+					<mx:Form id="form_func1" width="50%" height="100%">
+						<mx:FormItem label="Id.:" required="true">
+							<skins:TextButtonText id="txtid_parceiro" tabela="{UtilNamesPesquisa.fpg_cadfunc}" titulo="Funcionário"/>
+						</mx:FormItem>
+					</mx:Form>
+					<mx:Form id="form_func2" width="50%" height="100%">
+						<mx:FormItem label="Senha:">
+							<skins:TextInput_Maiusculo id="txtpasswd"/>
+						</mx:FormItem>
+					</mx:Form>
+				</mx:HBox>
+				<mx:DataGrid width="100%" height="100%" id="dg_dadosahgora" itemClick="setcampos(event)" focusEnabled="false">
+					<mx:columns>
+						<mx:DataGridColumn headerText="Id." width="60" dataField="id_parceiro"/>
+						<mx:DataGridColumn headerText="Funcionário" dataField="nmfuncionario" labelFunction="lf_funcionario"/>
+						<mx:DataGridColumn headerText="PIS" width="100" dataField="pis"/>
+						<mx:DataGridColumn headerText="Senha" width="100" dataField="senha"/>
+						<mx:DataGridColumn headerText="BioMetria" width="100" dataField="biodados"/>
+						<mx:DataGridColumn headerText="MiFare" width="100" dataField="mifare"/>
+						<mx:DataGridColumn headerText="CodBarras" width="100" dataField="codbarras"/>
+					</mx:columns>
+				</mx:DataGrid>
+			</mx:VBox>
+			</mx:Canvas>
+			<mx:Canvas label="Arquivos">
+				<mx:VBox width="100%" height="100%">
+					<mx:Label width="100%" id="mensagem_arquivos" styleName="lblerro"/>
+					<mx:TextArea id="txtArea" editable="false" width="100%" height="100%"/>
+				</mx:VBox>
+			</mx:Canvas>
+		</mx:TabNavigator>
+	</mx:VBox>
+	<skins:CtrlBar_Buttons id="ctrlbar"/>
+</MDIWindow>

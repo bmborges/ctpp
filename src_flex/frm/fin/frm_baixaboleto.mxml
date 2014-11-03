@@ -1,0 +1,161 @@
+<?xml version="1.0" encoding="utf-8"?>
+<MDIWindow xmlns="flexmdi.containers.*" xmlns:mx="http://www.adobe.com/2006/mxml" 
+	width="428" height="336" title="Baixa Retorno Boleto" creationComplete="init()" xmlns:skins="skins.*">
+<mx:Script>
+	<![CDATA[
+		import classes.Util;
+		
+		import mx.rpc.events.FaultEvent;
+		
+		import classes.UtilMensagens;
+		import classes.UtilRetornoBanco;
+		
+		import flash.net.FileReference;
+		
+		import mx.collections.ArrayCollection;
+		import mx.controls.Alert;
+		import mx.core.FlexGlobals;
+		import mx.rpc.events.ResultEvent;
+		
+		import service.fin.Fin_BancoService;
+		import service.fin.Fin_RetornoBancoService;
+		import service.procedure.Fin_RetornoSicrediService;
+		
+		import vo.adm.SystemVO;
+		import vo.fin.Fin_RetornoBancoVO;
+		import vo.procedure.Fin_RetornoSicrediVO;
+		
+		
+		private var fileRef:FileReference = null;
+		private var util:Util = new Util();
+		[Bindable] private var isValid:Boolean = false;
+		private var retorno:UtilRetornoBanco;
+		private var systemvo:SystemVO = SystemVO.getInstance();
+		private var ro_retornobanco:Fin_RetornoBancoService = Fin_RetornoBancoService.getInstance();		
+		private var ro_retornosicredi:Fin_RetornoSicrediService = Fin_RetornoSicrediService.getInstance();
+		private var ro_banco:Fin_BancoService = Fin_BancoService.getInstance();
+		
+		private var fin_retornosicrediVO:Fin_RetornoSicrediVO;
+		private var fin_retornobancoVO:Fin_RetornoBancoVO;
+		
+		
+		private function init():void{
+			
+			
+			this.width = FlexGlobals.topLevelApplication.mdiCanvas.width;
+			this.height = FlexGlobals.topLevelApplication.mdiCanvas.height;
+			
+			this.x = 0;
+			this.y = 0;
+			
+			ctrlbar.addChildAt(ctrlbar.bt_pesquisar,0);
+			ctrlbar.addChildAt(ctrlbar.bt_alterar,1);
+			ctrlbar.bt_alterar.label = "Gravar";
+			ctrlbar.addChildAt(ctrlbar.bt_limpar,2);
+			
+			
+			ctrlbar.bt_pesquisar.addEventListener(MouseEvent.CLICK,localizar);
+			ctrlbar.bt_alterar.addEventListener(MouseEvent.CLICK,alterar);
+			ctrlbar.bt_limpar.addEventListener(MouseEvent.CLICK,limpar);
+			
+			ro_banco.ComboBox("nmbanco","id_banco",ArrayBancoResult,defaultFaultHandler);
+		}		
+		
+		public function localizar(event:Event):void {
+			if (this.fileRef == null) {
+				this.fileRef = new FileReference();
+				this.fileRef.addEventListener(Event.SELECT, onSelect);
+			}
+			
+			//utilizando filtro para upload somente de imagem
+			var tipos:FileFilter = new FileFilter("Arquivos de Retorno (*.txt, *.crt)","*.txt; *.crt");
+			var tiposArray:Array = new Array(tipos);
+			this.fileRef.browse(tiposArray);
+		}
+		private function onSelect(event:Event):void {
+			this.txt_filename.text = fileRef.name;
+			this.fileRef.addEventListener(Event.COMPLETE,onLoadComplete);
+			this.fileRef.addEventListener(IOErrorEvent.IO_ERROR,onLoadError);
+			this.fileRef.load();
+		}
+		private function onLoadComplete(event:Event):void{
+				mensagem.text = UtilMensagens.OperacaoRealizadaSucesso;
+				var data:ByteArray = this.fileRef.data;
+				
+				ta_file.text = data.readUTFBytes(data.bytesAvailable);
+
+				this.fileRef = null;			
+		}
+		private function onLoadError(event:IOErrorEvent):void {
+			mensagem.text = "Erro ao ler o arquivo";
+		}
+		public function alterar(event:Event):void {
+			isValid = util.validateForm(form);
+			if (!isValid){
+				mensagem.text = UtilMensagens.PreenchaCampo;
+			} else {
+				this.enabled = false;
+				fin_retornobancoVO = new Fin_RetornoBancoVO;
+				fin_retornobancoVO.id_banco = cbbanco.selectedItem.data;
+				fin_retornobancoVO.id_operador = systemvo.id_operador;
+				fin_retornobancoVO.retorno = ta_file.text;
+				fin_retornobancoVO.nmarquivo = txt_filename.text;
+					
+				ro_retornobanco.inserir(fin_retornobancoVO,retornoResult, defaultFaultHandler);
+				
+			}
+		}
+		private function enviarResult(e:ResultEvent):void{
+			
+		}
+		private function retornoResult(e:ResultEvent):void{
+			var numlines:int = ta_file.mx_internal::getTextField().numLines;
+			for (var i:int = 0; i < numlines; i++){
+				var linha:String = ta_file.mx_internal::getTextField().getLineText(i);
+			
+				fin_retornosicrediVO = new Fin_RetornoSicrediVO;
+				fin_retornosicrediVO.id_operador = systemvo.id_operador;
+				fin_retornosicrediVO.arquivo = linha;
+				fin_retornosicrediVO.id_retornobanco = e.result.toString();
+					
+				ro_retornosicredi.Procedure(fin_retornosicrediVO,null,defaultFaultHandler);
+			}
+			
+			this.enabled = true;
+			mensagem.text = "Baixa(s) efetuada(s) com sucesso.";
+		}
+		private function limpar(event:Event):void{
+			this.fileRef = null;
+			mensagem.text = "";
+			util.limpar_formulario(form);
+		}
+		private function ArrayBancoResult(e:ResultEvent):void{
+			cbbanco.dataProvider = e.result as ArrayCollection;
+		}
+		private function defaultFaultHandler(e:FaultEvent):void{
+			this.enabled = true;
+			retorno = new UtilRetornoBanco;
+			retorno.RetornoBanco(e);
+			
+			mensagem.text = "";
+		}
+	]]>
+</mx:Script>
+	<mx:VBox width="100%" height="100%" paddingLeft="10" paddingRight="10">
+		<mx:Label width="100%" id="mensagem" text="" styleName="lblerro"/>
+		<mx:Form id="form" width="100%" height="100%">
+			<mx:FormItem label="Banco:" required="true">
+				<mx:ComboBox id="cbbanco" selectedIndex="0"/>
+			</mx:FormItem>
+			<mx:FormItem label="Nome do Arquivo:" required="true">
+				<mx:TextInput id="txt_filename" width="200" editable="false"/>
+			</mx:FormItem>
+			<mx:FormItem label="Arquivo:" required="true" width="100%" height="100%">
+				<mx:TextArea id="ta_file"  width="100%" height="100%" editable="false"/>
+			</mx:FormItem>
+		</mx:Form>
+	</mx:VBox>
+	
+<skins:CtrlBar_Buttons id="ctrlbar"/>
+
+</MDIWindow>

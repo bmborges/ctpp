@@ -1,0 +1,135 @@
+<?xml version="1.0" encoding="utf-8"?>
+<MDIWindow xmlns="flexmdi.containers.*" xmlns:mx="http://www.adobe.com/2006/mxml" 
+	width="1026" height="492" title="Estorno Baixa" creationComplete="init()" 
+	layout="absolute" horizontalAlign="center" xmlns:skins="skins.*">
+<mx:Script>
+	<![CDATA[
+		import classes.*;
+		
+		import flash.events.Event;
+		import flash.events.MouseEvent;
+		import flash.net.URLRequest;
+		import flash.net.URLRequestMethod;
+		import flash.net.URLVariables;
+		import flash.net.navigateToURL;
+		
+		import mx.controls.Alert;
+		import mx.events.CloseEvent;
+		import mx.managers.PopUpManager;
+		import mx.rpc.events.FaultEvent;
+		import mx.rpc.events.ResultEvent;
+		
+		import service.fin.Fin_Canc_RecebimentoService;
+		import service.fin.View_Fin_Ctr_BaixadasService;
+		
+		import vo.adm.SystemVO;
+		import vo.fin.Fin_Canc_RecebimentoVO;
+		import vo.fin.View_Fin_Ctr_BaixadasVO;
+		
+		public var util:Util = new Util();
+		private var retorno:UtilRetornoBanco;
+		private var systemVO:SystemVO = SystemVO.getInstance();
+		
+		private var ro_finctrbaixadas:View_Fin_Ctr_BaixadasService = View_Fin_Ctr_BaixadasService.getInstance();
+		private var ro_cancrecebimento:Fin_Canc_RecebimentoService = Fin_Canc_RecebimentoService.getInstance();
+		private var fin_cancrecebimentoVO:Fin_Canc_RecebimentoVO;
+		private var fin_ctrbaixadasVO:View_Fin_Ctr_BaixadasVO;
+		
+		[Bindable] private var isValid:Boolean;
+		
+		public function init():void{
+			
+			ctrlbar.addChildAt(ctrlbar.bt_pesquisar,0);
+			ctrlbar.addChildAt(ctrlbar.bt_excluir,1);
+			ctrlbar.addChildAt(ctrlbar.bt_limpar,2);
+			
+			ctrlbar.bt_excluir.label = "Estornar";
+			
+			ctrlbar.bt_pesquisar.addEventListener(MouseEvent.CLICK,selecionar);
+			ctrlbar.bt_excluir.addEventListener(MouseEvent.CLICK,estornar);
+			ctrlbar.bt_limpar.addEventListener(MouseEvent.CLICK,limpar);
+			
+			
+		}
+		private function createdg(e:ResultEvent):void{
+			dg_baixadas.dataProvider = e.result
+		}
+		public function selecionar(e:Event):void{
+			isValid = util.validateForm(form_contrato);
+			if (!isValid){
+				mensagem.text = UtilMensagens.PreenchaCampo;
+			} else {
+				fin_ctrbaixadasVO = new View_Fin_Ctr_BaixadasVO();
+				fin_ctrbaixadasVO.id_contrato = txtid_contrato.txt_id.text;
+				
+				ro_finctrbaixadas.select(fin_ctrbaixadasVO,createdg, defaultFaultHandler, null);
+			}
+		}
+		private function estornar(e:Event):void{
+			if(dg_baixadas.selectedItem){
+				Alert.yesLabel='Sim';
+				Alert.noLabel='Não';
+				Alert.show('Confirmar Estorno ?','Recebimento',Alert.YES|Alert.NO,this,cancelaBaixa);
+			} else {
+				mensagem.text = "Selecione um Baixa para Estorno";
+			}
+		}
+		
+		private function cancelaBaixa(e:CloseEvent):void{
+			if (e.detail == Alert.YES){
+				fin_cancrecebimentoVO = new Fin_Canc_RecebimentoVO();
+				fin_cancrecebimentoVO.cdseqpgto = dg_baixadas.selectedItem.cdseqpgto; 
+				ro_cancrecebimento.Procedure(fin_cancrecebimentoVO,cancelaBaixaResult,defaultFaultHandler);
+			}
+		}
+		private function cancelaBaixaResult(e:Event):void{
+			mensagem.text = "Operação Realizada com sucesso.";
+			selecionar(e);
+		}
+		
+		public function limpar(e:Event):void{
+			util.limpar_formulario(form_contrato);
+			mensagem.text = null;
+			dg_baixadas.dataProvider = null;
+		}
+		private function defaultFaultHandler(e:FaultEvent):void{
+			this.enabled = true;
+			retorno = new UtilRetornoBanco;
+			retorno.RetornoBanco(e);
+			
+			mensagem.text = "";
+			
+		}
+		
+	]]>
+</mx:Script>	
+<mx:Canvas  width="100%" height="100%">
+<mx:VBox width="100%" height="100%">
+	<mx:Label width="100%" id="mensagem" text="" styleName="lblerro"/>
+	<mx:Form id="form_contrato" width="100%">
+		<mx:FormItem label="Cd. Contrato:" width="100%" required="true">
+			<skins:TextButtonText id="txtid_contrato" tabela="{UtilNamesPesquisa.ctr_contrato}" titulo="Contrato"/>
+		</mx:FormItem>
+	</mx:Form>
+	<mx:TabNavigator id="tabnav_recebimento" width="100%" height="100%">
+		<mx:Canvas label="Baixadas"  width="100%" height="100%">
+			<mx:DataGrid width="100%" height="100%" id="dg_baixadas">
+				<mx:columns>
+					<mx:DataGridColumn headerText="Recibo" dataField="cdseqpgto"/>
+					<mx:DataGridColumn headerText="Parcela" dataField="parcela"/>
+					<mx:DataGridColumn headerText="Tipo Rec." dataField="nmtiporec"/>
+					<mx:DataGridColumn headerText="Dt. Vencimento" dataField="dt_vencimento"/>
+					<mx:DataGridColumn headerText="Dt. Pagamento" dataField="dt_baixa"/>
+					<mx:DataGridColumn headerText="Valor" dataField="subtotal"/>
+					<mx:DataGridColumn headerText="Vr. Pago" dataField="vr_movim"/>
+					<mx:DataGridColumn headerText="Vr. Desconto" dataField="vr_desconto"/>
+					<mx:DataGridColumn headerText="Operador" dataField="nickname"/>
+					<mx:DataGridColumn headerText="RetornoBanco" dataField="id_retornobanco"/>
+				</mx:columns>
+			</mx:DataGrid>
+		</mx:Canvas>
+	</mx:TabNavigator>
+</mx:VBox>
+</mx:Canvas>
+<skins:CtrlBar_Buttons id="ctrlbar"/>	
+</MDIWindow>

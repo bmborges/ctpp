@@ -1,0 +1,103 @@
+<?xml version="1.0" encoding="utf-8"?>
+<s:TitleWindow xmlns:fx="http://ns.adobe.com/mxml/2009"
+			   xmlns:s="library://ns.adobe.com/flex/spark"
+			   xmlns:mx="library://ns.adobe.com/flex/mx"
+			   width="312" height="206" title="Gera Diário(s)"
+			   close="titlewindow_closeHandler(event)" xmlns:skins="skins.*">
+	<fx:Declarations>
+		<!-- Place non-visual elements (e.g., services, value objects) here -->
+	</fx:Declarations>
+	<fx:Script>
+		<![CDATA[
+			import classes.Util;
+			import classes.UtilMensagens;
+			import classes.UtilRetornoBanco;
+			
+			import mx.collections.ArrayCollection;
+			import mx.controls.Alert;
+			import mx.events.CloseEvent;
+			import mx.managers.PopUpManager;
+			import mx.rpc.events.FaultEvent;
+			import mx.rpc.events.ResultEvent;
+			
+			import service.ComboBoxService;
+			import service.crs.Crs_TurmaService;
+			import service.procedure.Pdg_CriaDiarioService;
+			
+			import vo.procedure.Pdg_CriaDiarioVO;
+			
+			[Bindable] private var ArrayModulo:ArrayCollection;
+			[Bindable] private var isValid:Boolean = false;
+			[Bindable] public var id_turma:int;
+			private var retorno:UtilRetornoBanco;
+			private var util:Util = new Util();
+			private var ro_turma:Crs_TurmaService = Crs_TurmaService.getInstance();
+			private var ro_criadiario:Pdg_CriaDiarioService = Pdg_CriaDiarioService.getInstance();
+			
+			private var pdg_criadiarioVO:Pdg_CriaDiarioVO;
+			
+			protected function titlewindow_closeHandler(event:CloseEvent):void
+			{
+				PopUpManager.removePopUp(this);
+			}
+			private function createcbturmamodulo(event:ResultEvent):void{
+				ArrayModulo = event.result as ArrayCollection;
+				cb_modulo.dataProvider = ArrayModulo;
+			}
+			private function statementResult(e:Event):void{
+				mensagem.text = UtilMensagens.OperacaoRealizadaSucesso;
+			}
+			protected function bt_gerar_clickHandler(event:MouseEvent):void
+			{
+				isValid = util.validateForm(form);
+				if (!isValid) 
+				{
+					mensagem.text = UtilMensagens.PreenchaCampo;	
+				}
+				else 
+				{
+					pdg_criadiarioVO = new Pdg_CriaDiarioVO();
+					pdg_criadiarioVO.id_turma = id_turma;
+					pdg_criadiarioVO.id_modulo = cb_modulo.selectedIndex > 0 ? cb_modulo.selectedItem.data : null;
+					pdg_criadiarioVO.dt_inicio = df_data.selectedDate;
+					
+					ro_criadiario.Procedure(pdg_criadiarioVO,statementResult,defaultFaultHandler);
+				}
+			}
+			public function cbmodulo_diario(id_turma:Object):void{
+				ro_turma.TurmaModulo(id_turma,createcbturmamodulo,defaultFaultHandler);
+			}
+			private function defaultFaultHandler(e:FaultEvent):void{
+				this.enabled = true;
+				retorno = new UtilRetornoBanco;
+				retorno.RetornoBanco(e);
+				mensagem.text = "";
+			}
+			
+		]]>
+	</fx:Script>
+	<s:creationComplete>
+		<![CDATA[
+			
+		]]>
+	</s:creationComplete>
+	<s:layout>
+		<s:VerticalLayout paddingLeft="10" paddingRight="10" paddingTop="10" paddingBottom="10" gap="10"/>
+			
+	</s:layout>
+	<s:Label id="mensagem" width="100%" styleName="lblerro"/>
+	<mx:Form width="100%" id="form">
+		<mx:FormItem label="Modulo" horizontalAlign="center" width="100%">
+			<mx:ComboBox id="cb_modulo" selectedIndex="0"/>
+		</mx:FormItem>
+		<mx:FormItem required="true" label="Dt.Inicio" horizontalAlign="center" width="100%">
+			<skins:DateField_Data id="df_data"/>
+		</mx:FormItem>
+	</mx:Form>
+<s:HGroup horizontalAlign="center" width="100%">
+	<s:Button id="bt_gerar" label="Gerar" click="bt_gerar_clickHandler(event)"/>
+	
+</s:HGroup>
+
+		
+</s:TitleWindow>

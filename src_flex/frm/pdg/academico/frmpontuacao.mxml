@@ -1,0 +1,317 @@
+<?xml version="1.0" encoding="utf-8"?>
+<MDIWindow resizable="false" 
+	xmlns="flexmdi.containers.*" xmlns:mx="http://www.adobe.com/2006/mxml" 
+	width="964" height="518" title="Pontuação" creationComplete="init()" 
+	layout="absolute" horizontalAlign="center" xmlns:skins="skins.*"
+	xmlns:local="*" creationPolicy="all">
+	<mx:Script>
+		<![CDATA[
+			import classes.Util;
+			import classes.UtilMensagens;
+			import classes.UtilNamesPesquisa;
+			import classes.UtilPermissaoPrograma;
+			import classes.UtilRetornoBanco;
+			
+			import frm.frm_pesquisar;
+			
+			import mx.collections.ArrayCollection;
+			import mx.core.FlexGlobals;
+			import mx.events.FlexEvent;
+			import mx.events.IndexChangedEvent;
+			import mx.events.ListEvent;
+			import mx.managers.PopUpManager;
+			import mx.rpc.events.FaultEvent;
+			import mx.rpc.events.ResultEvent;
+			
+			import service.ComboBoxService;
+			import service.pdg.Pdg_DiarioService;
+			import service.pdg.View_Pdg_Diario_NotasService;
+			
+			import vo.adm.SystemVO;
+			import vo.view.View_Pdg_Diario_NotasVO;
+			
+			private var util:Util = new Util();
+			private var retorno:UtilRetornoBanco;
+			private var pesquisatitlewindow:frm_pesquisar;
+			private var window:frm_baixaarquivo;
+			private var ro_diario:Pdg_DiarioService = Pdg_DiarioService.getInstance();
+			private var ro_combobox:ComboBoxService = ComboBoxService.getInstance();
+			private var ro_viewdiarionotas:View_Pdg_Diario_NotasService = View_Pdg_Diario_NotasService.getInstance();
+			private var systemVO:SystemVO = SystemVO.getInstance();
+			[Bindable] private var ArrayMateria:ArrayCollection;
+			
+			[Bindable] private var isValid:Boolean = false;
+			
+			private function init():void{
+				
+				
+				this.width = FlexGlobals.topLevelApplication.mdiCanvas.width;
+				this.height = FlexGlobals.topLevelApplication.mdiCanvas.height;
+				
+				this.x = 0;
+				this.y = 0;
+				
+			}
+			
+			private function CbMateria(e:Event):void{
+				this.enabled = false;
+				ro_diario.ConteudoFalta(parseInt(txtid_turma.text),int(systemVO.id_aluno),cb_materia.selectedItem.data,CbMateriaResult,defaultFaultHandler);
+			}
+			private function CbMateriaResult(e:ResultEvent):void{
+				this.enabled = true;
+				dg_conteudo.dataProvider = e.result;
+				if (tb_cfg.selectedIndex != 0){
+					tb_cfg.selectedIndex = 0;
+				}
+			}
+			private function tb_complete(e:IndexChangedEvent):void{
+				if(tb_navigator.selectedIndex == 0){
+					
+				} else if (tb_navigator.selectedIndex == 1){
+					cb_materia.selectedIndex = 0;
+					dg_conteudo.dataProvider = null;
+					cb_materia.addEventListener(ListEvent.CHANGE,CbMateria);
+				} 
+			}
+			private function tb_cfgChange(e:IndexChangedEvent):void{
+				this.enabled = false;
+				if(tb_cfg.selectedIndex == 0){
+					this.enabled = true;
+				} else if (tb_cfg.selectedIndex == 1){
+					ro_diario.GraficoFalta(parseInt(txtid_turma.text),int(systemVO.id_aluno),cb_materia.selectedItem.data,GraficoFaltaResult,defaultFaultHandler);
+				} else if (tb_cfg.selectedIndex == 2){
+					
+					var view_diarionotasVO:View_Pdg_Diario_NotasVO = new View_Pdg_Diario_NotasVO();
+					view_diarionotasVO.id_contrato = txtid_turma.text;
+					view_diarionotasVO.id_aluno = systemVO.id_aluno;
+					view_diarionotasVO.id_diario = cb_materia.selectedItem.data;
+					
+					ro_viewdiarionotas.select(view_diarionotasVO,GraficoNotaResult,defaultFaultHandler);
+					
+				}
+			}
+			private function GraficoFaltaResult(e:ResultEvent):void{
+				this.enabled = true;
+				graficofalta.dataProvider = e.result;
+			}
+			private function GraficoNotaResult(e:ResultEvent):void{
+				this.enabled = true;
+				graficonotas.dataProvider = e.result;
+			}
+			private function createcbmateria(event:ResultEvent):void{
+				ArrayMateria = event.result as ArrayCollection;
+				cb_materia.dataProvider = ArrayMateria;
+				cb_materia.errorString = "";
+			}
+			private function pesquisar(e:Event):void{
+				isValid = util.validateForm(form);
+				if (!isValid) {
+					mensagem.text = UtilMensagens.PreenchaCampo;
+				} else {
+					var query:String = "select id_diario as data, nmmateria||' - '||nmoperador as label" +
+						" from pdg_diarionotas" +
+						"	inner join pdg_diario using (id_diario)" +
+						"	inner join crs_turmaedu te using (id_turmaedu)" +
+						"	inner join adm_operador o on (o.id_operador = te.id_operador)" +
+						"	inner join crs_cursomateria using (id_cursomateria)" +
+						"	inner join crs_materia using (id_materia)" +
+						" where id_contrato = ?" +
+						" order by id_modulo, nmmateria";
+					ro_combobox.ComboBoxQuery(query,parseInt(txtid_turma.text),createcbmateria,defaultFaultHandler);
+					
+					this.enabled = false;
+					
+					var view_diarionotasVO:View_Pdg_Diario_NotasVO = new View_Pdg_Diario_NotasVO();
+					view_diarionotasVO.id_contrato = txtid_turma.text;
+					
+					ro_viewdiarionotas.select(view_diarionotasVO,createDataGrid,defaultFaultHandler);
+					
+				}
+			}
+			private function createDataGrid(e:ResultEvent):void{
+				this.enabled = true;
+				dg_pontuacao.dataProvider = e.result;
+			}
+			private function limpar(e:Event):void{
+				util.limpar_formulario(form);
+				dg_pontuacao.dataProvider = null;
+				mensagem.text = "";
+				ArrayMateria = null;
+			}
+			private function openpesquisa(tablename:String,c:TextInput,r:TextInput):void{
+				
+				pesquisatitlewindow = PopUpManager.createPopUp(this,frm_pesquisar,true) as frm_pesquisar;
+				PopUpManager.centerPopUp(pesquisatitlewindow);
+				
+				var X:Number = pesquisatitlewindow.width / 2;
+				var Y:Number = pesquisatitlewindow.height / 2;
+				
+				var newX:Number = FlexGlobals.topLevelApplication.mdiCanvas.width / 2;
+				var newY:Number = FlexGlobals.topLevelApplication.mdiCanvas.height / 2;
+				
+				pesquisatitlewindow.x = newX - X;
+				pesquisatitlewindow.y = newY - Y;
+				
+				pesquisatitlewindow["list_data_grid"].addEventListener(MouseEvent.DOUBLE_CLICK,closePopUpWindow(tablename,c,r));
+				
+				pesquisatitlewindow.title = "Selecionar um Contrato";
+				pesquisatitlewindow.tablename = tablename;
+				pesquisatitlewindow.currentState = "sem_pesquisa";
+				
+
+				
+			}
+			
+			private function closePopUpWindow(tablename:String,c:TextInput,r:TextInput):Function {
+				return function(evt:MouseEvent):void{
+					c.text = pesquisatitlewindow.list_data_grid.selectedItem.id_contrato;
+					r.text = pesquisatitlewindow.list_data_grid.selectedItem.nmturma;
+					PopUpManager.removePopUp(pesquisatitlewindow);
+					pesquisar(evt);
+				}
+			}
+			private function changeStyles(data:Object, column:DataGridColumn):Object
+			{
+				var o:Object = new Object();
+				
+				o.color = data[column.dataField];
+				
+				return o;
+			}
+			private function situacao_labelFunction(data:Object, column:DataGridColumn):String
+			{
+				var value:String = data["nmsituacao"];
+				return value;
+			}
+			
+			public function baixa_arquivo(id_diariocont:int):void{
+					window = PopUpManager.createPopUp(this,frm_baixaarquivo,true) as frm_baixaarquivo;
+					PopUpManager.centerPopUp(window);
+					
+					window.id_diariocont = id_diariocont;
+			}
+			public function ver_conteudo(descricao:String):void{
+				if(descricao.length > 0){
+					var verconteudo:frm_verconteudo;
+					
+					verconteudo = PopUpManager.createPopUp(this,frm_verconteudo,true) as frm_verconteudo;
+					PopUpManager.centerPopUp(verconteudo);
+					
+					verconteudo.conteudo = descricao;
+				}
+			}
+			private function defaultFaultHandler(e:FaultEvent):void{
+				this.enabled = true;
+				retorno = new UtilRetornoBanco;
+				retorno.RetornoBanco(e);
+				mensagem.text = "";
+				
+			}
+			
+			
+		]]>
+	</mx:Script>
+		<mx:VBox width="100%" height="100%">
+    	<mx:Label width="100%" id="mensagem" styleName="lblerro"/>
+			<mx:Form id="form" width="100%" paddingTop="5" paddingBottom="5">
+				<!--<mx:FormItem label="Turma:" required="true">
+					<skins:TextButtonText id="txtid_turma" tabela="{UtilNamesPesquisa.contratoAcademico}" titulo="Selecionar um Contrato" estado="sem_pesquisa" habilitado="false"/>
+				</mx:FormItem>-->
+				<mx:FormItem label="Contrato:" direction="horizontal" width="100%" required="true">
+					<mx:TextInput width="111" enabled="false" id="txtid_turma" />
+					<mx:Button id="b_aluno" width="30" styleName="btpesquisa" click="{openpesquisa(UtilNamesPesquisa.contratoAcademico,txtid_turma,txt_nmturma)}"/>
+					<mx:TextInput  width="40%" enabled="false" id="txt_nmturma"/>
+				</mx:FormItem>
+			</mx:Form>
+		<mx:TabNavigator id="tb_navigator" width="100%" height="100%" change="tb_complete(event)" creationPolicy="all">
+			<mx:Canvas label="Notas" width="100%" height="100%">
+			<mx:DataGrid  width="100%" height="100%" id="dg_pontuacao">
+				<mx:columns>
+					<mx:DataGridColumn headerText="Modulo" dataField="nmmodulo" width="100"/>
+					<mx:DataGridColumn headerText="Materia" dataField="nmmateria"/>
+					<mx:DataGridColumn headerText="Nota 1" dataField="nota1" width="100"/>
+					<mx:DataGridColumn headerText="Nota 2" dataField="nota2" width="100"/>
+					<mx:DataGridColumn headerText="Atividades" dataField="atividades"/>
+					<mx:DataGridColumn headerText="Nota Recup." dataField="nota_recup"/>
+					<mx:DataGridColumn headerText="Nota Conselho" dataField="nota_cons"/>
+					<mx:DataGridColumn headerText="Média" dataField="media" width="100"/>
+					<local:StylizedDataGridColumn headerText="Situação" dataField="estilo" stylesFunction="changeStyles" labelFunction="situacao_labelFunction"/>
+				</mx:columns>
+			</mx:DataGrid>
+			</mx:Canvas>
+			<mx:Canvas label="Conteúdo / Falta / Graficos" width="100%" height="100%">
+				<mx:VBox width="100%" height="100%">
+					<mx:FormItem label="Matéria:" required="true">
+						<mx:ComboBox id="cb_materia"/>
+					</mx:FormItem>
+				<mx:TabNavigator width="100%" height="100%" id="tb_cfg" change="tb_cfgChange(event)">
+					<mx:Canvas label="Conteudo" width="100%" height="100%">
+						<mx:DataGrid width="100%"  height="100%" id="dg_conteudo">
+							<mx:columns>
+								<mx:DataGridColumn headerText="Arquivo(s)" width="60">
+									<mx:itemRenderer>
+										<mx:Component>
+											<mx:VBox horizontalAlign="center">
+												<mx:Image  width="16" height="16"
+														   scaleContent="true" maintainAspectRatio="false" buttonMode="true" visible="{data.qtd_arq > 0 ? true : false}" source="@Embed('/assets/icons/page_white_put.png')" click="parentDocument.baixa_arquivo(data.id_diariocont)" />
+											</mx:VBox>
+										</mx:Component>
+									</mx:itemRenderer>
+								</mx:DataGridColumn>
+								<mx:DataGridColumn headerText="Presença" width="60"  >
+									<mx:itemRenderer>
+										<mx:Component>
+											<mx:VBox horizontalAlign="center">
+												<mx:CheckBox id="chk_presenca" selected="{data.id_ativo == 1 ? true : false}" enabled="false"/>
+											</mx:VBox>
+										</mx:Component>
+									</mx:itemRenderer>
+								</mx:DataGridColumn>
+								<mx:DataGridColumn headerText="Data" dataField="dt_aula" width="60"/>
+								<mx:DataGridColumn headerText="Aula" dataField="nr_aula" width="60"/>
+								<mx:DataGridColumn headerText="Conteúdo">
+									<mx:itemRenderer>
+										<mx:Component>
+											<mx:Label toolTip="Clique para Ver o Conteúdo Completo" text="{data.descricao}" buttonMode="true" click="parentDocument.ver_conteudo(data.descricao)"/>
+										</mx:Component>
+									</mx:itemRenderer>
+								</mx:DataGridColumn>
+							</mx:columns>
+						</mx:DataGrid>
+					</mx:Canvas>
+					<mx:Canvas label="Gráfico Faltas" width="100%" height="100%">
+						<mx:HBox width="100%" height="100%">
+							<mx:ColumnChart id="graficofalta" height="100%" width="100%" showDataTips="true">
+								<mx:series>
+									<mx:ColumnSeries showDataEffect="{SeriesSlide}" displayName="Total Aulas" yField="tot_aulas" columnWidthRatio="0.6"/>
+									<mx:ColumnSeries showDataEffect="{SeriesSlide}" displayName="Total Faltas" yField="tot_faltas"/>
+								</mx:series>
+								<mx:horizontalAxis>
+									<mx:CategoryAxis categoryField="nmmateria"/>
+								</mx:horizontalAxis>
+							</mx:ColumnChart>
+						</mx:HBox>
+					</mx:Canvas>
+					<mx:Canvas label="Gráfico Notas" width="100%" height="100%">
+						<mx:HBox width="100%" height="100%">
+							<mx:ColumnChart id="graficonotas" height="100%" width="100%" showAllDataTips="true">
+								<mx:series>
+									<mx:ColumnSeries showDataEffect="{SeriesSlide}" displayName="Nota1" yField="nota1" columnWidthRatio="0.6"/>
+									<mx:ColumnSeries showDataEffect="{SeriesSlide}" displayName="Nota2" yField="nota2" columnWidthRatio="0.6"/>
+									<mx:ColumnSeries showDataEffect="{SeriesSlide}" displayName="Atividades" yField="atividades"/>
+									<mx:ColumnSeries showDataEffect="{SeriesSlide}" displayName="Nota Recup." yField="nota_recup"/>
+									<mx:ColumnSeries showDataEffect="{SeriesSlide}" displayName="Nota Conselho." yField="nota_cons"/>
+								</mx:series>
+								<mx:horizontalAxis>
+									<mx:CategoryAxis categoryField="nome"/>
+								</mx:horizontalAxis>
+							</mx:ColumnChart>
+						</mx:HBox>
+					</mx:Canvas>
+				</mx:TabNavigator>
+				</mx:VBox>
+			</mx:Canvas>
+		</mx:TabNavigator>	
+		</mx:VBox>
+	<mx:SeriesSlide duration="1000" direction="up" id="SeriesSlide"/>
+</MDIWindow>

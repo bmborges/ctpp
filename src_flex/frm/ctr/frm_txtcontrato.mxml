@@ -1,0 +1,205 @@
+<?xml version="1.0" encoding="utf-8"?>
+<MDIWindow  xmlns="flexmdi.containers.*" xmlns:mx="http://www.adobe.com/2006/mxml" 
+		   width="782" height="476" title="Cadastro Texto Contrato"
+		   creationComplete="init()" xmlns:s="library://ns.adobe.com/flex/spark">
+	<mx:Script>
+		<![CDATA[
+			import classes.Util;
+			import classes.UtilMensagens;
+			import classes.UtilRetornoBanco;
+			
+			import mx.collections.ArrayCollection;
+			import mx.rpc.events.FaultEvent;
+			import mx.rpc.events.ResultEvent;
+			
+			import service.ComboBoxService;
+			import service.ctr.Ctr_TxtProfissionalizanteService;
+			import service.ctr.Ctr_TxtTecnicoService;
+			
+			import vo.ctr.Ctr_TxtProfissionalizanteVO;
+			import vo.ctr.Ctr_TxtTecnicoVO;
+			[Bindable] private var ArrayTipoCurso:ArrayCollection;
+			[Bindable] private var isValid:Boolean = false;
+			private var util:Util = new Util();
+			private var retorno:UtilRetornoBanco;
+			
+			
+			
+			private var ro_prof:Ctr_TxtProfissionalizanteService = Ctr_TxtProfissionalizanteService.getInstance();
+			private var ro_tec:Ctr_TxtTecnicoService = Ctr_TxtTecnicoService.getInstance();
+			private var txtprofVO:Ctr_TxtProfissionalizanteVO;
+			private var txttecVO:Ctr_TxtTecnicoVO;
+			
+			
+			private var ro_combobox:ComboBoxService = ComboBoxService.getInstance();
+			
+			private function init():void{
+				
+				util.limpar_formulario(form);
+				
+				//seta eventos
+				bt_pesquisar.addEventListener(MouseEvent.CLICK,selecionar);
+				bt_inserir.addEventListener(MouseEvent.CLICK,inserir);
+				bt_alterar.addEventListener(MouseEvent.CLICK,alterar);
+				bt_deletar.addEventListener(MouseEvent.CLICK,deletar);
+				bt_limpar.addEventListener(MouseEvent.CLICK,limpar);
+				
+				ro_combobox.Crs_TipoCurso(createcbtipocurso,defaultFaultHandler);
+			}
+			
+			private function createcbtipocurso(event:ResultEvent):void{
+				ArrayTipoCurso = event.result as ArrayCollection;
+				cb_tipocurso.dataProvider = ArrayTipoCurso;
+				cb_tipocurso.errorString = "";
+			}
+			
+			private function create_DataGrid(e:ResultEvent):void{
+				dg_texto.dataProvider = e.result;
+			}
+			
+			private function selecionar(e:Event):void{
+				if (cb_tipocurso.selectedItem.data == 1){
+					txtprofVO = new Ctr_TxtProfissionalizanteVO;
+					ro_prof.select(txtprofVO,create_DataGrid,defaultFaultHandler);
+				} else {
+					txttecVO = new Ctr_TxtTecnicoVO;
+					ro_tec.select(txttecVO,create_DataGrid,defaultFaultHandler);
+				}
+			}
+			
+			private function inserir(e:Event):void{
+				isValid = util.validateForm(form);
+				if (!isValid){
+					mensagem.text = UtilMensagens.PreenchaCampo;
+				} else {
+					popular();
+					if (cb_tipocurso.selectedItem.data == 1){
+						ro_prof.inserir(txtprofVO,create_DataGrid,defaultFaultHandler);
+					} else {
+						ro_tec.inserir(txttecVO,create_DataGrid,defaultFaultHandler);
+					}
+				}
+			}
+			
+			private function inserirResult(e:ResultEvent):void{
+//				txtid_txtcontrato.text = e.result.toString();
+				selecionar(e);
+			}
+			
+			private function alterar(e:Event):void{
+				isValid = util.validateForm(form);
+				if (!isValid){
+					mensagem.text = UtilMensagens.PreenchaCampo;
+				} else {
+					popular();
+					if (cb_tipocurso.selectedItem.data == 1){
+						ro_prof.atualizar(txtprofVO,create_DataGrid,defaultFaultHandler);
+					} else {
+						ro_tec.atualizar(txttecVO,create_DataGrid,defaultFaultHandler);
+					}
+				}
+			}
+			private function alterarResult(e:ResultEvent):void{
+//				dg_texto.dataProvider = e.result;
+				selecionar(e);
+			}
+			private function deletar(e:Event):void{
+				isValid = util.validateForm(form);
+				if (!isValid){
+					mensagem.text = UtilMensagens.PreenchaCampo;
+				} else {
+					popular();
+					if (cb_tipocurso.selectedItem.data == 1){
+						ro_prof.deletar(txtprofVO,create_DataGrid,defaultFaultHandler);
+					} else {
+						ro_tec.deletar(txttecVO,create_DataGrid,defaultFaultHandler);
+					}
+					limpar(e);	
+				}
+			}
+			private function deletarResult(e:ResultEvent):void{
+				dg_texto.dataProvider = e.result;
+			}
+			
+			
+			private function limpar(e:Event):void{
+				mensagem.text = "";
+				util.limpar_formulario(form);
+				dg_texto.dataProvider = null;
+			}
+			private function setcampos(e:Event):void{
+				if (cb_tipocurso.selectedItem.data == 1){
+					txtid_txtcontrato.text = dg_texto.selectedItem.id_txtprofissionalizante; 
+					txtsequencia.text = dg_texto.selectedItem.sequencia;
+					txtnmtexto.text = dg_texto.selectedItem.texto;
+				} else {
+					txtid_txtcontrato.text = dg_texto.selectedItem.id_txttecnico; 
+					txtsequencia.text = dg_texto.selectedItem.sequencia;
+					txtnmtexto.text = dg_texto.selectedItem.texto;
+				}
+			}
+			
+			private function popular():void{
+				
+				if (cb_tipocurso.selectedItem.data == 1){
+					txtprofVO = new Ctr_TxtProfissionalizanteVO;
+					txtprofVO.id_txtprofissionalizante = txtid_txtcontrato.text.length <= 0 ? null : txtid_txtcontrato.text; 
+					txtprofVO.sequencia = txtsequencia.text;
+					txtprofVO.texto = txtnmtexto.text;
+				} else {
+					txttecVO = new Ctr_TxtTecnicoVO;
+					txttecVO.id_txttecnico = txtid_txtcontrato.text.length <= 0 ? null : txtid_txtcontrato.text;
+					txttecVO.sequencia = txtsequencia.text;
+					txttecVO.texto = txtnmtexto.text;
+				}
+				
+			}
+			
+			protected function lf_tipocurso(item:Object, column:DataGridColumn):String{
+				var retorno:Object = util.selecionarCombobox(item.id_tipocurso,ArrayTipoCurso);
+				return retorno.label;
+			}
+			private function defaultFaultHandler(e:FaultEvent):void{
+				this.enabled = true;
+				retorno = new UtilRetornoBanco;
+				retorno.RetornoBanco(e);
+				mensagem.text = "";
+				
+			}
+		]]>
+	</mx:Script>
+	
+	<mx:VBox width="100%" height="100%">
+		<mx:Label width="100%" id="mensagem" text="" styleName="lblerro"/>
+		<mx:HBox width="100%" height="60%">
+			<mx:Form id="form" width="100%" height="100%">
+				<mx:FormItem label="Id.:">
+					<mx:TextInput id="txtid_txtcontrato" width="80" editable="false"/>
+				</mx:FormItem>
+				<mx:FormItem label="Tipo Curso:" required="true">
+					<mx:ComboBox id="cb_tipocurso" prompt="Selecione..." selectedIndex="-1"/>
+				</mx:FormItem>
+				<mx:FormItem label="Sequencia:" required="true">
+					<mx:TextInput id="txtsequencia" width="80"/>
+				</mx:FormItem>
+				<mx:FormItem label="Texto:" required="true" width="100%" height="100%">
+					<mx:TextArea id="txtnmtexto" width="100%" height="100%"/>
+				</mx:FormItem>
+			</mx:Form>
+		</mx:HBox>
+		<mx:DataGrid width="100%" height="40%" id="dg_texto" itemClick="setcampos(event)" focusEnabled="false">
+			<mx:columns>
+				<mx:DataGridColumn headerText="Seq." width="60" dataField="sequencia"/>
+				<mx:DataGridColumn headerText="Texto" dataField="texto"/>
+			</mx:columns>
+		</mx:DataGrid>
+	</mx:VBox>
+	
+	<mx:ControlBar width="100%" horizontalAlign="center">
+		<mx:Button id="bt_pesquisar" label="Pesquisar" styleName="searchButton"/>
+		<mx:Button id="bt_inserir" label="Inserir" styleName="addButton"/>
+		<mx:Button id="bt_alterar" label="Alterar" styleName="editButton"/>
+		<mx:Button id="bt_deletar" label="Deletar" styleName="deleteButton"/>
+		<mx:Button id="bt_limpar" label="Limpar" styleName="clearButton"/>
+	</mx:ControlBar>
+</MDIWindow>

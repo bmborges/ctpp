@@ -1,0 +1,263 @@
+<?xml version="1.0" encoding="utf-8"?>
+<MDIWindow resizable="false" 
+	xmlns="flexmdi.containers.*" xmlns:mx="http://www.adobe.com/2006/mxml" 
+	width="686" height="369" title="Gera Requerimento" creationComplete="init()" 
+	layout="absolute" horizontalAlign="center" xmlns:skins="skins.*"
+	xmlns:local="*">
+	<mx:Script>
+		<![CDATA[
+			import classes.Util;
+			import classes.UtilMensagens;
+			import classes.UtilNamesPesquisa;
+			import classes.UtilRetornoBanco;
+			
+			import mx.collections.ArrayCollection;
+			import mx.core.FlexGlobals;
+			import mx.rpc.events.FaultEvent;
+			import mx.rpc.events.ResultEvent;
+			
+			import service.adm.Adm_OperadorService;
+			import service.ctr.Ctr_RequerimentoService;
+			import service.fin.Fin_FormaPgtService;
+			import service.fin.Fin_TipoRecService;
+			import service.pdg.Pdg_RequerimentoService;
+			import service.procedure.Pdg_Gera_RequerimentoService;
+			import service.view.View_Ctr_RequerimentoService;
+			
+			import vo.adm.SystemVO;
+			import vo.ctr.Ctr_RequerimentoVO;
+			import vo.fin.Fin_FormaPgtVO;
+			import vo.pdg.Pdg_RequerimentoVO;
+			import vo.procedure.Pdg_Gera_RequerimentoVO;
+			import vo.view.View_Ctr_RequerimentoVO;
+			
+			[Bindable] private var isValid:Boolean = false;
+			[Bindable] private var ArrayFormapgt:ArrayCollection;
+			[Bindable] private var ArrayRequerimento:ArrayCollection;
+			private var retorno:UtilRetornoBanco;
+			private var util:Util = new Util();
+			
+			
+			private var systemvo:SystemVO = SystemVO.getInstance();
+			
+			private var ro_formapgt:Fin_FormaPgtService = Fin_FormaPgtService.getInstance();
+			private var fin_formapgtVO:Fin_FormaPgtVO;
+			
+			private var ro_gerarequerimento:Pdg_Gera_RequerimentoService = Pdg_Gera_RequerimentoService.getInstance();
+			private var pdg_gerarequerimentoVO:Pdg_Gera_RequerimentoVO;
+			
+			private var ro_viewctrrequerimento:View_Ctr_RequerimentoService = View_Ctr_RequerimentoService.getInstance();
+			private var view_ctrrequerimentoVO:View_Ctr_RequerimentoVO;
+			
+			private var ro_requerimento:Ctr_RequerimentoService = Ctr_RequerimentoService.getInstance();
+			private var ctr_requerimentoVO:Ctr_RequerimentoVO;
+			
+			private var ro_pdgrequerimento:Pdg_RequerimentoService = Pdg_RequerimentoService.getInstance();
+			
+			private function init():void{
+				this.width = FlexGlobals.topLevelApplication.mdiCanvas.width;
+				this.height = FlexGlobals.topLevelApplication.mdiCanvas.height;
+				
+				this.x = 0;
+				this.y = 0;
+				
+				util.limpar_formulario(form);
+				
+				ctrlbar.bt_pesquisar.addEventListener(MouseEvent.CLICK,selecionar);
+				ctrlbar.bt_inserir.addEventListener(MouseEvent.CLICK,inserir);
+				ctrlbar.bt_excluir.addEventListener(MouseEvent.CLICK,deletar);
+				ctrlbar.bt_limpar.addEventListener(MouseEvent.CLICK,limpar);
+				ctrlbar.bt_executar.addEventListener(MouseEvent.CLICK,executar);
+				
+				
+				ctrlbar.addChildAt(ctrlbar.bt_pesquisar,0);
+				ctrlbar.addChildAt(ctrlbar.bt_inserir,1);
+				ctrlbar.addChildAt(ctrlbar.bt_alterar,2);
+				ctrlbar.addChildAt(ctrlbar.bt_excluir,3);
+				ctrlbar.addChildAt(ctrlbar.bt_limpar,4);
+				
+				ro_formapgt.ComboBox("nmformapgt","id_formapgt",createcbformapgt,defaultFaultHandler);
+				ro_pdgrequerimento.ComboBox("nmrequerimento","id_requerimento",createcbrequerimento,defaultFaultHandler);
+			}
+			private function createcbformapgt(event:ResultEvent):void{
+				ArrayFormapgt  = event.result as ArrayCollection;
+				cbformapgt.dataProvider  = event.result as ArrayCollection;
+			}
+			private function createcbrequerimento(event:ResultEvent):void{
+				ArrayRequerimento  = event.result as ArrayCollection;
+				cbidrequerimento.dataProvider  = event.result as ArrayCollection;
+			}
+			protected function lf_dtpentrega(item:Object, column:DataGridColumn):String
+			{
+				return util.formatData_DDMMYYYY(item.dt_pentrega);	
+			}
+			protected function lf_dtentrega(item:Object, column:DataGridColumn):String
+			{
+				return util.formatData_DDMMYYYY(item.dt_entrega);	
+			}
+			protected function lf_dtsistema(item:Object, column:DataGridColumn):String
+			{
+				return util.formatData_DDMMYYYY(item.dt_sistema);	
+			}
+			protected function lf_dtvencimento(item:Object, column:DataGridColumn):String
+			{
+				return util.formatData_DDMMYYYY(item.dt_vencimento);	
+			}
+			protected function lf_dtpagamento(item:Object, column:DataGridColumn):String
+			{
+				return util.formatData_DDMMYYYY(item.dt_pagamento);	
+			}
+			private function create_DataGrid(e:ResultEvent):void{
+				this.enabled = true;
+				dg_requerimento.dataProvider = e.result;
+			}
+			private function selecionar(e:Event):void{
+				isValid = util.validateForm(form);
+				if (!isValid){
+					mensagem.text = UtilMensagens.PreenchaCampo;
+				} else {
+				this.enabled = false;
+					popular();
+					ro_viewctrrequerimento.select(view_ctrrequerimentoVO,create_DataGrid,defaultFaultHandler,null,null);
+				}
+			}
+			
+			private function inserir(e:Event):void{
+				isValid = util.validateForm(form);
+				if (!isValid){
+					mensagem.text = UtilMensagens.PreenchaCampo;
+				} else {
+					this.enabled = false;
+					popular_gerarequerimento();
+					ro_gerarequerimento.Procedure(pdg_gerarequerimentoVO,inserirResult,defaultFaultHandler);
+				}
+			}
+			
+			private function inserirResult(e:ResultEvent):void{
+				this.enabled = true;
+				txt_requerimento.text = e.result[0]['retorno'];
+				txt_dtpagamento.text = "";
+				cbformapgt.selectedIndex = 0;
+				cbidrequerimento.selectedIndex = 0;
+				
+				selecionar(e);
+			}
+			
+			private function deletar(e:Event):void{
+				isValid = util.validateForm(form);
+				if (!isValid){
+					mensagem.text = UtilMensagens.PreenchaCampo;
+				} else {
+					this.enabled = false;
+					popular_requerimento();
+					ro_requerimento.deletar(ctr_requerimentoVO,deletarResult,defaultFaultHandler);
+					limpar(e);	
+				}
+			}
+			private function executar(e:Event):void{
+			}
+			private function deletarResult(e:ResultEvent):void{
+				this.enabled = true;
+				dg_requerimento.dataProvider = e.result;
+			}
+			
+			private function limpar(e:Event):void{
+				mensagem.text = "";
+				util.limpar_formulario(form);
+				dg_requerimento.dataProvider = null;
+			}
+			private function setcampos(e:Event):void{
+				txt_requerimento.text = dg_requerimento.selectedItem.requerimento;
+				txtid_ctrrequerimento.text = dg_requerimento.selectedItem.id_ctrrequerimento;
+				txt_dtpagamento.selectedDate = dg_requerimento.selectedItem.dt_vencimento;
+
+				
+				var retorno:Object = util.selecionarCombobox(dg_requerimento.selectedItem.id_formapgt,ArrayFormapgt);
+				retorno == null ? cbformapgt.selectedIndex = 0 : cbformapgt.selectedItem = retorno;
+
+				retorno = null;
+				retorno = util.selecionarCombobox(dg_requerimento.selectedItem.id_requerimento,ArrayRequerimento);
+				retorno == null ? cbidrequerimento.selectedIndex = 0 : cbidrequerimento.selectedItem = retorno;
+				
+				txtid_contrato.txt_id.text = dg_requerimento.selectedItem.id_contrato;
+				
+				
+				selecionar(e);
+				
+			}
+			
+			private function popular():void{
+				view_ctrrequerimentoVO = new View_Ctr_RequerimentoVO;
+				view_ctrrequerimentoVO.id_contrato = txtid_contrato.txt_id.text;
+				view_ctrrequerimentoVO.requerimento = txt_requerimento.text.length > 0 ? txt_requerimento.text : null;
+			}
+			private function popular_requerimento():void{
+				ctr_requerimentoVO = new Ctr_RequerimentoVO;
+				ctr_requerimentoVO.id_ctrrequerimento = txtid_ctrrequerimento.text;
+			}
+			private function popular_gerarequerimento():void{
+				pdg_gerarequerimentoVO = new Pdg_Gera_RequerimentoVO;
+				pdg_gerarequerimentoVO.$1 = txt_requerimento.text.length >= 0 ? txt_requerimento.text : null;
+				pdg_gerarequerimentoVO.$2 = cbidrequerimento.selectedItem.data;
+				pdg_gerarequerimentoVO.$3 = systemvo.id_operador;
+				pdg_gerarequerimentoVO.$4 = txtid_contrato.txt_id.text;
+				pdg_gerarequerimentoVO.$5 = txt_dtpagamento.text.length > 0 ? txt_dtpagamento.selectedDate : null;
+				pdg_gerarequerimentoVO.$6 = cbformapgt.selectedIndex > 0 ? cbformapgt.selectedItem.data : null;
+				pdg_gerarequerimentoVO.$7 = 2;
+			}
+			private function defaultFaultHandler(e:FaultEvent):void{
+				this.enabled = true;
+				retorno = new UtilRetornoBanco;
+				retorno.RetornoBanco(e);
+				mensagem.text = "";
+			}
+			
+		]]>
+	</mx:Script>
+<mx:Canvas  width="100%" height="100%">
+		<mx:VBox width="100%" height="100%">
+    			<mx:Label width="100%" id="mensagem" styleName="lblerro"/>
+			<mx:HBox width="100%">
+				
+			<mx:Form id="form" width="100%" paddingTop="0" paddingBottom="0">
+				<mx:FormItem label="Id.:">
+					<skins:TextInput_Maiusculo id="txt_requerimento" editable="false"/>
+				</mx:FormItem>
+				<mx:FormItem label="Cd. Contrato:" required="true" paddingTop="0" paddingBottom="0" direction="horizontal" width="100%">
+					<skins:TextButtonText id="txtid_contrato" tabela="{UtilNamesPesquisa.ctr_contrato}" titulo="Contrato"/>
+					<mx:Spacer width="50"/>
+					<mx:Label text="Curso:"/>
+					<mx:TextInput width="30%" editable="false" id="txtnmcurso"/>
+				</mx:FormItem>
+				<mx:FormItem label="Requerimento:">
+					<mx:ComboBox id="cbidrequerimento" selectedIndex="0"/>
+				</mx:FormItem>
+				<mx:FormItem label="Dt.Vencimento:">
+					<skins:DateField_Data id="txt_dtpagamento"/>
+				</mx:FormItem>
+				<mx:FormItem label="Forma Pgto.:">
+					<mx:ComboBox id="cbformapgt" selectedIndex="0"/>
+				</mx:FormItem>
+			</mx:Form>
+				<mx:Form id="forma" width="100%" paddingTop="0" paddingBottom="0">
+					<mx:TextInput id="txtid_ctrrequerimento"/>
+				</mx:Form>	
+			</mx:HBox>
+			<mx:DataGrid  width="100%" height="100%" id="dg_requerimento" itemClick="setcampos(event)">
+				<mx:columns>
+					<mx:DataGridColumn headerText="Id." dataField="requerimento"/>
+					<mx:DataGridColumn headerText="Requerimento" dataField="nmrequerimento"/>
+					<mx:DataGridColumn headerText="Dt.Cadastro" dataField="dt_sistema" labelFunction="lf_dtsistema"/>
+					<mx:DataGridColumn headerText="Dt.Prevista Entrega" dataField="dt_pentrega" labelFunction="lf_dtpentrega"/>
+					<mx:DataGridColumn headerText="Dt.Entrega" dataField="dt_entrega" labelFunction="lf_dtentrega"/>
+					<mx:DataGridColumn headerText="Valor" dataField="valor"/>
+					<mx:DataGridColumn headerText="Forma Pgt." dataField="nmformapgt"/>
+					<mx:DataGridColumn headerText="Dt.Vencimento" dataField="dt_vencimento" labelFunction="lf_dtvencimento"/>
+					<mx:DataGridColumn headerText="Dt.Pagamento" dataField="dt_pagamento" labelFunction="lf_dtpagamento"/>
+					<mx:DataGridColumn headerText="Operador" dataField="nmoperador"/>
+				</mx:columns>
+			</mx:DataGrid>
+		</mx:VBox>
+</mx:Canvas>
+	<skins:CtrlBar_Buttons id="ctrlbar"/>
+</MDIWindow>

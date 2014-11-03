@@ -1,0 +1,468 @@
+<?xml version="1.0" encoding="utf-8"?>
+<MDIWindow xmlns="flexmdi.containers.*" xmlns:mx="http://www.adobe.com/2006/mxml" 
+		   width="782" height="476" title="Cadastro Horario" creationComplete="init()"
+		   xmlns:s="library://ns.adobe.com/flex/spark" xmlns:skins="skins.*">
+	<mx:Script>
+		<![CDATA[
+			import classes.Util;
+			import classes.UtilMensagens;
+			import classes.UtilRetornoBanco;
+			
+			import mx.collections.ArrayCollection;
+			import mx.controls.Button;
+			import mx.controls.DateField;
+			import mx.controls.Text;
+			import mx.core.FlexGlobals;
+			import mx.events.IndexChangedEvent;
+			import mx.rpc.events.FaultEvent;
+			import mx.rpc.events.ResultEvent;
+			
+			import service.adm.Adm_CargoService;
+			import service.adm.Adm_DowService;
+			import service.fpg.Fpg_HorarioService;
+			import service.fpg.Fpg_HorarioTrabalhoService;
+			
+			import vo.adm.Adm_cargoVO;
+			import vo.fpg.Fpg_HorarioTrabalhoVO;
+			import vo.fpg.Fpg_HorarioVO;
+			
+			private var ro_horario:Fpg_HorarioService = Fpg_HorarioService.getInstance();
+			private var ro_dow:Adm_DowService = Adm_DowService.getInstance();
+			private var ro_htrabalho:Fpg_HorarioTrabalhoService = Fpg_HorarioTrabalhoService.getInstance();
+			private var fpg_horarioVO:Fpg_HorarioVO;
+			private var fpg_htrabalhoVO:Fpg_HorarioTrabalhoVO;
+			private var util:Util = new Util();
+			private var retorno:UtilRetornoBanco;
+			private var ArrayDow:ArrayCollection;
+			[Bindable] private var isValid:Boolean = false;
+			private var bt_setedias:Button;
+			
+			private function init():void{
+				
+				bt_setedias = new Button;
+				bt_setedias.label = "Cria 7 Dias";
+				bt_setedias.styleName = "procedureButton";
+				
+				
+				this.width = FlexGlobals.topLevelApplication.mdiCanvas.width;
+				this.height = FlexGlobals.topLevelApplication.mdiCanvas.height;
+				
+				this.x = 0;
+				this.y = 0;
+				
+				ctrlbar.addChildAt(ctrlbar.bt_pesquisar,0);
+				ctrlbar.addChildAt(ctrlbar.bt_inserir,1);
+				ctrlbar.addChildAt(ctrlbar.bt_alterar,2);
+				ctrlbar.addChildAt(ctrlbar.bt_excluir,3);
+				ctrlbar.addChildAt(ctrlbar.bt_limpar,4);
+
+				
+				ctrlbar.bt_pesquisar.addEventListener(MouseEvent.CLICK,selecionar);
+				ctrlbar.bt_inserir.addEventListener(MouseEvent.CLICK,inserir);
+				ctrlbar.bt_alterar.addEventListener(MouseEvent.CLICK,alterar);
+				ctrlbar.bt_excluir.addEventListener(MouseEvent.CLICK,deletar);
+				ctrlbar.bt_limpar.addEventListener(MouseEvent.CLICK,limpar);
+			    bt_setedias.addEventListener(MouseEvent.CLICK,criaSeteDias);
+			}
+			private function createcbdow(event:ResultEvent):void{
+				this.enabled = true;
+				ArrayDow = event.result as ArrayCollection;
+				cbdia_semana.dataProvider = ArrayDow;
+			}
+			private function create_DataGrid(event:ResultEvent):void {
+				this.enabled = true;
+				if (tbnavig.selectedIndex == 0){
+					dg_horario.dataProvider = event.result;
+				} else if (tbnavig.selectedIndex == 1){
+					dg_hora.dataProvider = event.result;
+				}
+			}
+			private function tabnavcomplete(event:IndexChangedEvent):void{
+				var currentIndex:int=event.newIndex;
+				ctrlbar.enabled = true;
+				if (currentIndex == 0){
+					ctrlbar.removeChildAt(5);
+				}else if (currentIndex == 1){
+					if(txtid_horario.text.length > 0){
+						ctrlbar.addChildAt(bt_setedias,5);
+						ro_dow.ComboBox("nmdia","id_dow",createcbdow,defaultFaultHandler);
+						selecionar(event);
+					} else {
+						ctrlbar.enabled = false;
+					}
+					
+				}
+			}
+			private function selecionar(e:Event):void{
+				this.enabled = false;
+				popular_pesquisar();
+				if (tbnavig.selectedIndex == 0){
+					ro_horario.select(fpg_horarioVO,create_DataGrid,defaultFaultHandler);
+				} else if (tbnavig.selectedIndex == 1){
+					ro_htrabalho.select(fpg_htrabalhoVO,create_DataGrid,defaultFaultHandler);
+				}
+
+			}
+			private function inserir(e:Event):void{
+				if (tbnavig.selectedIndex == 0){
+					isValid = util.validateForm(form);
+					if (!isValid){
+						mensagem_horario.text = UtilMensagens.PreenchaCampo;
+					} else {
+						this.enabled = false;
+						popular();
+						ro_horario.inserir(fpg_horarioVO,inserirResult,defaultFaultHandler);
+					}
+				} else if (tbnavig.selectedIndex == 1){
+					isValid = util.validateForm(form_hora);
+					isValid = util.validateForm(form_hora1) && isValid;
+					if (!isValid){
+						mensagem_hora.text = UtilMensagens.PreenchaCampo;
+					} else {
+						this.enabled = false;
+						popular();
+						ro_htrabalho.inserir(fpg_htrabalhoVO,inserirResult,defaultFaultHandler);
+					}
+					
+				}
+			}
+			
+			private function inserirResult(e:ResultEvent):void{
+				this.enabled = true;
+				if (tbnavig.selectedIndex == 0){
+					txtid_horario.text = e.result.toString();
+				} else if (tbnavig.selectedIndex == 1){
+					txtid_horariotrabalho.text = e.result.toString();
+				}
+				selecionar(e);
+			}
+			
+			private function alterar(e:Event):void{
+				if (tbnavig.selectedIndex == 0){
+					isValid = util.validateForm(form);
+					if (!isValid){
+						mensagem_horario.text = UtilMensagens.PreenchaCampo;
+					} else {
+						this.enabled = false;
+						popular();
+						ro_horario.atualizar(fpg_horarioVO,alterarResult,defaultFaultHandler);
+					}
+				} else if (tbnavig.selectedIndex == 1){
+					isValid = util.validateForm(form_hora);
+					isValid = util.validateForm(form_hora1) && isValid;
+					if (!isValid){
+						mensagem_hora.text = UtilMensagens.PreenchaCampo;
+					} else {
+						this.enabled = false;
+						popular();
+						ro_htrabalho.atualizar(fpg_htrabalhoVO,alterarResult,defaultFaultHandler);
+					}
+					
+				}
+			}
+			private function alterarResult(e:ResultEvent):void{
+				this.enabled = true;
+				if (tbnavig.selectedIndex == 0){
+					dg_horario.dataProvider = e.result;
+				} else if (tbnavig.selectedIndex == 1){
+					popular_pesquisar();
+					selecionar(e);
+				}
+
+			}
+			private function deletar(e:Event):void{
+				if (tbnavig.selectedIndex == 0){
+					isValid = util.validateForm(form);
+					if (!isValid){
+						mensagem_horario.text = UtilMensagens.PreenchaCampo;
+					} else {
+						this.enabled = false;
+						popular();
+						ro_horario.deletar(fpg_horarioVO,deletarResult,defaultFaultHandler);
+					}				
+				} else if (tbnavig.selectedIndex == 1){
+					isValid = util.validateForm(form_hora);
+					isValid = util.validateForm(form_hora1) && isValid;
+					if (!isValid){
+						mensagem_hora.text = UtilMensagens.PreenchaCampo;
+					} else {
+						this.enabled = false;
+						popular();
+						ro_htrabalho.deletar(fpg_htrabalhoVO,deletarResult,defaultFaultHandler);
+					}
+				}
+			}
+			private function deletarResult(e:ResultEvent):void{
+				this.enabled = true;
+				limpar(e);
+				if (tbnavig.selectedIndex == 0){
+					dg_horario.dataProvider = e.result;
+				} else if (tbnavig.selectedIndex == 1){
+					dg_hora.dataProvider = e.result;
+					selecionar(e);
+				}
+					
+			}
+			private function limpar(e:Event):void{
+				if (tbnavig.selectedIndex == 0){
+					mensagem_horario.text = "";
+					util.limpar_formulario(form);
+					dg_horario.dataProvider = null;
+					
+					mensagem_hora.text = "";
+					util.limpar_formulario(form_hora);
+					util.limpar_formulario(form_hora1);
+					dg_hora.dataProvider = null;
+					
+					
+				} else if (tbnavig.selectedIndex == 1){
+					mensagem_hora.text = "";
+					util.limpar_formulario(form_hora);
+					util.limpar_formulario(form_hora1);
+					dg_hora.dataProvider = null;
+					selecionar(e);
+				}
+			}
+			private function setcampos(e:Event):void{
+				if (tbnavig.selectedIndex == 0){
+					txtid_horario.text = dg_horario.selectedItem.id_horario;
+					txtnmhorario.text = dg_horario.selectedItem.nmhorario;
+					ckfolgaflutuante.selected = dg_horario.selectedItem.folgaflutuante == "V" ? true : false;
+				} else if (tbnavig.selectedIndex == 1){
+					txtid_horariotrabalho.text = dg_hora.selectedItem.id_horariotrabalho;
+					cbdia_semana.selectedItem = util.selecionarCombobox(dg_hora.selectedItem.dia_semana,ArrayDow);
+					ckfolga.selected = dg_hora.selectedItem.folga == "V" ? true : false;
+					txtentrada.text = dg_hora.selectedItem.h_entrada ? util.doubleDigitFormat(dg_hora.selectedItem.h_entrada.hours)+":"+util.doubleDigitFormat(dg_hora.selectedItem.h_entrada.minutes) : "";
+					txtint_saida.text  = dg_hora.selectedItem.int_saida ? util.doubleDigitFormat(dg_hora.selectedItem.int_saida.hours)+":"+util.doubleDigitFormat(dg_hora.selectedItem.int_saida.minutes) : "";
+					txtint_entrada.text = dg_hora.selectedItem.int_entrada ? util.doubleDigitFormat(dg_hora.selectedItem.int_entrada.hours)+":"+util.doubleDigitFormat(dg_hora.selectedItem.int_entrada.minutes) : "";
+					txtsaida.text = dg_hora.selectedItem.h_saida ? util.doubleDigitFormat(dg_hora.selectedItem.h_saida.hours)+":"+util.doubleDigitFormat(dg_hora.selectedItem.h_saida.minutes) : "";
+					
+				}
+			}
+			
+			private function popular():void{
+				if (tbnavig.selectedIndex == 0){
+					fpg_horarioVO = new Fpg_HorarioVO();
+					fpg_horarioVO.id_horario = txtid_horario.text.length <= 0 ? null : txtid_horario.text;
+					fpg_horarioVO.nmhorario = txtnmhorario.text.length <= 0 ? null : txtnmhorario.text.toUpperCase();
+					fpg_horarioVO.folgaflutuante = ckfolgaflutuante.selected ? "V" : "F";
+				} else if (tbnavig.selectedIndex == 1){
+					fpg_htrabalhoVO = new Fpg_HorarioTrabalhoVO();
+					fpg_htrabalhoVO.id_horario = txtid_horario.text;
+					fpg_htrabalhoVO.id_horariotrabalho = txtid_horariotrabalho.text.length <= 0 ? null : txtid_horariotrabalho.text;
+					fpg_htrabalhoVO.dia_semana = cbdia_semana.selectedItem.data;
+					fpg_htrabalhoVO.folga = ckfolga.selected ? "V" : "F";
+					
+					if (!ckfolga.selected) {
+						var data:Date;
+						var txt:Array = new Array();
+						
+						if (txtentrada.text.length <= 0){
+							fpg_htrabalhoVO.h_entrada = null;
+						} else {
+							data = new Date();
+							txt = txtentrada.text.split(":");
+							data.hours = txt[0];
+							data.minutes = txt[1];
+							fpg_htrabalhoVO.h_entrada = data;
+						}
+						if (txtint_saida.text.length <= 0){
+							fpg_htrabalhoVO.int_saida = null;
+						} else {
+							data = new Date();
+							txt = txtint_saida.text.split(":");
+							data.hours = txt[0];
+							data.minutes = txt[1];
+							fpg_htrabalhoVO.int_saida = data;
+						}
+						
+						if (txtint_entrada.text.length <= 0){
+							fpg_htrabalhoVO.int_entrada = null;
+						} else {
+						data = new Date();
+							txt = txtint_entrada.text.split(":");
+							data.hours = txt[0];
+							data.minutes = txt[1];
+							fpg_htrabalhoVO.int_entrada =  data;
+						}
+						
+						if ( txtsaida.text.length <= 0){
+							fpg_htrabalhoVO.h_saida = null;
+						} else {
+							data = new Date();
+							txt = txtsaida.text.split(":");
+							data.hours = txt[0];
+							data.minutes = txt[1];
+							fpg_htrabalhoVO.h_saida =  data; 
+						}
+					}
+					
+				}
+			}
+			private function popular_pesquisar():void{
+				if (tbnavig.selectedIndex == 0){
+					fpg_horarioVO = new Fpg_HorarioVO();
+					fpg_horarioVO.id_horario = txtid_horario.text.length <= 0 ? null : txtid_horario.text;
+					fpg_horarioVO.nmhorario = txtnmhorario.text.length <= 0 ? null : txtnmhorario.text.toUpperCase();
+				} else if (tbnavig.selectedIndex == 1){
+					fpg_htrabalhoVO = new Fpg_HorarioTrabalhoVO();
+					fpg_htrabalhoVO.id_horario = txtid_horario.text;
+				}
+			}
+			private function defaultFaultHandler(e:FaultEvent):void{
+				this.enabled = true;
+				retorno = new UtilRetornoBanco;
+				retorno.RetornoBanco(e);
+				
+				if (tbnavig.selectedIndex == 0){
+					mensagem_horario.text = "";
+				} else if (tbnavig.selectedIndex == 1){
+					mensagem_hora.text = "";
+				}
+				
+			}
+			
+			
+//			var someBirthday:Date = new Date(1974, 10, 30, 15, 5);
+//			
+//			trace(someBirthday); // Sat Nov 30 15:20:00 GMT-0800 1974
+//			trace(someBirthday.getHours() + ":" + someBirthday.getMinutes()); // 15:5
+//			
+//			var localTime:String = getUSClockTime(someBirthday.getHours(), someBirthday.getMinutes());
+//			trace(localTime);    // 03:05 PM
+//			
+//			function getUSClockTime(hrs:uint, mins:uint):String {
+//				var modifier:String = "PM";
+//				var minLabel:String = doubleDigitFormat(mins);
+//				
+//				if(hrs > 12) {
+//					hrs = hrs-12;
+//				} else if(hrs == 0) {
+//					modifier = "AM";
+//					hrs = 12;
+//				} else if(hrs < 12) {
+//					modifier = "AM";
+//				}
+//				
+//				return (doubleDigitFormat(hrs) + ":" + minLabel + " " + modifier);
+//			}
+//			
+			
+			protected function lf_hentrada(item:Object, column:DataGridColumn):String
+			{
+				return util.formatHora(item.h_entrada);
+			}
+			protected function lf_intsaida(item:Object, column:DataGridColumn):String
+			{
+				return util.formatHora(item.int_saida);
+			}
+			protected function lf_intentrada(item:Object, column:DataGridColumn):String
+			{
+				if(item.int_entrada == null){
+					return "";
+				}
+				return util.formatHora(item.int_entrada);
+			}
+			protected function lf_hsaida(item:Object, column:DataGridColumn):String
+			{
+				return util.formatHora(item.h_saida);
+			}
+			protected function lf_diasemana(item:Object, column:DataGridColumn):String
+			{
+				var retorno:Object = util.selecionarCombobox(item.dia_semana,ArrayDow);
+				return retorno.label;
+			}
+			private function criaSeteDias(e:Event):void{
+				if (dg_hora.dataProvider.length > 0 ){
+					mensagem_hora.text = "Para utilizar essa opção não deve existir nenhum dia cadastrado";
+				} else {
+					var i:int = 0;
+					do {
+						this.enabled = false;
+						popular();
+						fpg_htrabalhoVO.dia_semana = i;
+						ro_htrabalho.inserir(fpg_htrabalhoVO,inserirResult,defaultFaultHandler);
+						i++;
+					} while ( i < 7);
+				}
+			}
+
+		]]>
+	</mx:Script>
+	<mx:VBox width="100%" height="100%">
+		<mx:TabNavigator id="tbnavig" width="100%" height="100%" change="tabnavcomplete(event)">
+			<mx:Canvas label="Horário(s)">
+				<mx:VBox width="100%" height="100%">
+				<mx:Label width="100%" id="mensagem_horario" styleName="lblerro"/>
+					<mx:HBox width="100%">
+						<mx:Form id="form" width="50%" height="100%">
+							<mx:FormItem label="Id.:">
+								<mx:TextInput id="txtid_horario" width="82" editable="false"/>
+							</mx:FormItem>
+							<mx:FormItem label="Nome Horário:" required="true">
+								<skins:TextInput_Maiusculo id="txtnmhorario" width="216"/>
+							</mx:FormItem>
+							<mx:FormItem label="Folga Flutuante:">
+								<mx:CheckBox id="ckfolgaflutuante"/>
+							</mx:FormItem>
+						</mx:Form>
+					</mx:HBox>
+					<mx:DataGrid width="100%" height="100%" id="dg_horario" itemClick="setcampos(event)" focusEnabled="false">
+						<mx:columns>
+							<mx:DataGridColumn headerText="Id." width="60" dataField="id_horario"/>
+							<mx:DataGridColumn headerText="Horário" dataField="nmhorario"/>
+							<mx:DataGridColumn headerText="Folga Flutuante" width="100" dataField="folgaflutuante"/>
+						</mx:columns>
+					</mx:DataGrid>
+				</mx:VBox>
+			</mx:Canvas>
+			<mx:Canvas label="Hora(s)" id="c_hora" enabled="{txtid_horario.text.length > 0 ? true : false}">
+				<mx:VBox width="100%" height="100%">
+					<mx:Label width="100%" id="mensagem_hora" styleName="lblerro"/>
+					<mx:HBox width="100%">
+						<mx:Form id="form_hora" width="50%" height="100%">
+							<mx:FormItem label="Id.:">
+								<mx:TextInput id="txtid_horariotrabalho" width="82" editable="false"/>
+							</mx:FormItem>
+							<mx:FormItem label="Dia Semana" required="true">
+								<mx:ComboBox id="cbdia_semana" selectedIndex="0"/>
+							</mx:FormItem>
+							<mx:FormItem label="Folga:">
+								<mx:CheckBox id="ckfolga"/>
+							</mx:FormItem>
+						</mx:Form>
+						<mx:Form id="form_hora1" width="50%" height="100%">
+							<mx:FormItem label="Entrada:" required="false">
+								<skins:TextInput_Hora id="txtentrada"/>
+							</mx:FormItem>
+							<mx:FormItem label="Saida Intervalo:" required="false">
+								<skins:TextInput_Hora id="txtint_saida"/>
+							</mx:FormItem>
+							<mx:FormItem label="Entrada Intervalo:" required="false">
+								<skins:TextInput_Hora id="txtint_entrada"/>
+							</mx:FormItem>
+							<mx:FormItem label="Saída:" required="false">
+								<skins:TextInput_Hora id="txtsaida"/>
+							</mx:FormItem>
+						</mx:Form>
+					</mx:HBox>
+					<mx:DataGrid width="100%" height="100%" id="dg_hora" itemClick="setcampos(event)" focusEnabled="false">
+						<mx:columns>
+							<mx:DataGridColumn headerText="Id." width="60" dataField="id_horariotrabalho"/>
+							<mx:DataGridColumn headerText="Dia Semana" width="300" dataField="dia_semana" labelFunction="lf_diasemana"/>
+							<mx:DataGridColumn headerText="Folga" width="100" dataField="folga"/>
+							<mx:DataGridColumn headerText="Entrada" dataField="h_entrada" labelFunction="lf_hentrada"/>
+							<mx:DataGridColumn headerText="Int.Saida" dataField="int_saida" labelFunction="lf_intsaida"/>
+							<mx:DataGridColumn headerText="Int.Entrada" dataField="int_entrada" labelFunction="lf_intentrada"/>
+							<mx:DataGridColumn headerText="Saida" dataField="h_saida" labelFunction="lf_hsaida"/>
+							<mx:DataGridColumn headerText="Horas Previstas" dataField="horasprevistas" textAlign="center"/>
+						</mx:columns>
+					</mx:DataGrid>
+				</mx:VBox>
+				
+			</mx:Canvas>
+		</mx:TabNavigator>
+	</mx:VBox>
+	
+	<skins:CtrlBar_Buttons id="ctrlbar"/>
+</MDIWindow>

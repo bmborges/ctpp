@@ -1,0 +1,239 @@
+<?xml version="1.0" encoding="utf-8"?>
+<s:TitleWindow xmlns:fx="http://ns.adobe.com/mxml/2009"
+			   xmlns:s="library://ns.adobe.com/flex/spark"
+			   xmlns:mx="library://ns.adobe.com/flex/mx"
+			   xmlns:skins="skins.*"
+			   creationComplete="titlewindow_creationCompleteHandler(event)"
+			   close="titlewindow1_closeHandler(event)"
+			   creationPolicy="all"
+			   >
+	<s:layout>
+		<s:VerticalLayout paddingLeft="10" paddingRight="10" paddingBottom="10" paddingTop="10" gap="5"/>
+	</s:layout>
+	<fx:Script>
+		<![CDATA[
+			import classes.Util;
+			import classes.UtilMensagens;
+			import classes.UtilNamesPesquisa;
+			import classes.UtilRetornoBanco;
+			
+			import frm.frm_pesquisar;
+			
+			import mx.collections.ArrayCollection;
+			import mx.containers.FormItem;
+			import mx.controls.CheckBox;
+			import mx.controls.ComboBox;
+			import mx.controls.TextArea;
+			import mx.controls.TextInput;
+			import mx.core.FlexGlobals;
+			import mx.events.CloseEvent;
+			import mx.events.FlexEvent;
+			import mx.managers.PopUpManager;
+			import mx.rpc.events.FaultEvent;
+			import mx.rpc.events.ResultEvent;
+			
+			import service.adm.Adm_Relatorio_CamposService;
+			import service.adm.Adm_Relatorio_SaidaService;
+			import service.ctr.Ctr_StatusService;
+			import service.view.View_Adm_RelatorioService;
+			
+			import skins.BarraMsg;
+			import skins.DateField_Data;
+			import skins.TextButtonText;
+			import skins.TextButtonText1;
+			import skins.TextInput_Hora;
+			
+			import vo.adm.Adm_Relatorio_CamposVO;
+			import vo.adm.Adm_Relatorio_SaidaVO;
+			import vo.adm.SystemVO;
+			import vo.view.View_Adm_RelatorioVO;
+			
+			[Bindable] private var isValid:Boolean = false;
+			[Bindable] private var reportUrl:String;
+
+			public var util:Util = new Util();
+			public static var alert:BarraMsg;
+			private var ro_ctrstatus:Ctr_StatusService = Ctr_StatusService.getInstance(); 
+			private var systemvo:SystemVO = SystemVO.getInstance();
+			private var retorno:UtilRetornoBanco;
+			private var adm_relatoriocamposVO:Adm_Relatorio_CamposVO;
+			private var ro_relatoriocampos:Adm_Relatorio_CamposService = Adm_Relatorio_CamposService.getInstance();
+			private var result:ArrayCollection;
+			private var ArrayRelSaida:ArrayCollection;
+			private var view_relatorioVO:View_Adm_RelatorioVO;
+			private var ro_relatorio:View_Adm_RelatorioService = View_Adm_RelatorioService.getInstance();
+			private var ro_relsaida:Adm_Relatorio_SaidaService = Adm_Relatorio_SaidaService.getInstance();
+			private var cbSaida:ComboBox = new ComboBox;
+			
+			protected function titlewindow1_closeHandler(event:CloseEvent):void{
+				PopUpManager.removePopUp(this);
+			}
+			
+			public function titlewindow_creationCompleteHandler(event:FlexEvent):void{
+				
+				alert = new BarraMsg();
+				alert.setStyle("top",0);
+				alert.setStyle("left",0);
+				alert.setStyle("rigth",0);
+				//FlexGlobals.topLevelApplication.addElement(alert);
+				canvas.addElementAt(alert,0);
+				
+				ctrlbar.addChildAt(ctrlbar.bt_imprime,0);
+				ctrlbar.addChildAt(ctrlbar.bt_limpar,1);
+				
+				ctrlbar.bt_imprime.addEventListener(MouseEvent.CLICK,imprime);
+				ctrlbar.bt_limpar.addEventListener(MouseEvent.CLICK,limpar);
+				
+				var X:Number = this.width / 2;
+				var Y:Number = this.height / 2;
+				
+				var newX:Number = FlexGlobals.topLevelApplication.mdiCanvas.width / 2;
+				var newY:Number = FlexGlobals.topLevelApplication.mdiCanvas.height / 2;
+				
+				this.x = newX - (X*2);
+				this.y = newY - (Y*2);
+
+			}
+			private function ArrayRelSaidaResult(e:ResultEvent):void{
+				ArrayRelSaida = e.result as ArrayCollection;
+			}
+			public function selecionar(id_relatorio:int):void{
+				ro_relsaida.ComboBox("nmsaida","id_relatorio_saida",ArrayRelSaidaResult,defaultFaultHandler);
+				
+				view_relatorioVO = new View_Adm_RelatorioVO;
+				view_relatorioVO.id_relatorio = id_relatorio;
+				
+				ro_relatorio.select(view_relatorioVO,selecionarResult,defaultFaultHandler,null,null);
+			}
+			private function selecionarResult(e:ResultEvent):void{
+				result = e.result as ArrayCollection;
+				
+				if (result.length <= 0){
+					ctrlbar.enabled = false;
+					return;
+				}
+				var item:FormItem = new FormItem;
+				item.label = "Exportar:";
+				item.required = true;
+				cbSaida.id = "id_relatorio_saida";
+				cbSaida.dataProvider = ArrayRelSaida;
+				item.addChild(cbSaida);
+				form.addChild(item);
+				if (result[0]['id_relatorio_saida'] != 99999){
+					cbSaida.selectedItem = util.selecionarCombobox(int(result[i]['id_relatorio_saida']),ArrayRelSaida);
+				}
+				for (var i:int = 0; i < result.length; i++) 
+				{
+					item = new FormItem;
+					item.label = result[i]['nmcampo'];
+					if (result[i]['obrigatorio'] == 1){
+						item.required = true;
+					}
+					if (result[i]['nmcomponente'] == 'TextInput'){
+						var ti:TextInput = new TextInput;
+						ti.id = result[i]['nmparametro'];
+						item.addChild(ti);
+					}
+					if (result[i]['nmcomponente'] == 'DateField_Data'){
+						var d:DateField_Data = new DateField_Data;
+						d.id = result[i]['nmparametro'];
+						item.addChild(d);
+					}
+					if (result[i]['nmcomponente'] == 'TextButtonText1'){
+						var tbt:TextButtonText1 = new TextButtonText1;
+						tbt.id = result[i]['nmparametro'];
+						tbt.tabela = result[i]['nmtabela'];
+						item.addChild(tbt);
+					}
+					
+					
+					form.addChild(item);
+				}
+				
+
+
+			}
+			public function imprime(e:Event):void{
+				
+				isValid = util.validateForm(form);
+				if (!isValid){
+					alert.show(BarraMsg.INFO,UtilMensagens.PreenchaCampo);
+				} else {
+					//this.enabled = false;
+					ctrlbar.enabled = false;
+					alert.show(BarraMsg.INFO,UtilMensagens.RelatorioGerando);
+					
+					var obj:Object = new Object();
+					
+					var itensdoFormulario:Array = form.getChildren();
+					var i:int;
+					for (i = 0; i < itensdoFormulario.length; i++)
+					{
+						trace(itensdoFormulario[i].getChildren());
+						var formItem:Array = itensdoFormulario[i].getChildren();
+						var j:int;
+						for (j = 0; j < formItem.length; j ++){
+							trace(formItem[j]);
+							if(formItem[j] is mx.controls.ComboBox){
+							}
+							if(formItem[j] is DateField_Data){
+								if (formItem[j].selectedDate != null){
+									obj[formItem[j].id] = formItem[j].selectedDate;
+								}
+							}
+							if(formItem[j] is TextArea){
+							}
+							if(formItem[j] is TextInput){
+								if (formItem[j].text.length > 0){
+									obj[formItem[j].id] = formItem[j].text;
+								}
+							}
+							if(formItem[j] is TextInput_Hora){
+							}
+							if(formItem[j] is TextArea){
+							}
+							if(formItem[j] is CheckBox){
+							}
+							if(formItem[j] is TextButtonText){
+								
+							}
+							if(formItem[j] is TextButtonText1){
+								if (formItem[j].txt_id.text.length > 0){
+									obj[formItem[j].id] = int(formItem[j].txt_id.text);
+								}
+							}
+							
+						}
+					}
+					ro_ctrstatus.Report(obj,cbSaida.selectedItem.label,result[0]['nmjasper'],result[0]['abreviatura'],imprimeResult,defaultFaultHandler);
+				}
+			}
+			public function imprimeResult(e:ResultEvent):void{
+				//this.enabled = true;
+				ctrlbar.enabled = true;
+				alert.show(BarraMsg.INFO,UtilMensagens.RelatorioGerado);
+				util.abrepdf(e.result[0]['destinationUrl']);
+			}
+			private function defaultFaultHandler(e:FaultEvent):void{
+				//this.enabled = true;
+				ctrlbar.enabled = true;
+				retorno = new UtilRetornoBanco;
+				alert.show(BarraMsg.ERROR,retorno.RetornoBancoString(e));
+			}
+			
+			private function limpar(e:Event):void{
+				util.limpar_formulario(form);
+			}
+		]]>
+	</fx:Script>
+	<s:Group width="100%" height="100%">
+		<mx:Canvas width="100%" height="100%">
+				<mx:HBox width="100%" height="10%">
+					<mx:Form id="form" width="100%" height="100%">
+					</mx:Form>
+				</mx:HBox>
+		</mx:Canvas>
+		<mx:Canvas id="canvas" width="100%" height="100%"/>
+	</s:Group>
+	<skins:CtrlBar_Buttons id="ctrlbar"/>
+</s:TitleWindow>

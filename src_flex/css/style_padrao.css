@@ -1,0 +1,55 @@
+/* CSS file */
+@namespace s "library://ns.adobe.com/flex/spark";
+@namespace mx "library://ns.adobe.com/flex/mx";
+.searchButton {
+  icon: Embed(source="/assets/icons/search.png");
+}
+.addButton {
+  icon: Embed(source="/assets/icons/add.png");
+}
+.clearButton {
+  icon: Embed(source="/assets/icons/clear.png");
+}
+.deleteButton {
+  icon: Embed(source="/assets/icons/delete.png");
+}
+.editButton {
+  icon: Embed(source="/assets/icons/edit.png");
+}
+.pdfButton {
+  icon: Embed(source="/assets/icons/page_white_acrobat.png");	
+}
+.magnifyButton {
+	icon: Embed(source="/assets/icons/page_white_magnify.png");	
+}
+.saveButton {
+	icon: Embed(source="/assets/icons/disk.png");	
+}
+.procedureButton {
+	icon: Embed(source="/assets/icons/table.png");	
+}
+.btpesquisa{
+  icon: Embed(source='./assets/icons/magnifier.png');
+}
+.add{
+  icon: Embed(source='./assets/icons/add2.png');
+}
+.cancel{
+	icon: Embed(source='./assets/icons/cancel.png');
+}
+.delete2{
+	icon: Embed(source='./assets/icons/delete2.png');
+}	
+.lblerro{
+	color:#FF0000;
+	font-weight:bold;
+	text-align:left;		
+}
+
+.background
+{
+	backgroundSize: "100%";
+	backgroundImageFillMode: repeat;
+	backgroundColor: "0xFFFFFF";
+}
+

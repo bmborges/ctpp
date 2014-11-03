@@ -1,0 +1,92 @@
+<?xml version="1.0" encoding="utf-8"?>
+<MDIWindow xmlns="flexmdi.containers.*" xmlns:mx="http://www.adobe.com/2006/mxml" width="370" height="264" title="Altera Senha" creationComplete="init()">
+
+<mx:Script>
+	<![CDATA[
+		import classes.Util;
+		import classes.UtilMensagens;
+		import classes.UtilRetornoBanco;
+		
+		import flash.net.sendToURL;
+		
+		import mx.rpc.events.FaultEvent;
+		import mx.rpc.events.ResultEvent;
+		
+		import service.adm.Adm_OperadorService;
+		
+		import vo.adm.Adm_operadorVO;
+		import vo.adm.SystemVO;
+		
+		public var systemVO:SystemVO = SystemVO.getInstance();
+		public var ro_operador:Adm_OperadorService = Adm_OperadorService.getInstance();
+		private var util:Util = new Util();
+		private var retorno:UtilRetornoBanco;
+		[Bindable] private var adm_operadorVO:Adm_operadorVO;
+		[Bindable] private var isValid:Boolean = false;
+		
+		public function alterar():void{
+			isValid = util.validateForm(form);
+			if(!isValid){
+				mensagem.text = UtilMensagens.PreenchaCampo;
+			} else {
+            	if (txtsenhanova.text == txtredigite.text){
+					this.enabled = false;
+					popular_operador();
+					ro_operador.updatesenha(adm_operadorVO,Result_alterar,defaultFaultHandler);
+             	}else{
+					mensagem.text = "A senha / redigite não confere digite novamente";
+                	txtsenhanova.setFocus();
+             	}
+			}
+		}
+		private function popular_operador():void{
+			adm_operadorVO = new Adm_operadorVO();
+			adm_operadorVO.id_operador = systemVO.id_operador;
+			adm_operadorVO.senha = txtsenhaatual.text;
+			adm_operadorVO.senha_nova = txtsenhanova.text;
+		}
+		public function limpar():void{
+			
+        	txtsenhaatual.text = "";
+        	txtsenhanova.text = "";
+        	txtredigite.text = "";
+        	mensagem.text = "";
+        	
+        }
+        public function Result_alterar(event:ResultEvent):void{
+			mensagem.text = UtilMensagens.OperacaoRealizadaSucesso;
+        }
+        public function init():void{
+			txtid.text = systemVO.id_operador.toString();
+        }
+		private function defaultFaultHandler(e:FaultEvent):void{
+			this.enabled = true;
+			mensagem.text = "";
+			retorno = new UtilRetornoBanco;
+			retorno.RetornoBanco(e);
+			
+		}
+	]]>
+</mx:Script>
+	<mx:VBox width="100%" height="100%">
+		<mx:Label width="100%" id="mensagem" text="" color="#FF0000" fontWeight="bold" textAlign="left"/>
+		<mx:Form width="100%" id="form">
+			<mx:FormItem label="Id.:">
+				<mx:TextInput id="txtid" width="80" editable="false"/>
+			</mx:FormItem>
+			<mx:FormItem label="Senha Atual:" required="true">
+				<mx:TextInput id="txtsenhaatual" displayAsPassword="true"/>
+			</mx:FormItem>
+			<mx:FormItem label="Nova Senha:" required="true">
+				<mx:TextInput id="txtsenhanova" displayAsPassword="true"/>
+			</mx:FormItem>
+			<mx:FormItem label="Redigite:" required="true">
+				<mx:TextInput id="txtredigite" displayAsPassword="true"/>
+			</mx:FormItem>
+		</mx:Form>
+	</mx:VBox>
+	<mx:ControlBar width="100%" horizontalAlign="center">
+	<mx:Button label="Alterar" id="bt_alterar" click="alterar()"/>
+	<mx:Button label="Limpar" click="limpar()"/>
+</mx:ControlBar>
+</MDIWindow>

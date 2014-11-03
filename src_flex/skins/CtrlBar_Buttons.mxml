@@ -1,0 +1,34 @@
+<?xml version="1.0" encoding="utf-8"?>
+<mx:ControlBar xmlns:fx="http://ns.adobe.com/mxml/2009" 
+			   xmlns:s="library://ns.adobe.com/flex/spark" 
+			   xmlns:mx="library://ns.adobe.com/flex/mx" width="100%" height="50" horizontalAlign="center" verticalAlign="middle"
+			   initialize="padrao(event)">
+	<fx:Declarations>
+		<!-- Place non-visual elements (e.g., services, value objects) here -->
+	</fx:Declarations>
+	
+<fx:Script>
+	<![CDATA[
+		import mx.events.FlexEvent;
+		
+		protected function padrao(event:FlexEvent):void
+		{
+			// TODO Auto-generated method stub
+			this.removeAllChildren();
+		}
+		
+	]]>
+</fx:Script>
+	
+	
+	
+	<mx:Button id="bt_pesquisar" label="Pesquisar" styleName="searchButton"/>
+	<mx:Button id="bt_inserir" label="Inserir" styleName="addButton"/>
+	<mx:Button id="bt_alterar" label="Alterar" styleName="editButton"/>
+	<mx:Button id="bt_excluir" label="Excluir" styleName="deleteButton"/>
+	<mx:Button id="bt_limpar" label="Limpar" styleName="clearButton"/>
+	<mx:Button id="bt_imprime" label="Imprimir" styleName="pdfButton"/>
+	<mx:Button id="bt_salvar" label="Salvar" styleName="saveButton"/>
+	<mx:Button id="bt_executar" label="Executar" styleName="procedureButton"/>
+	
+</mx:ControlBar>

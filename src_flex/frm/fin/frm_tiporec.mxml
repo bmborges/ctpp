@@ -1,0 +1,145 @@
+<?xml version="1.0" encoding="utf-8"?>
+<MDIWindow xmlns="flexmdi.containers.*" xmlns:mx="http://www.adobe.com/2006/mxml" 
+	width="628" height="370" title="Cadastro Tipo Recebimento" creationComplete="init()" xmlns:skins="skins.*">
+
+	<mx:Script>
+		<![CDATA[
+			import classes.Util;
+			import classes.UtilMensagens;
+			import classes.UtilRetornoBanco;
+			
+			import mx.rpc.events.FaultEvent;
+			import mx.rpc.events.ResultEvent;
+			
+			import service.fin.Fin_TipoRecService;
+			
+			import vo.fin.Fin_TipoRecVO;
+			
+			[Bindable] private var isValid:Boolean = false;
+			private var util:Util = new Util();
+			private var retorno:UtilRetornoBanco;
+			
+			private var ro_tiporec:Fin_TipoRecService = Fin_TipoRecService.getInstance();
+			private var fin_tiporecVO:Fin_TipoRecVO;
+			
+			private function init():void{
+				
+				util.limpar_formulario(form);
+				
+				ctrlbar.bt_pesquisar.addEventListener(MouseEvent.CLICK,selecionar);
+				ctrlbar.bt_inserir.addEventListener(MouseEvent.CLICK,inserir);
+				ctrlbar.bt_alterar.addEventListener(MouseEvent.CLICK,alterar);
+				ctrlbar.bt_excluir.addEventListener(MouseEvent.CLICK,deletar);
+				ctrlbar.bt_limpar.addEventListener(MouseEvent.CLICK,limpar);
+				
+				
+				ctrlbar.addChildAt(ctrlbar.bt_pesquisar,0);
+				ctrlbar.addChildAt(ctrlbar.bt_inserir,1);
+				ctrlbar.addChildAt(ctrlbar.bt_alterar,2);
+				ctrlbar.addChildAt(ctrlbar.bt_excluir,3);
+				ctrlbar.addChildAt(ctrlbar.bt_limpar,4);
+			}
+			private function create_DataGrid(e:ResultEvent):void{
+				this.enabled = true;
+				dg_tipo.dataProvider = e.result;
+			}
+			
+			private function selecionar(e:Event):void{
+				this.enabled = false;
+				popular();
+				ro_tiporec.select(fin_tiporecVO,create_DataGrid,defaultFaultHandler);
+			}
+			
+			private function inserir(e:Event):void{
+				isValid = util.validateForm(form);
+				if (!isValid){
+					mensagem.text = UtilMensagens.PreenchaCampo;
+				} else {
+					this.enabled = false;
+					popular();
+					ro_tiporec.inserir(fin_tiporecVO,inserirResult,defaultFaultHandler);
+				}
+			}
+			
+			private function inserirResult(e:ResultEvent):void{
+				this.enabled = true;
+				txtid_tiporec.text = e.result.toString();
+				selecionar(e);
+			}
+			
+			private function alterar(e:Event):void{
+				isValid = util.validateForm(form);
+				if (!isValid){
+					mensagem.text = UtilMensagens.PreenchaCampo;
+				} else {
+					this.enabled = false;
+					popular();
+					ro_tiporec.atualizar(fin_tiporecVO,alterarResult,defaultFaultHandler);
+				}
+			}
+			private function alterarResult(e:ResultEvent):void{
+				this.enabled = true;
+				dg_tipo.dataProvider = e.result;
+			}
+			private function deletar(e:Event):void{
+				isValid = util.validateForm(form);
+				if (!isValid){
+					mensagem.text = UtilMensagens.PreenchaCampo;
+				} else {
+					this.enabled = false;
+					popular();
+					ro_tiporec.deletar(fin_tiporecVO,deletarResult,defaultFaultHandler);
+					limpar(e);	
+				}
+			}
+			private function deletarResult(e:ResultEvent):void{
+				this.enabled = true;
+				dg_tipo.dataProvider = e.result;
+			}
+			
+			
+			private function limpar(e:Event):void{
+				mensagem.text = "";
+				util.limpar_formulario(form);
+				dg_tipo.dataProvider = null;
+			}
+			private function setcampos(e:Event):void{
+				txtid_tiporec.text = dg_tipo.selectedItem.id_tiporec;
+				txtnmtiporec.text = dg_tipo.selectedItem.nmtiporec;
+			}
+			
+			private function popular():void{
+				fin_tiporecVO = new Fin_TipoRecVO();
+				fin_tiporecVO.id_tiporec = txtid_tiporec.text.length <= 0 ? null : txtid_tiporec.text;
+				fin_tiporecVO.nmtiporec = txtnmtiporec.text.length <= 0 ? null : txtnmtiporec.text;
+				
+			}
+			private function defaultFaultHandler(e:FaultEvent):void{
+				this.enabled = true;
+				retorno = new UtilRetornoBanco;
+				retorno.RetornoBanco(e);
+				mensagem.text = "";
+			}
+		]]>
+	</mx:Script>
+	
+	<mx:Label width="100%" id="mensagem" text="" styleName="lblerro"/>
+	<mx:HBox width="100%" height="40%">
+		<mx:Form id="form" width="50%" height="100%">
+			<mx:FormItem label="Id.:">
+				<mx:TextInput id="txtid_tiporec" width="105" editable="false"/>
+			</mx:FormItem>
+			<mx:FormItem label="Tipo:" required="true">
+				<skins:TextInput_Maiusculo id="txtnmtiporec"/>
+			</mx:FormItem>				
+		</mx:Form>
+	</mx:HBox>
+	
+	<mx:DataGrid height="60%" width="100%" id="dg_tipo" itemClick="setcampos(event)" focusEnabled="true">
+		<mx:columns>
+			<mx:DataGridColumn width="60" headerText="Id." dataField="id_tiporec"/>
+			<mx:DataGridColumn headerText="Tipo" dataField="nmtiporec"/>
+		</mx:columns>
+	</mx:DataGrid>
+	<skins:CtrlBar_Buttons id="ctrlbar"/>
+</MDIWindow>

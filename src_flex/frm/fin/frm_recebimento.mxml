@@ -1,0 +1,626 @@
+<?xml version="1.0" encoding="utf-8"?>
+<MDIWindow resizable="false" 
+	xmlns="flexmdi.containers.*" xmlns:mx="http://www.adobe.com/2006/mxml" 
+	width="1188" height="492" title="Recebimento Parcela" creationComplete="init()" 
+	layout="absolute" horizontalAlign="center" xmlns:skins="skins.*" xmlns:local="*">
+	<mx:Script>
+		<![CDATA[
+			import classes.*;
+			
+			import flash.events.Event;
+			import flash.events.MouseEvent;
+			import flash.net.URLRequest;
+			import flash.net.URLRequestMethod;
+			import flash.net.URLVariables;
+			import flash.net.navigateToURL;
+			
+			import mx.collections.ArrayCollection;
+			import mx.controls.Alert;
+			import mx.controls.DateField;
+			import mx.core.FlexGlobals;
+			import mx.events.CloseEvent;
+			import mx.events.CollectionEvent;
+			import mx.events.FlexEvent;
+			import mx.events.IndexChangedEvent;
+			import mx.events.ListEvent;
+			import mx.managers.PopUpManager;
+			import mx.rpc.events.FaultEvent;
+			import mx.rpc.events.ResultEvent;
+			import mx.validators.Validator;
+			
+			import service.ctr.View_Ctr_Contrato_AlunoService;
+			import service.fin.Fin_Dup_RecebimentoService;
+			import service.fin.Fin_DuplicataService;
+			import service.fin.Fin_FormaPgtService;
+			import service.fin.View_Fin_Ctr_BaixadasService;
+			import service.fin.View_Fin_Dup_VencerService;
+			import service.fin.View_Fin_Dup_VencidaService;
+			import service.procedure.Fin_AjusteDup_RecebimentoService;
+			
+			import vo.adm.SystemVO;
+			import vo.fin.Fin_Dup_RecebimentoVO;
+			import vo.fin.Fin_DuplicataVO;
+			import vo.fin.Fin_FormaPgtVO;
+			import vo.fin.View_Fin_Ctr_BaixadasVO;
+			import vo.fin.View_Fin_Dup_VencerVO;
+			import vo.fin.View_Fin_Dup_VencidaVO;
+			import vo.procedure.Fin_AjusteDup_RecebimentoVO;
+			import vo.view.View_Ctr_Contrato_AlunoVO;
+			
+			public var util:Util = new Util();
+			[Bindable] public var duplicAbertas:ArrayCollection = new ArrayCollection();
+			[Bindable] private var duplicSelecionadas:ArrayCollection = new ArrayCollection();
+			[Bindable] private var isValid:Boolean;
+			private var cdseqpgto:int;
+			private var retorno:UtilRetornoBanco;
+			
+			private var systemvo:SystemVO = SystemVO.getInstance();
+
+			private var ro_formapgt:Fin_FormaPgtService = Fin_FormaPgtService.getInstance();
+			private var ro_finctrbaixadas:View_Fin_Ctr_BaixadasService = View_Fin_Ctr_BaixadasService.getInstance();
+			private var ro_duplicata:Fin_DuplicataService = Fin_DuplicataService.getInstance();
+			private var ro_ajustdup_recebimento:Fin_AjusteDup_RecebimentoService = Fin_AjusteDup_RecebimentoService.getInstance();
+			private var ro_dupvencer:View_Fin_Dup_VencerService = View_Fin_Dup_VencerService.getInstance();
+			private var ro_dupvencida:View_Fin_Dup_VencidaService = View_Fin_Dup_VencidaService.getInstance();
+			private var ro_duprecebimento:Fin_Dup_RecebimentoService = Fin_Dup_RecebimentoService.getInstance();
+			private var ro_viewctr:View_Ctr_Contrato_AlunoService = View_Ctr_Contrato_AlunoService.getInstance();
+			
+			private var fin_duprecebimento:Fin_Dup_RecebimentoVO;
+			private var fin_dupvencidaVO:View_Fin_Dup_VencidaVO;
+			private var fin_dupvencerVO:View_Fin_Dup_VencerVO;
+			private var fin_ctrbaixadasVO:View_Fin_Ctr_BaixadasVO;
+			private var fin_ajustdup_recebimento:Fin_AjusteDup_RecebimentoVO;
+			private var ctr_viewcontratoalunoVO:View_Ctr_Contrato_AlunoVO;
+						
+			private var fin_duplicataVO:Fin_DuplicataVO;
+			
+			public function init():void{
+				this.width = FlexGlobals.topLevelApplication.mdiCanvas.width;
+				this.height = FlexGlobals.topLevelApplication.mdiCanvas.height;
+				
+				this.x = 0;
+				this.y = 0;
+				
+				ro_formapgt.ComboBox("nmformapgt","id_formapgt",createcbcondpgto,defaultFaultHandler);
+				
+				cbcondpgto.addEventListener(ListEvent.CHANGE,cbcondpgtoChange);
+					
+				ctrlbar.addChildAt(ctrlbar.bt_pesquisar,0);
+				ctrlbar.addChildAt(ctrlbar.bt_inserir,1);
+				
+				ctrlbar.bt_inserir.label = "Receber";
+				
+				ctrlbar.addChildAt(ctrlbar.bt_limpar,2);
+				ctrlbar.addChildAt(ctrlbar.bt_imprime,3);	
+					
+				ctrlbar.bt_pesquisar.addEventListener(MouseEvent.CLICK,selecionar);
+				ctrlbar.bt_inserir.addEventListener(MouseEvent.CLICK,receber);
+				ctrlbar.bt_limpar.addEventListener(MouseEvent.CLICK,limpar);
+				ctrlbar.bt_imprime.addEventListener(MouseEvent.CLICK,imprime);
+				dg_duplic_selecionadas.addEventListener(CollectionEvent.COLLECTION_CHANGE,EnableFormPagamento);
+				
+			}
+			private function EnableFormPagamento(e:Event):void{
+				var dg:ArrayCollection = dg_duplic_selecionadas.dataProvider as ArrayCollection;
+				if (dg.length > 0){
+					hbox_pagamento.enabled = true;
+				} else {
+					hbox_pagamento.enabled = false;
+				}
+			}
+			private function cbcondpgtoChange(e:Event):void{
+				this.enabled = false;
+				var dg:ArrayCollection = dg_duplic_selecionadas.dataProvider as ArrayCollection;
+				
+				if (dg.length > 0){
+					var fin_formapgt:Fin_FormaPgtVO	= new Fin_FormaPgtVO;
+					fin_formapgt.id_formapgt = cbcondpgto.selectedItem.data;
+					ro_formapgt.select(fin_formapgt,cbcondpgtoChangeResult,defaultFaultHandler);
+				}
+			}
+			private function cbcondpgtoChangeResult(e:ResultEvent):void{
+				this.enabled = true;
+				if (e.result[0]['cad_cheque'] == 1){
+					OpenCadCheque();
+				}
+				if (e.result[0]['cad_cartao'] == 1){
+					
+				}
+			}
+			private function OpenCadCheque():void{
+				
+				
+				var titlewindow_cadcheque:frmchequercb = PopUpManager.createPopUp(this,frmchequercb,true) as frmchequercb;
+				PopUpManager.centerPopUp(titlewindow_cadcheque);
+				var X:Number = titlewindow_cadcheque.width / 2;
+				var Y:Number = titlewindow_cadcheque.height / 2;
+				
+				var newX:Number = FlexGlobals.topLevelApplication.mdiCanvas.width / 2;
+				var newY:Number = FlexGlobals.topLevelApplication.mdiCanvas.height / 2;
+				
+				titlewindow_cadcheque.x = newX - X;
+				titlewindow_cadcheque.y = newY - Y;
+				
+			}
+			private function createcbcondpgto(event:ResultEvent):void{
+				cbcondpgto.dataProvider = event.result as ArrayCollection;
+			} 
+			protected function tabnav_recebimento_changeHandler(event:IndexChangedEvent):void
+			{	
+				ctrlbar.removeAllChildren();
+				var Index:int=event.newIndex;
+				if (Index == 0) {
+					ctrlbar.addChildAt(ctrlbar.bt_pesquisar,0);
+					ctrlbar.addChildAt(ctrlbar.bt_inserir,1);
+					
+					ctrlbar.bt_inserir.label = "Receber";
+					
+					ctrlbar.addChildAt(ctrlbar.bt_limpar,2);
+					ctrlbar.addChildAt(ctrlbar.bt_imprime,3);
+					
+					
+					selecionar(event);
+				} else if (Index == 1){
+					this.enabled = false;
+					ctrlbar.addChildAt(ctrlbar.bt_pesquisar,0);
+					ctrlbar.addChildAt(ctrlbar.bt_limpar,1);
+					
+					fin_ctrbaixadasVO = new View_Fin_Ctr_BaixadasVO();
+					fin_ctrbaixadasVO.id_contrato = txtid_contrato.txt_id.text;
+						
+					ro_finctrbaixadas.select(fin_ctrbaixadasVO,createdg_baixadas, defaultFaultHandler, null);
+				}
+				
+			}
+			
+			private function createdg_baixadas(e:ResultEvent):void{
+				this.enabled = true;
+				dg_baixadas.dataProvider = e.result
+			}
+			public function selecionar(e:Event):void{
+				if (tabnav_recebimento.selectedIndex == 0){
+					isValid = util.validateForm(form_contrato);
+					if (!isValid){
+						mensagem.text = UtilMensagens.PreenchaCampo;
+					} else {
+						this.enabled = false;
+						
+						ctr_viewcontratoalunoVO = new View_Ctr_Contrato_AlunoVO;
+						ctr_viewcontratoalunoVO.id_contrato = txtid_contrato.txt_id.text;
+						ro_viewctr.select(ctr_viewcontratoalunoVO,viewcontratoResult,defaultFaultHandler,null,null);
+					}
+				} else if (tabnav_recebimento.selectedIndex == 1){
+					this.enabled = false;
+					fin_ctrbaixadasVO = new View_Fin_Ctr_BaixadasVO();
+					fin_ctrbaixadasVO.id_contrato = txtid_contrato.txt_id.text;
+					
+					var where:Array = [" 1 = 1"];
+					if (txtdtvencimento_ini.selectedDate && txtdtvencimento_fin.selectedDate){
+						where.push("dt_vencimento2 >= date('" + DateField.dateToString(txtdtvencimento_ini.selectedDate,'DD/MM/YYYY') +"')");
+						where.push("dt_vencimento2 <= date('" + DateField.dateToString(txtdtvencimento_fin.selectedDate,'DD/MM/YYYY') +"')");
+					}
+					if (txtdtpagamento_ini.selectedDate && txtdtpagamento_fin.selectedDate){
+						where.push("dt_baixa2 >= date('" + DateField.dateToString(txtdtpagamento_ini.selectedDate,'DD/MM/YYYY') +"')");
+						where.push("dt_baixa2 <= date('" + DateField.dateToString(txtdtpagamento_fin.selectedDate,'DD/MM/YYYY') + "')");
+					}
+					
+					ro_finctrbaixadas.select(fin_ctrbaixadasVO,createdg_baixadas, defaultFaultHandler,where);
+				}
+			}
+			private function viewcontratoResult(e:ResultEvent):void{
+					var retorno:ArrayCollection = e.result as ArrayCollection;
+					
+					txtnmcurso.text = retorno[0]['nmcurso'];			
+				
+					fin_ajustdup_recebimento = new Fin_AjusteDup_RecebimentoVO;
+					fin_ajustdup_recebimento.id_contrato = txtid_contrato.txt_id.text;
+//					fin_ajustdup_recebimento.dthj = dt_hj.selectedDate ? dt_hj.selectedDate : null;
+					fin_ajustdup_recebimento.dthj = null;
+					ro_ajustdup_recebimento.Procedure(fin_ajustdup_recebimento,ajustdup_recebimentoResult,defaultFaultHandler);
+			}
+			private function ajustdup_recebimentoResult(e:ResultEvent):void{
+					selecionaVencerVencida();					
+			}
+			private function selecionaVencerVencida():void{
+				fin_dupvencerVO = new View_Fin_Dup_VencerVO();
+				fin_dupvencerVO.id_contrato = txtid_contrato.txt_id.text;
+				
+				ro_dupvencer.select(fin_dupvencerVO,createDatagrid_dupaberto,defaultFaultHandler);
+				
+				fin_dupvencidaVO = new View_Fin_Dup_VencidaVO();
+				fin_dupvencidaVO.id_contrato = txtid_contrato.txt_id.text;
+				
+				ro_dupvencida.select(fin_dupvencidaVO,createDatagrid_dupvencida,defaultFaultHandler);
+			}
+			
+			private function lf_dtvencimento(item:Object,column:DataGridColumn):String{
+				return util.formatData_DDMMYYYY(item.dt_vencimento);
+			}
+			private function lf_dtvencimento2(item:Object,column:DataGridColumn):String{
+				return util.formatData_DDMMYYYY(item.dt_vencimento2);
+			}
+			private function lf_dtbaixa2(item:Object,column:DataGridColumn):String{
+				return util.formatData_DDMMYYYY(item.dt_baixa2);
+			}
+			
+			
+			public function receber(e:Event):void{
+				
+				isValid = util.validateForm(form_contrato);
+				isValid = util.validateForm(form_vrpago) && isValid;
+				isValid = util.validateForm(form_condpgto) && isValid;
+				if (!isValid){
+					mensagem.text = UtilMensagens.PreenchaCampo;
+				} else {
+					Alert.yesLabel = "Sim";
+					Alert.noLabel = "Não";
+					Alert.show('Confirmar Recebimento ?','Recebimento',Alert.YES|Alert.NO,this,confirmrecebimento);
+				}
+				
+			}
+			private function confirmrecebimento(e:CloseEvent):void{
+				if (e.detail == Alert.YES){
+					var desc:String = txt_vrdesconto.text.length > 0 ? txt_vrdesconto.text : '0';
+					
+					fin_duprecebimento = new Fin_Dup_RecebimentoVO();
+					fin_duprecebimento.id_contrato = txtid_contrato.txt_id.text;
+//					fin_duprecebimento.dtpagamento = dt_pagamento.selectedDate ? dt_pagamento.selectedDate : null;
+					fin_duprecebimento.dtpagamento = null;
+					fin_duprecebimento.id_condpgto = cbcondpgto.selectedItem.data;
+					fin_duprecebimento.id_operador = systemvo.id_operador;
+					fin_duprecebimento.vrdesconto = txt_vrdesconto.text.length > 0 ? txt_vrdesconto.text.replace(",",".") : 0;
+					fin_duprecebimento.vrpago = txt_vrpago.text.replace(",",".");
+					
+					ro_duprecebimento.Procedure(fin_duprecebimento,recebimentoResult,defaultFaultHandler);
+					
+					txt_vrpago.text = "";
+					txt_vrdesconto.text = null;
+					txt_vrdesconto.errorString = null;
+				}
+			}
+			public function recebimentoResult(event:ResultEvent):void {
+				mensagem.text = "Número Recibo: " + event.result[0]['retorno'];
+				cdseqpgto = event.result[0]['retorno'];
+				imprimeRecibo();
+			}
+			private function imprimeRecibo():void{
+				Alert.yesLabel = "Sim";
+				Alert.noLabel = "Não";
+				Alert.show('Deseja imprimir o comprovante de pagamento?','Impressão Comprovante',Alert.YES|Alert.NO,this,confirmimprimeRecibo);
+			}
+			private function confirmimprimeRecibo(e:CloseEvent):void{
+				if (e.detail == Alert.YES){
+					imprime(e);
+				}
+				selecionaVencerVencida();
+			}
+			
+			public function limpar(e:Event):void{
+				if (tabnav_recebimento.selectedIndex == 0){
+					duplicAbertas = null;
+					duplicSelecionadas = null;
+					mensagem.text = null;
+					tot_abertos.text = null;
+					tot_selecionados.text = null;
+					txt_vrpago.text = null;
+					dg_baixadas.dataProvider = null;
+					txtid_contrato.txt_id.text = null;
+					txtid_contrato.txt_nome.text = null;
+	//				dt_hj.selectedDate = null;
+					
+					util.limpar_formulario(form_contrato);
+					util.limpar_formulario(form_condpgto);
+					util.limpar_formulario(form_vrdesconto);
+					util.limpar_formulario(form_vrpago);
+					
+				} else if (tabnav_recebimento.selectedIndex == 1) {
+					util.limpar_formulario(form_dtvencimento);
+					util.limpar_formulario(form_dtpagamento);
+					selecionar(e);
+				}
+				
+			}
+			
+			
+			public function adicionarDuplicata():void{
+				cbcondpgto.selectedIndex = 0;
+				var index:int = dg_duplic_abertas.selectedIndex;
+				var sql:String;
+				var where:String;
+
+				if(dg_duplic_abertas.selectedIndex != -1){
+					sql = "selec = 1";
+					where = "id_duplicata = " + dg_duplic_abertas.selectedItem.cod_parcela;
+					
+					ro_duplicata.SqlAtualizar(sql,where,adicionaDuplicataResult,defaultFaultHandler);
+
+					duplicAbertas.getItemAt(index);
+					duplicSelecionadas.addItem(duplicAbertas.getItemAt(index));
+					duplicAbertas.removeItemAt(index);
+					
+					
+				}else{
+					Alert.show('Selecione uma duplicata!');
+				}
+			}
+			public function adicionarTodasDuplicatas():void{
+				cbcondpgto.selectedIndex = 0;
+					var sql:String = "selec = 1";
+					var where:String = "id_contrato = " + txtid_contrato.txt_id.text;
+					
+					ro_duplicata.SqlAtualizar(sql,where,adicionaDuplicataResult,defaultFaultHandler);
+					
+					duplicSelecionadas.addAll(duplicAbertas);
+					duplicAbertas.removeAll();
+					
+			}
+			private function adicionaDuplicataResult(e:ResultEvent):void{
+					selecionaVencerVencida();
+			}
+			
+			public function removerDuplicata():void{
+				cbcondpgto.selectedIndex = 0;
+				var index:int = dg_duplic_selecionadas.selectedIndex;
+				var sql:String;
+				var where:String;
+				
+				if(dg_duplic_selecionadas.selectedIndex != -1){
+					
+					sql = "selec = 0";
+					where = "id_duplicata = " + dg_duplic_selecionadas.selectedItem.cod_parcela;
+										
+					ro_duplicata.SqlAtualizar(sql,where,removerDuplicataResult,defaultFaultHandler);
+
+					duplicSelecionadas.getItemAt(index);
+					duplicAbertas.addItem(duplicSelecionadas.getItemAt(index));
+					duplicSelecionadas.removeItemAt(index);
+					
+				}else{
+					Alert.show('Selecione uma Duplicata!');
+				}
+			}
+			public function removerTodasDuplicatas():void{
+				cbcondpgto.selectedIndex = 0;
+				var sql:String = "selec = 0";
+				var where:String = "id_contrato = " + txtid_contrato.txt_id.text;
+				
+				ro_duplicata.SqlAtualizar(sql,where,adicionaDuplicataResult,defaultFaultHandler);
+				
+				duplicAbertas.addAll(duplicSelecionadas);
+				duplicSelecionadas.removeAll();
+				
+			}
+			private function removerDuplicataResult(e:ResultEvent):void{
+				selecionaVencerVencida();
+			}
+			
+			public function createDatagrid_dupaberto(event:ResultEvent):void {
+				this.enabled = true;
+				duplicAbertas = event.result as ArrayCollection;
+				
+				var total:Number = 0;
+				var i:int = 0;
+				
+				for (i = 0; i < event.result.length; i++){
+					total = total + event.result[i]['subtotal'];
+				}
+				tot_abertos.text = "Total: " + total.toFixed(2);
+				
+			}
+			public function createDatagrid_dupvencida(event:ResultEvent):void {
+				this.enabled = true;
+				
+				duplicSelecionadas = event.result as ArrayCollection;
+				
+				var total:Number = 0;
+				var i:int = 0;
+				
+				for (i = 0; i < event.result.length; i++){
+					total = total + event.result[i]['subtotal'];
+				}
+				tot_selecionados.text = "Total: " + total.toFixed(2);
+				
+			}
+
+			public function select_imprecibo(cdseqpgto:int):void{
+				mensagem.text = UtilMensagens.RelatorioGerando;
+				this.enabled = false;
+				
+				var obj:Object = new Object();
+				obj.cdseqpgto = cdseqpgto;
+				
+				ro_duplicata.Report(obj,"PDF","Rpt_ReciboDupRec","fin",imprimeResult,defaultFaultHandler);
+				
+			}
+			
+			private function imprime(e:Event):void{
+				
+				if (cdseqpgto > 0){
+					this.enabled = false;
+					mensagem.text = UtilMensagens.RelatorioGerando;
+					
+					var obj:Object = new Object();
+					obj.cdseqpgto = cdseqpgto;
+					
+					ro_duplicata.Report(obj,"PDF","Rpt_ReciboDupRec","fin",imprimeResult,defaultFaultHandler);
+				} else {
+					Alert.show("Não foi encontrado nenhum recibo de baixa","erro");
+				}                	
+				
+			}
+			public function imprimeResult(e:ResultEvent):void{
+				this.enabled = true;
+				mensagem.text = UtilMensagens.RelatorioGerado;
+				util.abrepdf(e.result[0]['destinationUrl']);
+			}
+			private function defaultFaultHandler(e:FaultEvent):void{
+				this.enabled = true;
+				retorno = new UtilRetornoBanco;
+				retorno.RetornoBanco(e);
+				mensagem.text = "";
+			}
+			protected function lf_idretornobanco(item:Object, column:DataGridColumn):String
+			{
+				if (item.id_retornobanco == 0){
+					return "";
+				}
+				return item.id_retornobanco;
+			}
+			
+		]]>
+	</mx:Script>
+<mx:Canvas  width="100%" height="100%">
+		<mx:VBox width="100%" height="100%">
+					
+			<mx:Label width="100%" id="mensagem" text="" styleName="lblerro" y="1"/>
+			<mx:HBox width="100%">
+				<mx:Form id="form_contrato" width="100%" paddingTop="0" paddingBottom="0" >
+					<mx:FormItem label="Cd. Contrato:" required="true" paddingTop="0" paddingBottom="0" direction="horizontal" width="100%">
+						<skins:TextButtonText id="txtid_contrato" tabela="{UtilNamesPesquisa.ctr_contrato}" titulo="Contrato"/>
+						<mx:Spacer width="50"/>
+						<mx:Label text="Curso:"/>
+						<mx:TextInput width="30%" editable="false" id="txtnmcurso"/>
+					</mx:FormItem>
+				</mx:Form>
+				
+				<!--<mx:Form width="100%" id="form_datas" paddingTop="0" paddingBottom="0">
+					<mx:FormItem label="Dt. Calculo:" paddingTop="0" paddingBottom="0" visible="false">
+						<skins:DateField_Data id="dt_hj" />
+					</mx:FormItem>
+					<mx:FormItem label="Dt. Pagamento:" paddingTop="0" paddingBottom="0" visible="false">
+						<skins:DateField_Data id="dt_pagamento" />
+					</mx:FormItem>
+				</mx:Form>-->
+			</mx:HBox>
+			<mx:TabNavigator id="tabnav_recebimento" width="100%" height="100%" change="tabnav_recebimento_changeHandler(event)">
+				<mx:Canvas label="Recebimento" width="100%" height="100%">
+					<mx:VBox width="100%" height="100%">
+						
+						<mx:HBox width="100%" height="100%" horizontalAlign="center">
+							<mx:Canvas width="100%" height="100%">
+		    					<mx:VBox width="100%" height="100%">
+									<mx:Label text="Documentos em Aberto" width="100%" textAlign="center"/>
+
+									<mx:DataGrid id="dg_duplic_abertas" width="100%" height="100%" doubleClickEnabled="true"
+												 dataProvider="{duplicAbertas}"
+												 doubleClick="{adicionarDuplicata()}" variableRowHeight="true">
+		 								<mx:columns>
+		    								<mx:DataGridColumn headerText="Parcela" dataField="parcela"/>
+											<mx:DataGridColumn dataField="nmtiporec" headerText="Tipo Rec."/>
+											<mx:DataGridColumn dataField="nmformapgt" headerText="Tipo Pag."/>
+		    								<mx:DataGridColumn headerText="Dt. Vencimento" dataField="dt_vencimento" labelFunction="lf_dtvencimento"/>
+											<mx:DataGridColumn headerText="Valor" dataField="valor"/>
+											<mx:DataGridColumn headerText="Vr. Juro" dataField="vrjuro"/>
+											<mx:DataGridColumn headerText="Vr. Desconto" dataField="desconto"/>
+											<mx:DataGridColumn headerText="Saldo" dataField="saldo"/>
+		 								</mx:columns>
+		 							</mx:DataGrid>
+		 							<mx:Label id="tot_abertos" width="100%" color="#1E00FE"
+											  textAlign="right"/>
+								</mx:VBox>
+							</mx:Canvas>
+							<mx:Canvas height="100%">
+								<mx:VBox height="100%" verticalAlign="middle">
+		 							<mx:Button label="&gt;&gt;" click="adicionarTodasDuplicatas()" width="40"/>
+		 							<mx:Button label="&lt;&lt;" click="removerTodasDuplicatas()" width="40"/>
+		 							<mx:Button label="&gt;" click="adicionarDuplicata()" width="40"/>
+		 							<mx:Button label="&lt;" click="removerDuplicata()" width="40"/>
+								</mx:VBox>
+							</mx:Canvas>
+							<mx:Canvas width="100%" height="100%">
+								<mx:VBox width="100%" height="100%">
+		    						<mx:Label text="Documentos Selecionados para Receber" width="100%" textAlign="center"/>
+		 							<mx:DataGrid id="dg_duplic_selecionadas" width="100%" height="100%" doubleClickEnabled="true"
+												 dataProvider="{duplicSelecionadas}"
+												 doubleClick="{removerDuplicata()}" variableRowHeight="true">
+		 								<mx:columns>
+		    								<mx:DataGridColumn headerText="Parcela" dataField="parcela"/>
+											<mx:DataGridColumn dataField="nmtiporec" headerText="Tipo Rec."/>
+											<mx:DataGridColumn dataField="nmformapgt" headerText="Tipo Pag."/>
+		    								<mx:DataGridColumn headerText="Dt. Vencimento" dataField="dt_vencimento" labelFunction="lf_dtvencimento"/>
+											<mx:DataGridColumn headerText="Valor" dataField="valor"/>
+											<mx:DataGridColumn headerText="Vr. Juro" dataField="vrjuro"/>
+											<mx:DataGridColumn headerText="Vr. Desconto" dataField="desconto"/>
+		    								<mx:DataGridColumn headerText="Saldo" dataField="saldo"/>
+		 								</mx:columns>
+		 							</mx:DataGrid>
+		 							<mx:Label id="tot_selecionados" width="100%" color="#FF0000"
+											  textAlign="right"/>
+								</mx:VBox>
+							</mx:Canvas>	
+						</mx:HBox>
+					<mx:HBox width="100%" horizontalAlign="center" id="hbox_pagamento" enabled="false">
+						<mx:Form id="form_condpgto">
+							<mx:FormItem label="Cond. Pgto" required="true">
+								<mx:ComboBox id="cbcondpgto" prompt="Selecione..." selectedIndex="-1"/>
+							</mx:FormItem>
+						</mx:Form>
+						<mx:Form id="form_vrpago">
+							<mx:FormItem label="Valor Pago:" required="true">
+								<skins:TextInput_Maiusculo id="txt_vrpago" restrict="0-9\,"/>
+							</mx:FormItem>
+						</mx:Form>
+						<mx:Form id="form_vrdesconto">
+							<mx:FormItem label="Valor Desconto:">
+								<skins:TextInput_Maiusculo id="txt_vrdesconto" restrict="0-9\,"/>
+							</mx:FormItem>
+						</mx:Form>				
+					</mx:HBox>    		
+					</mx:VBox>
+				</mx:Canvas>
+				<mx:Canvas label="Baixadas" enabled="{txtid_contrato.txt_id.text.length > 0 ? true : false}">
+					<mx:VBox width="100%" height="100%">
+						<mx:Label text="Filtro" width="100%" paddingLeft="15" paddingBottom="0"/>
+						<mx:HRule width="100%" height="3"/>
+						<mx:HBox width="100%">
+							<mx:VBox width="100%">
+								<mx:Form width="100%" height="100%" id="form_dtvencimento">
+									<mx:FormItem label="Dt. Venc. Inicial:" required="true">
+										<skins:DateField_Data id="txtdtvencimento_ini"/>
+									</mx:FormItem>
+									<mx:FormItem label="Dt. Venc. Final:" required="true">
+										<skins:DateField_Data id="txtdtvencimento_fin"/>
+									</mx:FormItem>
+								</mx:Form>
+							</mx:VBox>
+							<mx:VBox width="100%">
+								<mx:Form width="100%" height="100%" id="form_dtpagamento">
+									<mx:FormItem label="Dt. Pag. Inicial:" required="true">
+										<skins:DateField_Data id="txtdtpagamento_ini"/>
+									</mx:FormItem>
+									<mx:FormItem label="Dt. Pag. Final:" required="true">
+										<skins:DateField_Data id="txtdtpagamento_fin"/>
+									</mx:FormItem>
+								</mx:Form>
+							</mx:VBox>
+						</mx:HBox>
+						<mx:DataGrid width="100%" height="100%" id="dg_baixadas">
+							<mx:columns>
+								<mx:DataGridColumn headerText="Imp. Recibo" width="60"  >
+									<mx:itemRenderer>
+										<mx:Component>
+											<mx:VBox horizontalAlign="center">
+												<mx:Image buttonMode="true" source="@Embed('/assets/icons/small-printer.png')" click="parentDocument.select_imprecibo(data.cdseqpgto)" />
+											</mx:VBox>
+										</mx:Component>
+									</mx:itemRenderer>
+								</mx:DataGridColumn>
+								<mx:DataGridColumn headerText="Recibo" dataField="cdseqpgto"/>
+								<mx:DataGridColumn headerText="Parcela" dataField="parcela"/>
+								<mx:DataGridColumn headerText="Tipo Rec." dataField="nmtiporec"/>
+								<mx:DataGridColumn headerText="Dt. Vencimento" dataField="dt_vencimento2" labelFunction="lf_dtvencimento2"/>
+								<mx:DataGridColumn headerText="Dt. Pagamento" dataField="dt_baixa2" labelFunction="lf_dtbaixa2"/>
+								<mx:DataGridColumn headerText="Vr. Pago" dataField="vr_movim"/>
+								<mx:DataGridColumn headerText="Vr. Desconto" dataField="vr_desconto"/>
+								<mx:DataGridColumn headerText="Operador" dataField="nickname"/>
+								<mx:DataGridColumn headerText="Id. RetornoBanco" dataField="id_retornobanco" labelFunction="lf_idretornobanco"/>
+							</mx:columns>
+						</mx:DataGrid>
+					</mx:VBox>
+				</mx:Canvas>
+				
+			</mx:TabNavigator>
+		</mx:VBox>
+</mx:Canvas>
+<skins:CtrlBar_Buttons id="ctrlbar"/>		
+</MDIWindow>

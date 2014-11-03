@@ -1,0 +1,131 @@
+<?xml version="1.0" encoding="utf-8"?>
+<MDIWindow xmlns="flexmdi.containers.*" xmlns:mx="http://www.adobe.com/2006/mxml" 
+		   width="782" height="476" title="Cadastro Função" creationComplete="init()"
+		   xmlns:s="library://ns.adobe.com/flex/spark" xmlns:skins="skins.*">
+	<mx:Script>
+		<![CDATA[
+			import classes.Util;
+			import classes.UtilMensagens;
+			import classes.UtilRetornoBanco;
+			
+			import mx.rpc.events.FaultEvent;
+			import mx.rpc.events.ResultEvent;
+			
+			import service.fpg.Fpg_FuncaoService;
+			
+			import vo.fpg.Fpg_FuncaoVO;
+			
+			private var ro_funcao:Fpg_FuncaoService = Fpg_FuncaoService.getInstance();
+			private var fpg_funcaoVO:Fpg_FuncaoVO;
+			private var util:Util = new Util();
+			private var retorno:UtilRetornoBanco;			
+			[Bindable] private var isValid:Boolean = false;
+			
+			private function init():void{
+				
+				ctrlbar.addChildAt(ctrlbar.bt_pesquisar,0);
+				ctrlbar.addChildAt(ctrlbar.bt_inserir,1);
+				ctrlbar.addChildAt(ctrlbar.bt_alterar,2);
+				ctrlbar.addChildAt(ctrlbar.bt_excluir,3);
+				ctrlbar.addChildAt(ctrlbar.bt_limpar,4);
+				
+				ctrlbar.bt_pesquisar.addEventListener(MouseEvent.CLICK,selecionar);
+				ctrlbar.bt_inserir.addEventListener(MouseEvent.CLICK,inserir);
+				ctrlbar.bt_alterar.addEventListener(MouseEvent.CLICK,alterar);
+				ctrlbar.bt_excluir.addEventListener(MouseEvent.CLICK,deletar);
+				ctrlbar.bt_limpar.addEventListener(MouseEvent.CLICK,limpar);
+			}
+			private function create_DataGrid(event:ResultEvent):void {
+				dg_funcao.dataProvider = event.result;
+			}
+			private function selecionar(e:Event):void{
+				popular();
+				ro_funcao.select(fpg_funcaoVO,create_DataGrid,defaultFaultHandler);
+			}
+			private function inserir(e:Event):void{
+				isValid = util.validateForm(form);
+				if (!isValid){
+					mensagem.text = UtilMensagens.PreenchaCampo;
+				} else {
+					popular();
+					ro_funcao.inserir(fpg_funcaoVO,inserirResult,defaultFaultHandler);
+				}
+			}
+			
+			private function inserirResult(e:ResultEvent):void{
+				txtid_funcao.text = e.result.toString();
+				selecionar(e);
+			}
+			
+			private function alterar(e:Event):void{
+				isValid = util.validateForm(form);
+				if (!isValid){
+					mensagem.text = UtilMensagens.PreenchaCampo;
+				} else {
+					popular();
+					ro_funcao.atualizar(fpg_funcaoVO,alterarResult,defaultFaultHandler);
+				}
+			}
+			private function alterarResult(e:ResultEvent):void{
+				dg_funcao.dataProvider = e.result;
+			}
+			private function deletar(e:Event):void{
+				isValid = util.validateForm(form);
+				if (!isValid){
+					mensagem.text = UtilMensagens.PreenchaCampo;
+				} else {
+					popular();
+					ro_funcao.deletar(fpg_funcaoVO,deletarResult,defaultFaultHandler);
+				}				
+			}
+			private function deletarResult(e:ResultEvent):void{
+				dg_funcao.dataProvider = e.result;
+				limpar(e);	
+			}
+			private function limpar(e:Event):void{
+				mensagem.text = "";
+				util.limpar_formulario(form);
+				dg_funcao.dataProvider = null;
+			}
+			private function setcampos(e:Event):void{
+				txtid_funcao.text = dg_funcao.selectedItem.id_funcao;
+				txtnmfuncao.text = dg_funcao.selectedItem.nmfuncao;
+			}
+			
+			private function popular():void{
+				fpg_funcaoVO = new Fpg_FuncaoVO;
+				fpg_funcaoVO.id_funcao = txtid_funcao.text.length <= 0 ? null : txtid_funcao.text;
+				fpg_funcaoVO.nmfuncao = txtnmfuncao.text.length <= 0 ? null : txtnmfuncao.text.toUpperCase();
+			}
+			private function defaultFaultHandler(e:FaultEvent):void{
+				this.enabled = true;
+				retorno = new UtilRetornoBanco;
+				retorno.RetornoBanco(e);
+				
+				mensagem.text = "";
+				
+			}			
+		]]>
+	</mx:Script>
+	<mx:VBox width="100%" height="100%">
+		<mx:Label width="100%" id="mensagem" styleName="lblerro"/>
+		<mx:HBox width="100%">
+			<mx:Form id="form" width="50%" height="100%">
+				<mx:FormItem label="Id.:">
+					<mx:TextInput id="txtid_funcao" width="82" editable="false"/>
+				</mx:FormItem>
+				<mx:FormItem label="Função:" required="true">
+					<skins:TextInput_Maiusculo id="txtnmfuncao" width="216"/>
+				</mx:FormItem>
+			</mx:Form>
+		</mx:HBox>
+		<mx:DataGrid width="100%" height="100%" id="dg_funcao" itemClick="setcampos(event)" focusEnabled="false">
+			<mx:columns>
+				<mx:DataGridColumn headerText="Id." width="60" dataField="id_funcao"/>
+				<mx:DataGridColumn headerText="Função" dataField="nmfuncao"/>
+			</mx:columns>
+		</mx:DataGrid>
+	</mx:VBox>
+	
+	<skins:CtrlBar_Buttons id="ctrlbar"/>
+</MDIWindow>

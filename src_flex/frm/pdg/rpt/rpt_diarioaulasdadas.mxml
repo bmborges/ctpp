@@ -1,0 +1,102 @@
+<?xml version="1.0" encoding="utf-8"?>
+<MDIWindow xmlns="flexmdi.containers.*" xmlns:mx="http://www.adobe.com/2006/mxml" width="500" height="332" 
+	creationComplete="init()" title="Diário Aulas Dadas" xmlns:skins="skins.*">
+	<mx:Script>
+		<![CDATA[
+			import classes.Util;
+			import classes.UtilMensagens;
+			import classes.UtilNamesPesquisa;
+			import classes.UtilRetornoBanco;
+			
+			import frm.frm_pesquisar;
+			
+			import mx.managers.PopUpManager;
+			import mx.rpc.events.FaultEvent;
+			import mx.rpc.events.ResultEvent;
+			
+			import service.pdg.Pdg_DiarioService;
+			
+			import vo.adm.SystemVO;
+			
+			[Bindable] private var isValid:Boolean = false;
+			[Bindable] private var reportUrl:String;
+			public var util:Util = new Util();
+			private var ro_diario:Pdg_DiarioService = Pdg_DiarioService.getInstance();
+			private var systemvo:SystemVO = SystemVO.getInstance();
+			private var retorno:UtilRetornoBanco;
+			public function init():void{
+				
+				ctrlbar.addChildAt(ctrlbar.bt_imprime,0);
+				ctrlbar.addChildAt(ctrlbar.bt_limpar,1);
+				
+				ctrlbar.bt_imprime.addEventListener(MouseEvent.CLICK,imprime);
+				ctrlbar.bt_limpar.addEventListener(MouseEvent.CLICK,limpar);
+				
+			}
+			
+			public function imprime(e:Event):void{
+				
+				isValid = util.validateForm(form);
+				if (!isValid){
+					mensagem.text = UtilMensagens.PreenchaCampo;
+				} else {
+					this.enabled = false;
+					mensagem.text = UtilMensagens.RelatorioGerando;
+					
+					var obj:Object = new Object();
+					obj.p_idturmaini = p_idturmaini.txt_id.text.length <= 0 ? 0 : int(p_idturmaini.txt_id.text);
+					obj.p_idturmafin = p_idturmafin.txt_id.text.length <= 0 ? 99999999 : int(p_idturmafin.txt_id.text);
+					obj.p_idoperadorini = p_idoperadorini.txt_id.text.length <= 0 ? 0 : int(p_idoperadorini.txt_id.text);
+					obj.p_idoperadorfin = p_idoperadorfin.txt_id.text.length <= 0 ? 99999999 : int(p_idoperadorfin.txt_id.text);
+					obj.p_dtaulaini = p_dtaulaini.selectedDate;
+					obj.p_dtaulafin = p_dtaulafin.selectedDate;
+					obj.nmoperador = systemvo.nickname;
+					ro_diario.Report(obj,"PDF","Rpt_DiarioAulasDadas","pdg",imprimeResult,defaultFaultHandler);
+				}
+			}
+			public function imprimeResult(e:ResultEvent):void{
+				this.enabled = true;
+				mensagem.text = UtilMensagens.RelatorioGerado;
+				util.abrepdf(e.result[0]['destinationUrl']);
+			}
+			private function defaultFaultHandler(e:FaultEvent):void{
+				this.enabled = true;
+				mensagem.text = "";
+				retorno = new UtilRetornoBanco;
+				retorno.RetornoBanco(e);
+			}
+			
+			private function limpar(e:Event):void{
+				util.limpar_formulario(form);
+				mensagem.text = '';
+			}
+		]]>
+	</mx:Script>
+	<mx:VBox width="100%" height="100%">
+	<mx:Label width="100%" id="mensagem" text="" styleName="lblerro"/>
+	<mx:HBox width="100%" height="10%">
+					<mx:Form id="form" width="100%" height="100%">
+						<mx:FormItem label="Data Inicial" required="true">
+							<skins:DateField_Data id="p_dtaulaini"/>
+						</mx:FormItem>
+						<mx:FormItem label="Data Final" required="true">
+							<skins:DateField_Data id="p_dtaulafin"/>
+						</mx:FormItem>
+						<mx:FormItem label="Turma Inicial:">
+							<skins:TextButtonText id="p_idturmaini" tabela="{UtilNamesPesquisa.crs_turma}" titulo="Turma"/>
+						</mx:FormItem>
+						<mx:FormItem label="Turma Final:">
+							<skins:TextButtonText id="p_idturmafin" tabela="{UtilNamesPesquisa.crs_turma}" titulo="Turma"/>
+						</mx:FormItem>
+						<mx:FormItem label="Professor(a) Inicial:">
+							<skins:TextButtonText id="p_idoperadorini" tabela="{UtilNamesPesquisa.adm_operador}" titulo="Professor(a)"/>
+						</mx:FormItem>
+						<mx:FormItem label="Professor(a) Final:">
+							<skins:TextButtonText id="p_idoperadorfin" tabela="{UtilNamesPesquisa.adm_operador}" titulo="Professor(a)"/>
+						</mx:FormItem>
+					</mx:Form>
+				</mx:HBox>
+
+	</mx:VBox>
+	<skins:CtrlBar_Buttons id="ctrlbar"/>	
+</MDIWindow>

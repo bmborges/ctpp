@@ -1,0 +1,464 @@
+<?xml version="1.0" encoding="utf-8"?>
+<s:Application xmlns:fx="http://ns.adobe.com/mxml/2009" 
+			   xmlns:s="library://ns.adobe.com/flex/spark" 
+			   xmlns:mx="library://ns.adobe.com/flex/mx" width="100%" height="100%"
+			   xmlns:ns="http://flexmdi.googlecode.com/"
+			   backgroundColor="#A9C0E7" xmlns:frm="frm.*" xmlns:local="*">
+	
+	<s:layout>
+		<s:VerticalLayout/>
+	</s:layout>
+	<fx:Style source="index.css"/>
+	<fx:Script source="icons.as"/>
+	<fx:Script>
+		<![CDATA[
+			import frm.adm.frm_relatorios;
+			import frm.fin.frm_restricao;
+			
+			import classes.UtilRetornoBanco;
+			
+			import flash.net.registerClassAlias;
+			
+			import flexmdi.containers.MDIWindow;
+			import flexmdi.effects.effectsLib.MDIVistaEffects;
+			
+			import frm.adm.frm_cargo;
+			import frm.adm.frm_empresa;
+			import frm.adm.frm_feriadoferias;
+			import frm.adm.frm_menu;
+			import frm.adm.frm_operador;
+			import frm.adm.frm_operadoraluno;
+			import frm.adm.frm_permissao;
+			import frm.alu.frm_aluno;
+			import frm.alu.frm_resp;
+			import frm.bco.frm_alinea;
+			import frm.bco.frm_chequerc;
+			import frm.cnt.frm_midia;
+			import frm.crs.frm_curso;
+			import frm.crs.frm_materia;
+			import frm.crs.frm_sala;
+			import frm.crs.frm_turma;
+			import frm.crs.frm_turmastatus;
+			import frm.crs.rpt.rpt_materia;
+			import frm.ctr.frm_contrato;
+			import frm.ctr.frm_documentacao;
+			import frm.ctr.frm_geradiploma;
+			import frm.ctr.frm_txtcontrato;
+			import frm.ctr.rpt.rpt_contratobranco;
+			import frm.ctr.rpt.rpt_contratooperador;
+			import frm.ctr.rpt.rpt_contratoperiodocurso;
+			import frm.fin.academico.frm_boleto;
+			import frm.fin.frm_baixaboleto;
+			import frm.fin.frm_banco;
+			import frm.fin.frm_cancreceb;
+			import frm.fin.frm_formapgt;
+			import frm.fin.frm_recebimento;
+			import frm.fin.frm_renegociacao;
+			import frm.fin.frm_retornobanco;
+			import frm.fin.frm_tabvalores;
+			import frm.fin.frm_tiporec;
+			import frm.fin.frm_txtmaladireta;
+			import frm.fin.rpt.rpt_dupaberto;
+			import frm.fin.rpt.rpt_duppagas;
+			import frm.fornec.frm_fornecedor;
+			import frm.fpg.frm_cadfunc;
+			import frm.fpg.frm_dadosahgora;
+			import frm.fpg.frm_funcao;
+			import frm.fpg.frm_horario;
+			import frm.fpg.frm_ponto;
+			import frm.fpg.rpt.rpt_funcionario;
+			import frm.fpg.rpt.rpt_horariotrabalho;
+			import frm.fpg.rpt.rpt_ponto;
+			import frm.frm_login;
+			import frm.pbl.frm_publicidademsg;
+			import frm.pdg.academico.frm_geradecmatric;
+			import frm.pdg.academico.frmpontuacao;
+			import frm.pdg.frm_diariostatus;
+			import frm.pdg.frm_gerarequerimento;
+			import frm.pdg.frm_requerimento;
+			import frm.pdg.frmdiario;
+			import frm.pdg.frmespiaoaluno;
+			import frm.pdg.frmgeratransf;
+			import frm.pdg.rpt.rpt_alunosemdiario;
+			import frm.pdg.rpt.rpt_alunoturma;
+			import frm.pdg.rpt.rpt_diarioassinatura;
+			import frm.pdg.rpt.rpt_diarioaulasdadas;
+			import frm.pdg.rpt.rpt_diariofalta;
+			import frm.pdg.rpt.rpt_diarioturma;
+			import frm.pdg.rpt.rpt_documentacao;
+			import frm.pdg.rpt.rpt_faltaperiodoturma;
+			import frm.pdg.rpt.rpt_fichadeaula;
+			import frm.pdg.rpt.rpt_historicoescolar;
+			import frm.pdg.rpt.rpt_materiasemnota;
+			import frm.user.frm_alterasenha;
+			import frm.user.frm_gravafoto;
+			
+			import mx.collections.ArrayCollection;
+			import mx.collections.ArrayList;
+			import mx.controls.Alert;
+			import mx.core.Application;
+			import mx.core.Container;
+			import mx.core.FlexLoader;
+			import mx.events.MenuEvent;
+			import mx.events.ModuleEvent;
+			import mx.managers.PopUpManager;
+			import mx.modules.IModuleInfo;
+			import mx.modules.ModuleManager;
+			import mx.rpc.events.FaultEvent;
+			import mx.rpc.events.ResultEvent;
+			
+			import service.SystemService;
+			import service.adm.Adm_VersaoService;
+			
+			import vo.adm.Adm_VersaoVO;
+			import vo.adm.SystemVO;
+			
+			private var systemVO:SystemVO = SystemVO.getInstance();
+			private var ro_system:SystemService = SystemService.getInstance();
+			private var ro_versao:Adm_VersaoService = Adm_VersaoService.getInstance();
+			
+			
+			[Bindable] protected var moduleInfo:IModuleInfo;
+			[Bindable] public var menuXML:XMLList;
+			[Bindable] public var permissao:ArrayCollection;
+			
+			private var retorno:UtilRetornoBanco;
+			public var timer_verificasession:Timer;
+			
+			protected function myMenuBar_itemClickHandler(event:MenuEvent):void
+			{
+				if (event.item.@name == "logout") {
+					logout();	
+				} else if (event.item.@name == "gravafoto"){
+					frmGravaFoto();
+				} else {
+					//definition é o tipo da classe de acordo com a propriedade data do XML item
+					var definition:Class;
+					var myInstance:MDIWindow;
+					try
+					{
+						//através do definition, gera uma instancia nova. Uma nova janela
+						definition = getDefinitionByName(event.item.@name) as Class;
+						//Adiciona a instancia ao mdiCanvas da aplicação,
+						myInstance = new definition();
+						// mesmo que o tipo/instancia seja de outro módulo
+						openWindow(myInstance);
+					} 
+					catch(e:Error) 
+					{
+						Alert.show(e.message +"\n"+ event.item.@name);					
+					}
+				}
+			}
+			/**
+			 * Carregar o módulos
+			 */ 
+			protected function LoadModuleCadastro():void
+			{
+				try {
+					//obtém o módulo
+					moduleInfo = ModuleManager.getModule("modules/Cadastro.swf");
+					
+					//listener para quando o módulo der erro
+					moduleInfo.addEventListener(ModuleEvent.ERROR,OnModuleError);
+					
+					//Carrega o módulo repassando o ApplicationDomain,
+					// fazendo com que os tipos que estão nos módulos possam ser carregados
+					//   na aplicação principal. O moduleFactory carrega os estilos da aplicação principal
+					//     nos tipos do módulo
+					moduleInfo.load(ApplicationDomain.currentDomain,null,null,moduleFactory);
+					
+				} catch( e:Error ) {
+					Alert.show(e.message);					
+				}
+			}
+			protected function LoadModuleUsuario():void
+			{
+				try {
+					//obtém o módulo
+					moduleInfo = ModuleManager.getModule("modules/Usuario.swf");
+					
+					//listener para quando o módulo der erro
+					moduleInfo.addEventListener(ModuleEvent.ERROR,OnModuleError);
+					
+					//Carrega o módulo repassando o ApplicationDomain,
+					// fazendo com que os tipos que estão nos módulos possam ser carregados
+					//   na aplicação principal. O moduleFactory carrega os estilos da aplicação principal
+					//     nos tipos do módulo
+					moduleInfo.load(ApplicationDomain.currentDomain,null,null,moduleFactory);
+					
+				} catch( e:Error ) {
+					Alert.show(e.message);					
+				}
+			}
+			protected function OnModuleError(e:ModuleEvent):void
+			{
+				Alert.show(e.errorText);
+			}
+			protected function Result_monta_menu(event:ResultEvent):void{
+				menuXML = new XMLList(event.result.toString());
+			}
+			
+			public function openWindow(window:MDIWindow):void{
+				 var finalWindow:MDIWindow = null;
+				 var windowExists:Boolean = false;
+				
+				 //mdiCanvas é o ambiente onde as minha janelas abrem...
+				 for (var i:String in mdiCanvas.getChildren()){
+					var objMDI:MDIWindow = MDIWindow(mdiCanvas.getChildAt(int(i)));
+					if (window.className == objMDI.className){
+						window = null;
+						finalWindow = objMDI as MDIWindow;
+						windowExists = true;
+						break;
+					}
+				}
+				if (windowExists){
+					if (finalWindow.minimized){
+						finalWindow.restore();
+						finalWindow.showControls = true;
+						mdiCanvas.windowManager.bringToFront(finalWindow);
+					}else{
+						mdiCanvas.windowManager.bringToFront(finalWindow);
+					}
+				}else{
+					finalWindow = window;
+					mdiCanvas.windowManager.add(finalWindow);
+					finalWindow.y = 0;
+				}
+			}
+			protected function frmlogin():void{
+				var window:frm_login = new frm_login();
+				PopUpManager.addPopUp(window,this,true);
+				PopUpManager.centerPopUp(window);
+			}
+			public function TimerVerificaSession():void{
+				var tempo:Number = 1000 * 60 * 1;
+				var repeticoes:Number = Math.random();
+				timer_verificasession = new Timer(tempo,repeticoes);
+				timer_verificasession.addEventListener(TimerEvent.TIMER, VerificaSession);
+			}
+			public function VerificaSession(e:Event):void{
+				ro_system.VerificaSession(VerificaSessionResult);
+			}
+			private function VerificaSessionResult(e:ResultEvent):void{
+				var result:Boolean = e.result;
+				if (result == false){
+					frmlogin();					
+				}
+			}
+			protected function frmGravaFoto():void{
+				var window:frm_gravafoto = new frm_gravafoto();
+				PopUpManager.addPopUp(window,this,true);
+				PopUpManager.centerPopUp(window);
+			}
+			protected function logout():void{
+				mdiCanvas.windowManager.removeAll();
+				menuXML = null;
+				panelmensagens.visible = false;
+				panelacademico.visible = false;
+				
+				frmlogin();
+				panelmensagens.timer.stop();
+//				timer_verificasession.stop();
+			}
+			protected function uppercase(e:KeyboardEvent):void{
+				e.target.text = e.target.text.toUpperCase();
+				e.target.restrict = "^'";
+			}
+			protected function verificaPopUp():void{
+//				ExternalInterface.call("PopupWarning.init();");
+//				var retorno:String = ExternalInterface.call("verificaPopUp");
+//				Alert.show(retorno);
+				
+			}
+			public function VerificaVersao():void{
+				var adm_versaoVO:Adm_VersaoVO = new Adm_VersaoVO();
+				ro_versao.select(adm_versaoVO,VerificaVersaoResult,defaultFaultHandler);
+			}
+			private function VerificaVersaoResult(e:ResultEvent):void{
+				var v_sistema:String = e.result[0]['v_sistema'];
+				
+				if (v_sistema != '1.1'){
+					Alert.show("A Versão do Sistema no Seu Navegador esta Desatualizada, por favor limpe o Cache do Navegador","Alerta !");					
+				} else {
+					frmlogin();
+				}
+			}
+			protected function AbreTelaTeste(tela:String):void{
+				var definition:Class;
+				var myInstance:MDIWindow;
+				try
+				{
+					//através do definition, gera uma instancia nova. Uma nova janela
+					definition = getDefinitionByName(tela) as Class;
+					//Adiciona a instancia ao mdiCanvas da aplicação,
+					myInstance = new definition();
+					// mesmo que o tipo/instancia seja de outro módulo
+					openWindow(myInstance);
+				} 
+				catch(e:Error) 
+				{
+					Alert.show(e.message);					
+				}
+			}
+			private function defaultFaultHandler(e:FaultEvent):void{
+				this.enabled = true;
+				retorno = new UtilRetornoBanco;
+				retorno.RetornoBanco(e);
+			}
+			
+		]]>
+	</fx:Script>
+	
+	<fx:Declarations>
+		
+	</fx:Declarations>
+	
+	<s:creationComplete>
+		<![CDATA[
+		
+//		VerificaVersao();
+		frmlogin();
+
+		styleManager.loadStyleDeclarations("./css/style_padrao.swf");
+
+		ExternalInterface.call("window.document.getElementById('index').focus()");
+		
+		verificaPopUp();
+//		TimerVerificaSession();
+		
+//		frmGravaFoto();
+		
+		registerClassAlias("pdg",frm.pdg.frmdiario);
+		registerClassAlias("pdg",frm.pdg.rpt.rpt_diario);
+		registerClassAlias("pdg",frm.pdg.rpt.rpt_diarioassinatura);
+		registerClassAlias("pdg",frm.pdg.rpt.rpt_diarioturma);
+		registerClassAlias("pdg",frm.pdg.academico.frmpontuacao);
+		registerClassAlias("pdg",frm.pdg.academico.frm_geradecmatric);
+		registerClassAlias("pdg",frm.pdg.frmespiaoaluno);
+		registerClassAlias("pdg",frm.pdg.frm_diariostatus);
+		registerClassAlias("pdg",frm.pdg.rpt.rpt_fichadeaula);
+		registerClassAlias("pdg",frm.pdg.rpt.rpt_alunoturma);
+		registerClassAlias("pdg",frm.pdg.rpt.rpt_diariofalta);
+		registerClassAlias("pdg",frm.pdg.rpt.rpt_historicoescolar);
+		registerClassAlias("pdg",frm.pdg.rpt.rpt_faltaperiodoturma);
+		registerClassAlias("pdg",frm.pdg.rpt.rpt_diarioaulasdadas);
+		registerClassAlias("pdg",frm.pdg.rpt.rpt_documentacao);
+		registerClassAlias("pdg",frm.pdg.rpt.rpt_materiasemnota);
+		registerClassAlias("pdg",frm.pdg.rpt.rpt_alunosemdiario);
+		registerClassAlias("pdg",frm.pdg.frmgeratransf);
+		registerClassAlias("pdg",frm.pdg.frm_requerimento);
+		registerClassAlias("pdg",frm.pdg.frm_gerarequerimento);
+		
+		registerClassAlias("user",frm.user.frm_alterasenha);
+		
+		registerClassAlias("fin", frm.fin.academico.frm_boleto);
+		registerClassAlias("fin", frm.fin.frm_formapgt);
+		registerClassAlias("fin", frm.fin.frm_banco);
+		registerClassAlias("fin", frm.fin.frm_tiporec);
+		registerClassAlias("fin", frm.fin.frm_renegociacao);
+		registerClassAlias("fin", frm.fin.frm_boleto);
+		registerClassAlias("fin", frm.fin.frm_cancreceb);
+		registerClassAlias("fin", frm.fin.frm_retornobanco);
+		registerClassAlias("fin", frm.fin.frm_recebimento);
+		registerClassAlias("fin", frm.fin.rpt.rpt_dupaberto);
+		registerClassAlias("fin", frm.fin.rpt.rpt_duppagas);
+		registerClassAlias("fin", frm.fin.frm_txtmaladireta);
+		registerClassAlias("fin", frm.fin.frm_maladireta);
+		registerClassAlias("fin", frm.fin.frm_renegociacao);
+		registerClassAlias("fin", frm.fin.frm_tabvalores);
+		registerClassAlias("fin", frm.fin.frm_baixaboleto);
+		registerClassAlias("fin", frm.fin.frm_restricao);
+		
+		registerClassAlias("adm", frm.adm.frm_menu);
+		registerClassAlias("adm", frm.adm.frm_permissao);
+		registerClassAlias("adm", frm.adm.frm_cargo);
+		registerClassAlias("adm", frm.adm.frm_empresa);
+		registerClassAlias("adm", frm.adm.frm_operador);
+		registerClassAlias("adm", frm.adm.frm_operadoraluno);
+		registerClassAlias("adm", frm.adm.frm_feriadoferias);
+		registerClassAlias("adm", frm.adm.frm_relatorios);
+		
+		
+		registerClassAlias("alu", frm.alu.frm_aluno);
+		registerClassAlias("alu", frm.alu.frm_resp);
+		
+		registerClassAlias("ctr", frm.ctr.rpt.rpt_contratobranco);
+		registerClassAlias("ctr", frm.ctr.rpt.rpt_contratooperador);
+		registerClassAlias("ctr", frm.ctr.rpt.rpt_contratoperiodocurso);
+		registerClassAlias("ctr", frm.ctr.frm_documentacao);
+		registerClassAlias("ctr", frm.ctr.frm_txtcontrato);
+		registerClassAlias("ctr", frm.ctr.frm_contrato);
+		registerClassAlias("ctr", frm.ctr.frm_geradiploma);
+		
+		registerClassAlias("crs", frm.crs.frm_materia);
+		registerClassAlias("crs", frm.crs.frm_curso);
+		registerClassAlias("crs", frm.crs.frm_turma);
+		registerClassAlias("crs", frm.crs.frm_sala);
+		registerClassAlias("crs", frm.crs.frm_turmastatus);
+		registerClassAlias("crs", frm.crs.rpt.rpt_materia);
+		
+		
+		registerClassAlias("fornec", frm.fornec.frm_fornecedor);
+		
+		
+		registerClassAlias("fpg", frm.fpg.frm_horario);
+		registerClassAlias("fpg", frm.fpg.frm_cadfunc);
+		registerClassAlias("fpg", frm.fpg.frm_funcao);
+		registerClassAlias("fpg", frm.fpg.rpt.rpt_horariotrabalho);
+		registerClassAlias("fpg", frm.fpg.frm_dadosahgora);
+		registerClassAlias("fpg", frm.fpg.rpt.rpt_ponto);
+		registerClassAlias("fpg", frm.fpg.rpt.rpt_funcionario);
+		registerClassAlias("fpg", frm.fpg.frm_ponto);
+		
+		registerClassAlias("pbl", frm.pbl.frm_publicidademsg);
+		
+		registerClassAlias("cnt", frm.cnt.frm_midia);
+		
+		registerClassAlias("bco", frm.bco.frm_alinea);
+		registerClassAlias("bco", frm.bco.frm_chequerc);		
+		
+		
+		]]>
+	</s:creationComplete>
+	<mx:MenuBar id="myMenuBar" 
+					labelField="@label"
+					iconField="@icon"
+					showRoot="false"
+					dataProvider="{menuXML}"
+					height="30"
+					width="100%"
+					itemClick="myMenuBar_itemClickHandler(event)"/>
+	<s:Group width="100%" height="100%">
+		<mx:HBox horizontalAlign="right" width="100%" height="100%" paddingRight="20" paddingLeft="20">
+			<frm:frm_panelacademico height="100%" width="70%" id="panelacademico" visible="false"/>
+			<frm:frm_panelmensagens height="100%" width="30%" id="panelmensagens" visible="false"/>
+		</mx:HBox>
+		<ns:MDICanvas id="mdiCanvas"
+						   horizontalScrollPolicy="off"
+						   verticalScrollPolicy="off"
+						   effectsLib="{flexmdi.effects.effectsLib.MDIVistaEffects}"
+						   width="100%" height="100%">
+			
+		</ns:MDICanvas>
+	</s:Group>
+	<s:Group width="100%" height="30">
+		<mx:MenuBar id="myMenuBar2" width="100%" height="100%"/>
+		<mx:HBox width="100%" height="100%" verticalAlign="middle" paddingLeft="10" paddingRight="10">
+			<s:Label text="Sistema CTPP"/>
+			<s:Spacer width="60%"/>
+			<mx:Button id="bt_retira" visible="false" width="30" styleName="delete2" toolTip="Retira Espião">
+				<mx:click>
+					<![CDATA[
+						systemVO.id_aluno = 0;
+						lbl_espiao.text = null;
+						bt_retira.visible = false;
+					]]>
+				</mx:click>
+			</mx:Button>
+			<s:Label id="lbl_espiao"/>
+		</mx:HBox>
+	</s:Group>
+		
+</s:Application>

@@ -1,0 +1,223 @@
+<?xml version="1.0" encoding="utf-8"?>
+<s:Group xmlns:fx="http://ns.adobe.com/mxml/2009" 
+		 xmlns:s="library://ns.adobe.com/flex/spark" 
+		 xmlns:mx="library://ns.adobe.com/flex/mx" width="300" height="25">
+	<s:layout>
+		<s:HorizontalLayout verticalAlign="middle"/>
+	</s:layout>
+	<fx:Script>
+		<![CDATA[
+			import classes.UtilRetornoBanco;
+			
+			import service.crs.Crs_CursoService;
+			
+			import frm.frm_pesquisar1;
+			
+			import mx.collections.ArrayCollection;
+			import mx.controls.Alert;
+			import mx.core.FlexGlobals;
+			import mx.managers.PopUpManager;
+			import mx.rpc.events.FaultEvent;
+			import mx.rpc.events.ResultEvent;
+			
+			import service.adm.Adm_EmpresaService;
+			import service.adm.Adm_OperadorService;
+			import service.alu.Alu_AlunoService;
+			import service.crs.Crs_MateriaService;
+			import service.crs.Crs_ModuloService;
+			import service.crs.Crs_TurmaService;
+			import service.ctr.View_Ctr_Contrato_AlunoService;
+			import service.view.View_Field_TabelaService;
+			
+			import vo.adm.Adm_EmpresaVO;
+			import vo.adm.Adm_operadorVO;
+			import vo.alu.Alu_AlunoVO;
+			import vo.crs.Crs_CursoVO;
+			import vo.crs.Crs_MateriaVO;
+			import vo.crs.Crs_ModuloVO;
+			import vo.crs.Crs_TurmaVO;
+			import vo.view.View_Ctr_Contrato_AlunoVO;
+			import vo.view.View_Field_TabelaVO;
+			import vo.view.View_Pdg_DiarioVO;
+			
+			public var tabela:String;
+			public var titulo:String;
+			[Bindable] public var txt_idold:String;
+			private var retorno:UtilRetornoBanco;
+			private var where:Array;
+			public var whereparam:String;
+			
+			public var pesquisatitlewindow:frm_pesquisar1;
+			private var retornoAC:ArrayCollection = new ArrayCollection;
+			public var filtroAv:Boolean = true;
+
+			// abre pop up pesquisa                
+			private function openpesquisa(c:TextInput,r:TextInput):void{
+				
+				where = ["1 = 1"];
+				if (whereparam != null){
+					where.push(whereparam);
+				}
+				
+				
+				pesquisatitlewindow = PopUpManager.createPopUp(this,frm_pesquisar1,true) as frm_pesquisar1;
+				PopUpManager.centerPopUp(pesquisatitlewindow);
+				
+				var X:Number = pesquisatitlewindow.width / 2;
+				var Y:Number = pesquisatitlewindow.height / 2;
+				
+				var newX:Number = FlexGlobals.topLevelApplication.mdiCanvas.width / 2;
+				var newY:Number = FlexGlobals.topLevelApplication.mdiCanvas.height / 2;
+				
+				pesquisatitlewindow.x = newX - X;
+				pesquisatitlewindow.y = newY - Y;
+				
+//				pesquisatitlewindow.title = "Pesquisa " + titulo;
+				pesquisatitlewindow.whereparam = where;
+				pesquisatitlewindow.FiltroAvAtivo = filtroAv;
+				
+				pesquisatitlewindow.Pesquisar(tabela);
+
+				pesquisatitlewindow["list_data_grid"].addEventListener(MouseEvent.DOUBLE_CLICK,closePopUpWindow(c,r));
+				
+				var view_tabelaVO:View_Field_TabelaVO = new View_Field_TabelaVO;
+				var ro_viewtabela:View_Field_TabelaService = View_Field_TabelaService.getInstance();
+				this.tabela = tabela;
+				view_tabelaVO.relname = tabela;
+				view_tabelaVO.tabela_ref = tabela;
+				
+				var where:Array = ["retorno is not null"]
+				ro_viewtabela.select(view_tabelaVO,retornoResult,defaultFaultHandler,where,null);
+
+			}
+			private function retornoResult(e:ResultEvent):void{
+				retornoAC = e.result as ArrayCollection;
+			}
+			private function closePopUpWindow(c:TextInput,r:TextInput):Function {
+				return function(evt:MouseEvent):void{
+					var ObjList:Object = new Object;
+					ObjList = pesquisatitlewindow.list_data_grid.selectedItem;
+					
+					
+					if (tabela == "crs_modulo"){
+						c.text = pesquisatitlewindow.list_data_grid.selectedItem.id_modulo;
+						r.text = pesquisatitlewindow.list_data_grid.selectedItem.nmmodulo;
+						r.text = pesquisatitlewindow.list_data_grid.selectedItem.nmcentrocusto;
+//					} else if (tabela == "adm_operador"){
+//						c.text = pesquisatitlewindow.list_data_grid.selectedItem.id_operador;
+//						r.text = pesquisatitlewindow.list_data_grid.selectedItem.nmoperador;
+//					} else if (tabela == "alu_aluno"){
+//						c.text = pesquisatitlewindow.list_data_grid.selectedItem.id_aluno;
+//						r.text = pesquisatitlewindow.list_data_grid.selectedItem.nome;						
+//					}else if (tabela == "adm_cargo"){
+//						c.text = pesquisatitlewindow.list_data_grid.selectedItem.id_cargo;
+//						r.text = pesquisatitlewindow.list_data_grid.selectedItem.nmcargo;
+//					}else if (tabela == "crs_turma"){
+//						c.text = pesquisatitlewindow.list_data_grid.selectedItem.id_turma;
+//						r.text = pesquisatitlewindow.list_data_grid.selectedItem.nmturma;
+//					} else if (tabela == "view_pdg_diario"){
+//						c.text = pesquisatitlewindow.list_data_grid.selectedItem.id_diario;
+//						r.text = pesquisatitlewindow.list_data_grid.selectedItem.nmturma;						
+//					}else if (tabela == "crs_materia"){
+//						c.text = pesquisatitlewindow.list_data_grid.selectedItem.id_materia;
+//						r.text = pesquisatitlewindow.list_data_grid.selectedItem.nmmateria;	
+//					}else if (tabela == "view_ctr_contrato_aluno"){
+//						c.text = pesquisatitlewindow.list_data_grid.selectedItem.id_aluno;
+//						r.text = pesquisatitlewindow.list_data_grid.selectedItem.nome;						
+					} else if(ObjList != null && retornoAC != null){
+//						Alert.show(ObjList[retornoAC[0]['attname']] + " " + ObjList[retornoAC[0]['retorno']]);
+						c.text = ObjList[retornoAC[0]['attname']];
+						r.text = ObjList[retornoAC[0]['retorno']];
+					} else {
+						Alert.show("Erro ao localizar Retorno: " + ObjList[retornoAC[0]['attname']] + " " + ObjList[retornoAC[0]['retorno']]);
+					}
+					
+					
+					
+					PopUpManager.removePopUp(pesquisatitlewindow);
+				}
+			}
+			
+			
+			public function txt_id_focusOutHandler(event:FocusEvent):void{
+				// TODO Auto-generated method stub
+				where = ["1 = 1"];
+				
+				if((txt_nome.text.length <= 0 || txt_id.text != txt_idold) && txt_id.text.length > 0){
+					if (tabela == "crs_modulo"){
+						var crs_moduloVO:Crs_ModuloVO = new Crs_ModuloVO;
+						where.push("id_modulo = " + txt_id.text);
+						
+						var ro_modulo:Crs_ModuloService = Crs_ModuloService.getInstance();
+						ro_modulo.select(crs_moduloVO,ConsultaRelResult("nmmodulo"),defaultFaultHandler,where,null);
+					} else if (tabela == "adm_empresa"){
+						var adm_empresaVO:Adm_EmpresaVO = new Adm_EmpresaVO;
+						where.push("id_pa = " + txt_id.text);
+						
+						var ro_empresa:Adm_EmpresaService = Adm_EmpresaService.getInstance();
+						ro_empresa.select(adm_empresaVO,ConsultaRelResult("nmempresa"),defaultFaultHandler,where,null);
+					} else if (tabela == "crs_materia"){
+						var crs_materiaVO:Crs_MateriaVO = new Crs_MateriaVO;
+						where.push("id_materia = " + txt_id.text);
+						
+						var ro_materia:Crs_MateriaService = Crs_MateriaService.getInstance();
+						ro_materia.select(crs_materiaVO,ConsultaRelResult("nmmateria"),defaultFaultHandler,where,null);
+					} else if (tabela == "crs_curso"){
+						var crs_cursoVO:Crs_CursoVO = new Crs_CursoVO;
+						where.push("id_curso = " + txt_id.text);
+						
+						var ro_curso:Crs_CursoService = Crs_CursoService.getInstance();
+						ro_curso.select(crs_cursoVO,ConsultaRelResult("nmcurso"),defaultFaultHandler,where,null);							
+					} else if (tabela == "crs_turma"){
+						var crs_turmaVO:Crs_TurmaVO = new Crs_TurmaVO;
+						where.push("id_turma = " + txt_id.text);
+						
+						var ro_turma:Crs_TurmaService = Crs_TurmaService.getInstance();
+						ro_turma.select(crs_turmaVO,ConsultaRelResult("nmturma"),defaultFaultHandler,where,null);							
+					} else if (tabela == "alu_aluno"){
+						var adm_aluno:Alu_AlunoVO = new Alu_AlunoVO;
+						where.push("id_aluno = " + txt_id.text);
+						
+						var ro_aluno:Alu_AlunoService = Alu_AlunoService.getInstance();
+						ro_aluno.select(adm_aluno,ConsultaRelResult("nmaluno"),defaultFaultHandler,where,null);						
+					} else if (tabela == "view_pdg_diario"){
+					} else if (tabela == "view_ctr_contrato_aluno"){						
+						var view_ctr_contrato_aluno:View_Ctr_Contrato_AlunoVO = new View_Ctr_Contrato_AlunoVO;
+						where.push("id_aluno = " + txt_id.text);
+						
+						var ro_alunocontrato:View_Ctr_Contrato_AlunoService = View_Ctr_Contrato_AlunoService.getInstance();
+						ro_alunocontrato.select(view_ctr_contrato_aluno,ConsultaRelResult("nome"),defaultFaultHandler,where,null);							
+					} else if (tabela == "adm_operador"){
+							var adm_operadorVO:Adm_operadorVO = new Adm_operadorVO;
+							var ro_operador:Adm_OperadorService = Adm_OperadorService.getInstance();
+							
+							where.push("id_operador = " + txt_id.text);
+							
+							ro_operador.select(adm_operadorVO,ConsultaRelResult("nmoperador"),defaultFaultHandler,where,null);						
+					}
+				}
+			}
+			private function ConsultaRelResult(atributo:String):Function {
+				return function(e:ResultEvent):void{
+					var dg:ArrayCollection = e.result as ArrayCollection;
+					if (dg.length > 0){
+						txt_nome.text = dg[0][atributo];
+						txt_idold = txt_id.text;
+					} else {
+						txt_nome.text = "";
+						txt_idold = "";
+					}
+				}
+			}
+			private function defaultFaultHandler(e:FaultEvent):void{
+				this.enabled = true;
+				retorno = new UtilRetornoBanco;
+				retorno.RetornoBanco(e);
+			}
+		]]>
+	</fx:Script>
+	<mx:TextInput id="txt_id" width="70" focusOut="txt_id_focusOutHandler(event)"/>
+	<mx:Button id="bt" width="30" styleName="btpesquisa" click="openpesquisa(txt_id,txt_nome)"/>
+	<mx:TextInput id="txt_nome" editable="false" width="100%" maxChars="20"/>
+	
+</s:Group>

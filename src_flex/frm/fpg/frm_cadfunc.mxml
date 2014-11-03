@@ -1,0 +1,764 @@
+<?xml version="1.0" encoding="utf-8"?>
+<MDIWindow xmlns="flexmdi.containers.*" xmlns:mx="http://www.adobe.com/2006/mxml" 
+		   width="782" height="476" title="Cadastro Funcionário" creationComplete="init()"
+		   xmlns:s="library://ns.adobe.com/flex/spark" xmlns:skins="skins.*" creationPolicy="all">
+	<mx:Script>
+		<![CDATA[
+			import classes.Util;
+			import classes.UtilMensagens;
+			import classes.UtilNamesPesquisa;
+			import classes.UtilRetornoBanco;
+			
+			import mx.collections.ArrayCollection;
+			import mx.controls.Alert;
+			import mx.controls.Text;
+			import mx.core.FlexGlobals;
+			import mx.events.IndexChangedEvent;
+			import mx.rpc.events.FaultEvent;
+			import mx.rpc.events.ResultEvent;
+			
+			import service.cdc.Cdc_CentroCustoService;
+			import service.fpg.Fpg_AdmissaoService;
+			import service.fpg.Fpg_CadFuncService;
+			import service.fpg.Fpg_FuncaoService;
+			import service.fpg.Fpg_HorarioService;
+			import service.fpg.Fpg_Horario_FuncService;
+			import service.fpg.Fpg_LocalTrabalhoService;
+			import service.fpg.Fpg_SituacaoFuncService;
+			
+			import vo.adm.Adm_cargoVO;
+			import vo.adm.SystemVO;
+			import vo.fpg.Fpg_AdmissaoVO;
+			import vo.fpg.Fpg_CadFuncVO;
+			import vo.fpg.Fpg_Horario_FuncVO;
+			import vo.fpg.Fpg_LocalTrabalhoVO;
+			
+			private var ro_cadfunc:Fpg_CadFuncService = Fpg_CadFuncService.getInstance();
+			private var ro_situacaofunc:Fpg_SituacaoFuncService = Fpg_SituacaoFuncService.getInstance();
+			private var ro_admissao:Fpg_AdmissaoService = Fpg_AdmissaoService.getInstance();
+			private var ro_localtrabalho:Fpg_LocalTrabalhoService = Fpg_LocalTrabalhoService.getInstance();
+			private var ro_centrocusto:Cdc_CentroCustoService = Cdc_CentroCustoService.getInstance();
+			private var ro_funcao:Fpg_FuncaoService = Fpg_FuncaoService.getInstance();
+			private var ro_horario:Fpg_HorarioService = Fpg_HorarioService.getInstance();
+			private var ro_horariofunc:Fpg_Horario_FuncService = Fpg_Horario_FuncService.getInstance();
+			
+			private var fpg_cadfuncVO:Fpg_CadFuncVO;
+			private var fpg_admissaoVO:Fpg_AdmissaoVO;
+			private var fpg_localtrabalhoVO:Fpg_LocalTrabalhoVO;
+			private var fpg_horariofuncVO:Fpg_Horario_FuncVO;
+			private var systemVO:SystemVO = SystemVO.getInstance();
+			
+			private var util:Util = new Util();
+			private var retorno:UtilRetornoBanco;
+			private var ArraySituacao:ArrayCollection;
+			private var ArrayCentroCusto:ArrayCollection;
+			private var ArrayFuncao:ArrayCollection;
+			private var ArrayHorario:ArrayCollection;
+			[Bindable] private var isValid:Boolean = false;
+			protected function lf_dtadmissao(item:Object, column:DataGridColumn):String{
+				return util.formatData_DDMMYYYY(item.dt_admissao);
+			}
+			protected function lf_dtdemissao(item:Object, column:DataGridColumn):String{
+				if (item.dt_demissao == null){
+					return "";
+				}
+				return util.formatData_DDMMYYYY(item.dt_demissao);
+			}
+			protected function lf_dtinicio(item:Object, column:DataGridColumn):String{
+				return util.formatData_DDMMYYYY(item.dt_inicio);
+			}
+			protected function lf_dtin_horario(item:Object, column:DataGridColumn):String{
+				return util.formatData_DDMMYYYY(item.dtin_horario);
+			}
+			protected function lf_dtfinal(item:Object, column:DataGridColumn):String{
+				if (item.dt_final == null){
+					return "";
+				}
+				return util.formatData_DDMMYYYY(item.dt_final);
+			}
+			protected function lf_centrocusto(item:Object, column:DataGridColumn):String
+			{
+				var retorno:Object = util.selecionarCombobox(item.id_centrocusto,ArrayCentroCusto);
+				if (retorno == null){
+					return "";	
+				}
+				return retorno.label;
+			}
+			protected function lf_funcao(item:Object, column:DataGridColumn):String
+			{
+				var retorno:Object = util.selecionarCombobox(item.id_funcao,ArrayFuncao);
+				if (retorno == null){
+					return "";	
+				}
+				return retorno.label;
+			}
+			protected function lf_horario(item:Object, column:DataGridColumn):String
+			{
+				var retorno:Object = util.selecionarCombobox(item.id_horario,ArrayHorario);
+				if (retorno == null){
+					return "";	
+				}
+				return retorno.label;
+			}
+			private function init():void{
+				
+				this.width = FlexGlobals.topLevelApplication.mdiCanvas.width;
+				this.height = FlexGlobals.topLevelApplication.mdiCanvas.height;
+				
+				this.x = 0;
+				this.y = 0;
+				
+				ctrlbar.addChildAt(ctrlbar.bt_pesquisar,0);
+				ctrlbar.addChildAt(ctrlbar.bt_inserir,1);
+				ctrlbar.addChildAt(ctrlbar.bt_alterar,2);
+				ctrlbar.addChildAt(ctrlbar.bt_excluir,3);
+				ctrlbar.addChildAt(ctrlbar.bt_limpar,4);
+				
+				ctrlbar.bt_pesquisar.addEventListener(MouseEvent.CLICK,selecionar);
+				ctrlbar.bt_inserir.addEventListener(MouseEvent.CLICK,inserir);
+				ctrlbar.bt_alterar.addEventListener(MouseEvent.CLICK,alterar);
+				ctrlbar.bt_excluir.addEventListener(MouseEvent.CLICK,deletar);
+				ctrlbar.bt_limpar.addEventListener(MouseEvent.CLICK,limpar);
+				
+				ro_situacaofunc.ComboBox("id_situacaofunc||' - '||nmsituacao","id_situacaofunc",createcbsituacao,defaultFaultHandler);
+				ro_centrocusto.ComboBox("nmcentrocusto","id_centrocusto",createArrayCentrocusto,defaultFaultHandler);
+				ro_funcao.ComboBox("nmfuncao","id_funcao",createArrayFuncao,defaultFaultHandler);
+				ro_horario.ComboBox("nmhorario","id_horario",createArrayHorario,defaultFaultHandler);
+			}
+			private function createcbsituacao(event:ResultEvent):void{
+				this.enabled = true;
+				ArraySituacao = event.result as ArrayCollection;
+				cbsituacaofunc.dataProvider = ArraySituacao;
+			}
+			private function createArrayCentrocusto(event:ResultEvent):void{
+				this.enabled = true;
+				ArrayCentroCusto = event.result as ArrayCollection;
+			}
+			private function createArrayFuncao(event:ResultEvent):void{
+				this.enabled = true;
+				ArrayFuncao = event.result as ArrayCollection;
+			}
+			private function createArrayHorario(event:ResultEvent):void{
+				this.enabled = true;
+				ArrayHorario = event.result as ArrayCollection;
+			}
+			private function create_DataGrid(event:ResultEvent):void {
+				this.enabled = true;
+				if (tbnavig.selectedIndex == 0){
+					dg_funcionario.dataProvider = event.result;
+				} else {
+					if(accordion.selectedIndex == 1) {
+						dg_localtrabalho.dataProvider = event.result;
+					} else if (accordion.selectedIndex == 2){
+						dg_horariofunc.dataProvider = event.result;
+					} else {
+						dg_admissao.dataProvider = event.result;
+					}
+				}
+			}
+			private function tabnavcomplete(event:IndexChangedEvent):void{
+				var currentIndex:int=event.newIndex;
+				if (currentIndex == 0){
+				}else {
+					accordion.selectedIndex = 0;
+					selecionar(event);
+					limpar(event);
+				}
+			}
+			private function accordioncomplete(event:IndexChangedEvent):void{
+				var currentIndex:int=event.newIndex;
+				if (currentIndex == 0){
+				}else {
+					selecionar(event);
+					limpar(event);
+				}
+			}
+			private function selecionar(e:Event):void{
+				this.enabled = false;
+				if (tbnavig.selectedIndex == 0){
+					popular_pesquisar();
+					ro_cadfunc.select(fpg_cadfuncVO,create_DataGrid,defaultFaultHandler);
+				} else {
+					if(accordion.selectedIndex == 1) {
+						popular_pesquisar();
+						ro_localtrabalho.select(fpg_localtrabalhoVO,create_DataGrid,defaultFaultHandler);
+					} else if (accordion.selectedIndex == 2){
+						popular_pesquisar();
+						ro_horariofunc.select(fpg_horariofuncVO,create_DataGrid,defaultFaultHandler);
+					} else if (accordion.selectedIndex == 3){
+					} else if (accordion.selectedIndex == 4){
+					} else {
+						popular_pesquisar();
+						ro_admissao.select(fpg_admissaoVO,create_DataGrid,defaultFaultHandler);
+
+					}
+				}
+			}
+			private function inserir(e:Event):void{
+				if (tbnavig.selectedIndex == 0){
+					isValid = util.validateForm(form_func1);
+					isValid = util.validateForm(form_func2) && isValid;
+					if (!isValid){
+						mensagem_funcionario.text = UtilMensagens.PreenchaCampo;
+					} else {
+						this.enabled = false;
+						popular();
+						ro_cadfunc.inserir(fpg_cadfuncVO,inserirResult,defaultFaultHandler);
+					}
+				} else if (tbnavig.selectedIndex == 1){
+					if(accordion.selectedIndex == 1) {
+						isValid = util.validateForm(form_local1);
+						isValid = util.validateForm(form_local2) && isValid;
+						if (!isValid){
+							mensagem_local.text = UtilMensagens.PreenchaCampo;
+						} else {
+							this.enabled = false;
+							popular();
+							ro_localtrabalho.inserir(fpg_localtrabalhoVO,inserirResult,defaultFaultHandler);
+						}	
+					} else if(accordion.selectedIndex == 2) {
+						isValid = util.validateForm(form_horario1);
+						isValid = util.validateForm(form_horario2) && isValid;
+						if (!isValid){
+							mensagem_horariofunc.text = UtilMensagens.PreenchaCampo;
+						} else {
+							this.enabled = false;
+							popular();
+							fpg_horariofuncVO.nmoperador = systemVO.nickname;
+							fpg_horariofuncVO.dt_sistema = new Date();
+							ro_horariofunc.inserir(fpg_horariofuncVO,inserirResult,defaultFaultHandler);
+						}	
+					} else if(accordion.selectedIndex == 3) {
+					} else if(accordion.selectedIndex == 4) {
+					} else {
+						isValid = util.validateForm(form_admissao1);
+						isValid = util.validateForm(form_admissao2) && isValid;
+						if (!isValid){
+							mensagem_admissao.text = UtilMensagens.PreenchaCampo;
+						} else {
+							this.enabled = false;
+							popular();
+							ro_admissao.inserir(fpg_admissaoVO,inserirResult,defaultFaultHandler);
+						}
+						
+					}
+					
+				}
+			}
+			
+			private function inserirResult(e:ResultEvent):void{
+				this.enabled = true;
+				if (tbnavig.selectedIndex == 0){
+					txtid_parceiro.text = e.result.toString();
+				} else if (tbnavig.selectedIndex == 1){
+					if(accordion.selectedIndex == 1){
+						txtid_localtrabalho.text = e.result.toString();
+					} else if (accordion.selectedIndex == 2){
+						txtid_horariofunc.text = e.result.toString();
+					} else if (accordion.selectedIndex == 3){
+					} else if (accordion.selectedIndex == 4){
+					} else {	
+						txtid_admissao.text = e.result.toString();
+					}
+				}
+				selecionar(e);
+			}
+			
+			private function alterar(e:Event):void{
+				if (tbnavig.selectedIndex == 0){
+					isValid = util.validateForm(form_func1);
+					isValid = util.validateForm(form_func2) && isValid;
+					if (!isValid){
+						mensagem_funcionario.text = UtilMensagens.PreenchaCampo;
+					} else {
+						this.enabled = false;
+						popular();
+						ro_cadfunc.atualizar(fpg_cadfuncVO,alterarResult,defaultFaultHandler);
+					}
+				} else if (tbnavig.selectedIndex == 1){
+					if(accordion.selectedIndex == 1){
+						isValid = util.validateForm(form_local1);
+						isValid = util.validateForm(form_local2) && isValid;
+						if (!isValid){
+							mensagem_local.text = UtilMensagens.PreenchaCampo;
+						} else {
+							this.enabled = false;
+							popular();
+							ro_localtrabalho.atualizar(fpg_localtrabalhoVO,alterarResult,defaultFaultHandler);
+						}	
+					} else if(accordion.selectedIndex == 2) {
+						isValid = util.validateForm(form_horario1);
+						isValid = util.validateForm(form_horario2) && isValid;
+						if (!isValid){
+							mensagem_horariofunc.text = UtilMensagens.PreenchaCampo;
+						} else {
+							this.enabled = false;
+							popular();
+							fpg_horariofuncVO.nmoperador = systemVO.nickname;
+							fpg_horariofuncVO.dt_sistema = new Date();
+							ro_horariofunc.atualizar(fpg_horariofuncVO,inserirResult,defaultFaultHandler);
+						}	
+					} else if(accordion.selectedIndex == 3) {
+					} else if(accordion.selectedIndex == 4) {						
+					} else {	
+						isValid = util.validateForm(form_admissao1);
+						isValid = util.validateForm(form_admissao2) && isValid;
+						if (!isValid){
+							mensagem_admissao.text = UtilMensagens.PreenchaCampo;
+						} else {
+							this.enabled = false;
+							popular();
+							ro_admissao.atualizar(fpg_admissaoVO,alterarResult,defaultFaultHandler);
+						}
+						
+					}
+					
+				}
+			}
+			private function alterarResult(e:ResultEvent):void{
+				this.enabled = true;
+				if (tbnavig.selectedIndex == 0){
+					dg_funcionario.dataProvider = e.result;
+				} else if (tbnavig.selectedIndex == 1){
+					if(accordion.selectedIndex == 1){
+						dg_localtrabalho.dataProvider = e.result;
+					} else if(accordion.selectedIndex == 2) {
+						dg_horariofunc.dataProvider = e.result;
+					} else if(accordion.selectedIndex == 3) {
+					} else if(accordion.selectedIndex == 4) {							
+					} else {	
+						dg_admissao.dataProvider = e.result;
+					}
+				}
+
+			}
+			private function deletar(e:Event):void{
+				if (tbnavig.selectedIndex == 0){
+					isValid = util.validateForm(form_func1);
+					isValid = util.validateForm(form_func2) && isValid;
+					if (!isValid){
+						mensagem_funcionario.text = UtilMensagens.PreenchaCampo;
+					} else {
+						this.enabled = false;
+						popular();
+						ro_cadfunc.deletar(fpg_cadfuncVO,deletarResult,defaultFaultHandler);
+					}				
+				} else if (tbnavig.selectedIndex == 1){
+					if(accordion.selectedIndex == 1){
+						isValid = util.validateForm(form_local1);
+						isValid = util.validateForm(form_local2) && isValid;
+						if (!isValid){
+							mensagem_local.text = UtilMensagens.PreenchaCampo;
+						} else {
+							this.enabled = false;
+							popular();
+							ro_localtrabalho.deletar(fpg_localtrabalhoVO,deletarResult,defaultFaultHandler);
+						}	
+					} else if (accordion.selectedIndex == 2){
+						isValid = util.validateForm(form_horario1);
+						isValid = util.validateForm(form_horario2) && isValid;
+						if (!isValid){
+							mensagem_horariofunc.text = UtilMensagens.PreenchaCampo;
+						} else {
+							this.enabled = false;
+							popular();
+							ro_horariofunc.deletar(fpg_horariofuncVO,deletarResult,defaultFaultHandler);
+						}	
+					} else if(accordion.selectedIndex == 3) {
+					} else if(accordion.selectedIndex == 4) {							
+					} else {	
+						isValid = util.validateForm(form_admissao1);
+						isValid = util.validateForm(form_admissao2) && isValid;
+						if (!isValid){
+							mensagem_admissao.text = UtilMensagens.PreenchaCampo;
+						} else {
+							this.enabled = false;
+							popular();
+							ro_admissao.deletar(fpg_admissaoVO,deletarResult,defaultFaultHandler);
+						}
+						
+					}
+				}
+			}
+			private function deletarResult(e:ResultEvent):void{
+				this.enabled = true;
+				if (tbnavig.selectedIndex == 0){
+					dg_funcionario.dataProvider = e.result;
+				} else if (tbnavig.selectedIndex == 1){
+					if(accordion.selectedIndex == 1){
+						dg_localtrabalho.dataProvider = e.result;
+					} else if (accordion.selectedIndex == 2){
+						dg_horariofunc.dataProvider = e.result;
+					} else {
+						dg_admissao.dataProvider = e.result;
+					}
+				}
+				limpar(e);	
+			}
+			private function limpar(e:Event):void{
+				if (tbnavig.selectedIndex == 0){
+					mensagem_funcionario.text = "";
+					util.limpar_formulario(form_func1);
+					util.limpar_formulario(form_func2);
+					dg_funcionario.dataProvider = null;
+					
+					mensagem_admissao.text = "";
+					util.limpar_formulario(form_admissao1);
+					util.limpar_formulario(form_admissao2);
+					dg_admissao.dataProvider = null;
+					
+					
+				} else {
+					if(accordion.selectedIndex == 1){
+						mensagem_local.text = "";
+						util.limpar_formulario(form_local1);
+						util.limpar_formulario(form_local2);
+						dg_localtrabalho.dataProvider = null;
+					} else if (accordion.selectedIndex == 2){
+						mensagem_horariofunc.text = "";
+						util.limpar_formulario(form_horario1);
+						util.limpar_formulario(form_horario2);
+						dg_horariofunc.dataProvider = null;
+					} else if (accordion.selectedIndex == 3){
+					} else if (accordion.selectedIndex == 4){
+					} else {	
+						mensagem_admissao.text = "";
+						util.limpar_formulario(form_admissao1);
+						util.limpar_formulario(form_admissao2);
+					}
+				}
+			}
+			private function setcampos(e:Event):void{
+				if (tbnavig.selectedIndex == 0){
+					txtid_parceiro.text = dg_funcionario.selectedItem.id_parceiro;
+					txtnmfuncionario.text = dg_funcionario.selectedItem.nmfuncionario;					
+					cbsituacaofunc.selectedItem = dg_funcionario.selectedItem.situacaofunc ? util.selecionarCombobox(dg_funcionario.selectedItem.situacaofunc,ArraySituacao) : null;
+					ckbate_ponto.selected = dg_funcionario.selectedItem.bate_ponto == "V" ? true : false;
+					txtpis.text = dg_funcionario.selectedItem.pis;
+					txtagencia_pis.text = dg_funcionario.selectedItem.agencia_pis;
+					txtdt_pis.selectedDate = dg_funcionario.selectedItem.dt_pis;
+					
+				} else if (tbnavig.selectedIndex == 1){
+					var retorno:Object;
+					if(accordion.selectedIndex == 1){
+						txtid_localtrabalho.text = dg_localtrabalho.selectedItem.id_localtrabalho;
+						txtid_centrocusto.txt_id.text = dg_localtrabalho.selectedItem.id_centrocusto;
+						
+						retorno =  util.selecionarCombobox(dg_localtrabalho.selectedItem.id_centrocusto,ArrayCentroCusto);
+						txtid_centrocusto.txt_nome.text = retorno.label;
+						
+						txtid_funcao.txt_id.text = dg_localtrabalho.selectedItem.id_funcao;
+						retorno =  util.selecionarCombobox(dg_localtrabalho.selectedItem.id_funcao,ArrayFuncao);
+						txtid_funcao.txt_nome.text = retorno.label;
+						
+						
+						txtdt_inicio.selectedDate = dg_localtrabalho.selectedItem.dt_inicio;
+						txtdt_final.selectedDate = dg_localtrabalho.selectedItem.dt_final;
+					} else if (accordion.selectedIndex == 2){
+						txtid_horariofunc.text = dg_horariofunc.selectedItem.id_horariofunc;
+						
+						txtid_horario.txt_id.text = dg_horariofunc.selectedItem.id_horario;
+						retorno =  util.selecionarCombobox(dg_horariofunc.selectedItem.id_horario,ArrayHorario);
+						txtid_horario.txt_nome.text = retorno.label;
+
+						
+						txtdtin_horario.selectedDate = dg_horariofunc.selectedItem.dtin_horario;
+						txtdtfi_horario.selectedDate = dg_horariofunc.selectedItem.dtfi_horario;
+							
+					} else if (accordion.selectedIndex == 3){
+					} else if (accordion.selectedIndex == 4){
+					} else {	
+						txtid_admissao.text = dg_admissao.selectedItem.id_admissao;
+						txtdt_admissao.selectedDate = dg_admissao.selectedItem.dt_admissao;
+						txtdt_demissao.selectedDate = dg_admissao.selectedItem.dt_demissao;
+					}
+				}
+			}
+			
+			private function popular():void{
+				if (tbnavig.selectedIndex == 0){
+					fpg_cadfuncVO = new Fpg_CadFuncVO();
+					fpg_cadfuncVO.id_parceiro = txtid_parceiro.text.length <= 0 ? null : txtid_parceiro.text;
+					fpg_cadfuncVO.nmfuncionario = txtnmfuncionario.text.length <= 0 ? null : txtnmfuncionario.text.toUpperCase();					
+					fpg_cadfuncVO.situacaofunc = cbsituacaofunc.selectedItem ? cbsituacaofunc.selectedItem.data : null;
+					fpg_cadfuncVO.bate_ponto = ckbate_ponto.selected ? "V" : "F";
+					fpg_cadfuncVO.pis = txtpis.text.length <= 0 ? null : txtpis.text;
+					fpg_cadfuncVO.agencia_pis = txtagencia_pis.text.length <= 0 ? null : txtagencia_pis.text;
+					fpg_cadfuncVO.dt_pis = txtdt_pis.selectedDate ? txtdt_pis.selectedDate : null;
+					
+				} else if (tbnavig.selectedIndex == 1){
+					if(accordion.selectedIndex == 1){
+						fpg_localtrabalhoVO = new Fpg_LocalTrabalhoVO();
+						fpg_localtrabalhoVO.id_localtrabalho = txtid_localtrabalho.text.length <= 0 ? null : txtid_localtrabalho.text;
+						fpg_localtrabalhoVO.id_admissao = txtid_admissao.text;
+						fpg_localtrabalhoVO.id_funcao = txtid_funcao.txt_id.text;
+						fpg_localtrabalhoVO.id_centrocusto = txtid_centrocusto.txt_id.text;
+						fpg_localtrabalhoVO.dt_inicio = txtdt_inicio.selectedDate ? txtdt_inicio.selectedDate : null;
+						fpg_localtrabalhoVO.dt_final = txtdt_final.selectedDate ? txtdt_final.selectedDate : null;
+					} else if (accordion.selectedIndex == 2){
+						fpg_horariofuncVO = new Fpg_Horario_FuncVO;
+						fpg_horariofuncVO.id_admissao = txtid_admissao.text;
+						fpg_horariofuncVO.id_horario = txtid_horario.txt_id.text.length <= 0 ? null : txtid_horario.txt_id.text;
+						fpg_horariofuncVO.id_horariofunc = txtid_horariofunc.text.length <= 0 ? null : txtid_horariofunc.text;
+						fpg_horariofuncVO.dtin_horario = txtdtin_horario.selectedDate ? txtdtin_horario.selectedDate : null;
+						fpg_horariofuncVO.dtfi_horario = txtdtfi_horario.selectedDate ? txtdtfi_horario.selectedDate : null;
+
+					} else if (accordion.selectedIndex == 3){
+					} else if (accordion.selectedIndex == 4){
+					} else {
+						fpg_admissaoVO = new Fpg_AdmissaoVO();
+						fpg_admissaoVO.id_parceiro = txtid_parceiro.text;
+						fpg_admissaoVO.id_admissao = txtid_admissao.text.length <= 0 ? null : txtid_admissao.text;
+						fpg_admissaoVO.dt_admissao = txtdt_admissao.selectedDate ? txtdt_admissao.selectedDate : null;
+						fpg_admissaoVO.dt_demissao = txtdt_demissao.selectedDate ? txtdt_demissao.selectedDate : null;
+					}
+						
+				}
+			}
+			private function popular_pesquisar():void{
+				if (tbnavig.selectedIndex == 0){
+					fpg_cadfuncVO = new Fpg_CadFuncVO();
+					fpg_cadfuncVO.id_parceiro = txtid_parceiro.text.length <= 0 ? null : txtid_parceiro.text;
+					fpg_cadfuncVO.nmfuncionario = txtnmfuncionario.text.length <= 0 ? null : txtnmfuncionario.text.toUpperCase();					
+					fpg_cadfuncVO.situacaofunc = cbsituacaofunc.selectedItem ? cbsituacaofunc.selectedItem.data : null;
+					fpg_cadfuncVO.pis = txtpis.text.length <= 0 ? null : txtpis.text;
+					fpg_cadfuncVO.agencia_pis = txtagencia_pis.text.length <= 0 ? null : txtagencia_pis.text;
+					fpg_cadfuncVO.dt_pis = txtdt_pis.selectedDate ? txtdt_pis.selectedDate : null;
+					
+				} else {
+					if(accordion.selectedIndex == 1){
+						fpg_localtrabalhoVO = new Fpg_LocalTrabalhoVO();
+						fpg_localtrabalhoVO.id_admissao = txtid_admissao.text;
+					} else if (accordion.selectedIndex == 2){
+						fpg_horariofuncVO = new Fpg_Horario_FuncVO;
+						fpg_horariofuncVO.id_admissao = txtid_admissao.text;
+					} else {
+						fpg_admissaoVO = new Fpg_AdmissaoVO();
+						fpg_admissaoVO.id_parceiro = txtid_parceiro.text;
+					}
+				}
+			}
+			private function defaultFaultHandler(e:FaultEvent):void{
+				this.enabled = true;
+				retorno = new UtilRetornoBanco;
+				retorno.RetornoBanco(e);
+				
+				if (tbnavig.selectedIndex == 0){
+					mensagem_funcionario.text = "";
+				} else if (tbnavig.selectedIndex == 1){
+					if(accordion.selectedIndex == 1){
+						mensagem_local.text = "";
+					} else {	
+						mensagem_admissao.text = "";
+					}
+				}
+				
+			}
+			
+		]]>
+	</mx:Script>
+	<mx:VBox width="100%" height="100%">
+		<mx:TabNavigator id="tbnavig" width="100%" height="100%" change="tabnavcomplete(event)">
+			<mx:Canvas label="Funcionário" id="c_funcionario">
+				<mx:VBox width="100%" height="100%">
+				<mx:Label width="100%" id="mensagem_funcionario" styleName="lblerro"/>
+					<mx:HBox width="100%">
+						<mx:Form id="form_func1" width="50%" height="100%">
+							<mx:FormItem label="Id.:">
+								<mx:TextInput id="txtid_parceiro" width="82" editable="false"/>
+							</mx:FormItem>
+							<mx:FormItem label="Nome Funcionário:" required="true">
+								<skins:TextInput_Maiusculo id="txtnmfuncionario"/>
+							</mx:FormItem>
+							<mx:FormItem label="Situação:">
+								<mx:ComboBox id="cbsituacaofunc"/>
+							</mx:FormItem>
+							<mx:FormItem label="Bate Ponto?:">
+								<mx:CheckBox id="ckbate_ponto"/>
+							</mx:FormItem>
+						</mx:Form>
+						<mx:Form id="form_func2" width="50%" height="100%">
+							<mx:FormItem label="PIS:" required="true">
+								<skins:TextInput_Maiusculo id="txtpis"/>
+							</mx:FormItem>
+							<mx:FormItem label="Agencia PIS:">
+								<skins:TextInput_Maiusculo id="txtagencia_pis"/>
+							</mx:FormItem>
+							<mx:FormItem label="Data PIS:">
+								<skins:DateField_Data id="txtdt_pis" />
+							</mx:FormItem>
+						</mx:Form>
+					</mx:HBox>
+					<mx:DataGrid width="100%" height="100%" id="dg_funcionario" itemClick="setcampos(event)" focusEnabled="false">
+						<mx:columns>
+							<mx:DataGridColumn headerText="Id." width="60" dataField="id_parceiro"/>
+							<mx:DataGridColumn headerText="Funcionário" dataField="nmfuncionario"/>
+							<mx:DataGridColumn headerText="PIS" dataField="pis"/>
+							<mx:DataGridColumn headerText="Bate Ponto" width="100" dataField="bate_ponto"/>
+						</mx:columns>
+					</mx:DataGrid>
+				</mx:VBox>
+			</mx:Canvas>
+			<mx:Canvas label="Admissão(ões)" id="c_admissao" enabled="{txtid_parceiro.text.length > 0 ? true : false}">
+				<mx:TabNavigator width="100%" height="100%" id="accordion" change="accordioncomplete(event)">
+					<mx:Canvas label="Admissão" width="100%" height="100%">
+						<mx:VBox width="100%" height="100%">
+							<mx:Label width="100%" id="mensagem_admissao" styleName="lblerro"/>
+							<mx:HBox width="100%">
+								<mx:Form id="form_admissao1" width="50%" height="100%">
+									<mx:FormItem label="Id.:">
+										<mx:TextInput id="txtid_admissao" width="82" editable="false"/>
+									</mx:FormItem>
+								</mx:Form>
+								<mx:Form id="form_admissao2" width="50%" height="100%">
+									<mx:FormItem label="Data Admissão:" required="true">
+										<skins:DateField_Data id="txtdt_admissao" />
+									</mx:FormItem>
+									<mx:FormItem label="Data Demissão:">
+										<skins:DateField_Data id="txtdt_demissao" />
+									</mx:FormItem>
+								</mx:Form>
+							</mx:HBox>
+							<mx:DataGrid width="100%" height="100%" id="dg_admissao" itemClick="setcampos(event)" focusEnabled="false">
+								<mx:columns>
+									<mx:DataGridColumn headerText="Id." width="60" dataField="id_admissao"/>
+									<mx:DataGridColumn headerText="Data Admissão" width="300" dataField="dt_admissao" labelFunction="lf_dtadmissao"/>
+									<mx:DataGridColumn headerText="Data Demissão" width="300" dataField="dt_demissao" labelFunction="lf_dtdemissao"/>
+								</mx:columns>
+							</mx:DataGrid>
+						</mx:VBox>
+					</mx:Canvas>
+					<mx:Canvas label="Local de Trabalho" id="c_localtrabalho" width="100%" height="100%" enabled="{txtid_admissao.text.length > 0 ? true : false}">
+						<mx:VBox width="100%" height="100%">
+							<mx:Label width="100%" id="mensagem_local" styleName="lblerro"/>
+							<mx:HBox width="100%">
+								<mx:Form id="form_local1" width="50%" height="100%">
+									<mx:FormItem label="Id.:">
+										<mx:TextInput id="txtid_localtrabalho" width="82" editable="false"/>
+									</mx:FormItem>
+									<mx:FormItem label="Local:" required="true">
+										<skins:TextButtonText id="txtid_centrocusto" tabela="{UtilNamesPesquisa.cdc_centrocusto}" titulo="Local Trabalho"/>
+									</mx:FormItem>
+									<mx:FormItem label="Função:" required="true">
+										<skins:TextButtonText id="txtid_funcao" tabela="{UtilNamesPesquisa.fpg_funcao}" titulo="Função"/>
+									</mx:FormItem>
+								</mx:Form>
+								<mx:Form id="form_local2" width="50%" height="100%">
+									<mx:FormItem label="Data Inicial:" required="true">
+										<skins:DateField_Data id="txtdt_inicio" />
+									</mx:FormItem>
+									<mx:FormItem label="Data Final:">
+										<skins:DateField_Data id="txtdt_final" />
+									</mx:FormItem>
+								</mx:Form>
+							</mx:HBox>
+							<mx:DataGrid width="100%" height="100%" id="dg_localtrabalho" itemClick="setcampos(event)" focusEnabled="false">
+								<mx:columns>
+									<mx:DataGridColumn headerText="Id." width="60" dataField="id_localtrabalho"/>
+									<mx:DataGridColumn headerText="Local" dataField="id_centrocusto" labelFunction="lf_centrocusto"/>
+									<mx:DataGridColumn headerText="Função" dataField="id_funcao" labelFunction="lf_funcao"/>
+									<mx:DataGridColumn headerText="Dt. Inicio" width="200" dataField="dt_inicio" labelFunction="lf_dtinicio" textAlign="center"/>
+									<mx:DataGridColumn headerText="Dt. Final" width="200" dataField="dt_final" labelFunction="lf_dtfinal" textAlign="center"/>
+								</mx:columns>
+							</mx:DataGrid>
+						</mx:VBox>
+					</mx:Canvas>
+					<mx:Canvas label="Horário Trabalho" id="c_horariofunc" width="100%" height="100%" enabled="{txtid_admissao.text.length > 0 ? true : false}">
+						<mx:VBox width="100%" height="100%">
+							<mx:Label width="100%" id="mensagem_horariofunc" styleName="lblerro"/>
+							<mx:HBox width="100%">
+								<mx:Form id="form_horario1" width="50%" height="100%">
+									<mx:FormItem label="Id.:">
+										<mx:TextInput id="txtid_horariofunc" width="82" editable="false"/>
+									</mx:FormItem>
+									<mx:FormItem label="Horário:" required="true">
+										<skins:TextButtonText id="txtid_horario" tabela="{UtilNamesPesquisa.fpg_horario}" titulo="Horário"/>
+									</mx:FormItem>
+								</mx:Form>
+								<mx:Form id="form_horario2" width="50%" height="100%">
+									<mx:FormItem label="Data Inicial:" required="true">
+										<skins:DateField_Data id="txtdtin_horario" />
+									</mx:FormItem>
+									<mx:FormItem label="Data Final:">
+										<skins:DateField_Data id="txtdtfi_horario" />
+									</mx:FormItem>
+								</mx:Form>
+							</mx:HBox>
+							<mx:DataGrid width="100%" height="100%" id="dg_horariofunc" itemClick="setcampos(event)" focusEnabled="false">
+								<mx:columns>
+									<mx:DataGridColumn headerText="Id." width="60" dataField="id_horariofunc"/>
+									<mx:DataGridColumn headerText="Horário" dataField="id_horario" labelFunction="lf_horario"/>
+									<mx:DataGridColumn headerText="Dt. Inicio" width="200" dataField="dtin_horario" textAlign="center" labelFunction="lf_dtin_horario"/>
+									<mx:DataGridColumn headerText="Dt. Final" width="200" dataField="dtfi_horario" textAlign="center"/>
+								</mx:columns>
+							</mx:DataGrid>
+						</mx:VBox>
+					</mx:Canvas>
+						
+					<mx:Canvas label="Férias" id="c_ferias" width="100%" height="100%" enabled="false">
+						<!--<mx:VBox width="100%" height="100%">
+							<mx:Label width="100%" id="mensagem_hora" styleName="lblerro"/>
+							<mx:HBox width="100%">
+								<mx:Form id="form_hora" width="50%" height="100%">
+									<mx:FormItem label="Id.:">
+										<mx:TextInput id="txtid_horariotrabalho" width="82" editable="false"/>
+									</mx:FormItem>
+								</mx:Form>
+								<mx:Form id="form_hora1" width="50%" height="100%">
+									<mx:FormItem label="Data Admisão:">
+										<skins:DateField_Data id="txtdt_pis0" />
+									</mx:FormItem>
+									<mx:FormItem label="Data Demissão:">
+										<skins:DateField_Data id="txtdt_pis1" />
+									</mx:FormItem>
+								</mx:Form>
+							</mx:HBox>
+							<mx:DataGrid width="100%" height="100%" id="dg_hora" itemClick="setcampos(event)" focusEnabled="false">
+								<mx:columns>
+									<mx:DataGridColumn headerText="Id." width="60" dataField="id_horariotrabalho"/>
+									<mx:DataGridColumn headerText="Dia Semana" width="300" dataField="dia_semana"/>
+									<mx:DataGridColumn headerText="Folga" width="100" dataField="folga"/>
+									<mx:DataGridColumn headerText="Horas Previstas" dataField="horasprevistas" textAlign="center"/>
+								</mx:columns>
+							</mx:DataGrid>
+						</mx:VBox>-->
+					</mx:Canvas>
+					<mx:Canvas label="Afastamentos / Anotações" id="c_anotacoes" width="100%" height="100%" enabled="false">
+						<!--<mx:VBox width="100%" height="100%">
+							<mx:Label width="100%" id="mensagem_hora" styleName="lblerro"/>
+							<mx:HBox width="100%">
+								<mx:Form id="form_hora" width="50%" height="100%">
+									<mx:FormItem label="Id.:">
+										<mx:TextInput id="txtid_horariotrabalho" width="82" editable="false"/>
+									</mx:FormItem>
+								</mx:Form>
+								<mx:Form id="form_hora1" width="50%" height="100%">
+									<mx:FormItem label="Data Admisão:">
+										<skins:DateField_Data id="txtdt_pis0" />
+									</mx:FormItem>
+									<mx:FormItem label="Data Demissão:">
+										<skins:DateField_Data id="txtdt_pis1" />
+									</mx:FormItem>
+								</mx:Form>
+							</mx:HBox>
+							<mx:DataGrid width="100%" height="100%" id="dg_hora" itemClick="setcampos(event)" focusEnabled="false">
+								<mx:columns>
+									<mx:DataGridColumn headerText="Id." width="60" dataField="id_horariotrabalho"/>
+									<mx:DataGridColumn headerText="Dia Semana" width="300" dataField="dia_semana"/>
+									<mx:DataGridColumn headerText="Folga" width="100" dataField="folga"/>
+									<mx:DataGridColumn headerText="Horas Previstas" dataField="horasprevistas" textAlign="center"/>
+								</mx:columns>
+							</mx:DataGrid>
+						</mx:VBox>-->
+					</mx:Canvas>
+					
+				</mx:TabNavigator>
+				
+				
+			</mx:Canvas>
+			
+		</mx:TabNavigator>
+	</mx:VBox>
+	
+	<skins:CtrlBar_Buttons id="ctrlbar"/>
+</MDIWindow>

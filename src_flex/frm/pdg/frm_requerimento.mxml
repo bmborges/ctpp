@@ -1,0 +1,253 @@
+<?xml version="1.0" encoding="utf-8"?>
+<MDIWindow resizable="false" 
+	xmlns="flexmdi.containers.*" xmlns:mx="http://www.adobe.com/2006/mxml" 
+	width="686" height="369" title="Cadastro Requerimento" creationComplete="init()" 
+	layout="absolute" horizontalAlign="center" xmlns:skins="skins.*"
+	xmlns:local="*">
+	<mx:Script>
+		<![CDATA[
+			import classes.Util;
+			import classes.UtilMensagens;
+			import classes.UtilRetornoBanco;
+			
+			import mx.collections.ArrayCollection;
+			import mx.core.FlexGlobals;
+			import mx.rpc.events.FaultEvent;
+			import mx.rpc.events.ResultEvent;
+			
+			import service.adm.Adm_OperadorService;
+			import service.fin.Fin_TipoRecService;
+			import service.pdg.Pdg_RequerimentoService;
+			
+			import vo.adm.SystemVO;
+			import vo.fin.Fin_TipoRecVO;
+			import vo.pdg.Pdg_RequerimentoVO;
+			
+			[Bindable] private var isValid:Boolean = false;
+			[Bindable] private var ArrayOperador:ArrayCollection;
+			[Bindable] private var ArrayTipoRec:ArrayCollection;
+			private var retorno:UtilRetornoBanco;
+			private var util:Util = new Util();
+			
+			private var systemvo:SystemVO = SystemVO.getInstance();
+			private var ro_requerimento:Pdg_RequerimentoService = Pdg_RequerimentoService.getInstance();
+			private var pdg_requerimentoVO:Pdg_RequerimentoVO;
+			
+			private var ro_tiporec:Fin_TipoRecService = Fin_TipoRecService.getInstance();
+			private var fin_tiporecVO:Fin_TipoRecVO;
+			
+			private var ro_operador:Adm_OperadorService = Adm_OperadorService.getInstance();
+			
+			private function init():void{
+				this.width = FlexGlobals.topLevelApplication.mdiCanvas.width;
+				this.height = FlexGlobals.topLevelApplication.mdiCanvas.height;
+				
+				this.x = 0;
+				this.y = 0;
+				
+				util.limpar_formulario(form);
+				
+				ctrlbar.bt_pesquisar.addEventListener(MouseEvent.CLICK,selecionar);
+				ctrlbar.bt_inserir.addEventListener(MouseEvent.CLICK,inserir);
+				ctrlbar.bt_alterar.addEventListener(MouseEvent.CLICK,alterar);
+				ctrlbar.bt_excluir.addEventListener(MouseEvent.CLICK,deletar);
+				ctrlbar.bt_limpar.addEventListener(MouseEvent.CLICK,limpar);
+				
+				
+				ctrlbar.addChildAt(ctrlbar.bt_pesquisar,0);
+				ctrlbar.addChildAt(ctrlbar.bt_inserir,1);
+				ctrlbar.addChildAt(ctrlbar.bt_alterar,2);
+				ctrlbar.addChildAt(ctrlbar.bt_excluir,3);
+				ctrlbar.addChildAt(ctrlbar.bt_limpar,4);
+				
+				ro_operador.Adm_OperadorSemAluno(createcomboxeducador,defaultFaultHandler);
+				ro_tiporec.ComboBox("nmtiporec","id_tiporec",createcbtiporec,defaultFaultHandler);
+			}
+			private function createcomboxeducador(event:ResultEvent):void{
+				ArrayOperador = event.result as ArrayCollection;
+			}
+			private function createcbtiporec(event:ResultEvent):void{
+				ArrayTipoRec = event.result as ArrayCollection;
+				cbtiporec.dataProvider = ArrayTipoRec;
+			}
+			protected function lf_dtcadastro(item:Object, column:DataGridColumn):String
+			{
+				return util.formatData_DDMMYYYY(item.dt_cadastro);	
+			}
+			protected function lf_dtalteracao(item:Object, column:DataGridColumn):String
+			{
+				return util.formatData_DDMMYYYY(item.dt_alteracao);	
+			}
+			private function create_DataGrid(e:ResultEvent):void{
+				this.enabled = true;
+				dg_requerimento.dataProvider = e.result;
+			}
+			protected function lf_operador(item:Object, column:DataGridColumn):String
+			{
+				var retorno:Object = util.selecionarCombobox(item.id_operador,ArrayOperador);
+				if (retorno == null){
+					return "";	
+				}
+				return retorno.label;
+			}
+			protected function lf_tiporec(item:Object, column:DataGridColumn):String
+			{
+				var retorno:Object = util.selecionarCombobox(item.id_tiporec,ArrayTipoRec);
+				if (retorno == null){
+					return "";	
+				}
+				return retorno.label;
+			}			
+			private function selecionar(e:Event):void{
+				this.enabled = false;
+				popular_pesquisa();
+				pdg_requerimentoVO = new Pdg_RequerimentoVO;
+				ro_requerimento.select(pdg_requerimentoVO,create_DataGrid,defaultFaultHandler,null,null);
+			}
+			
+			private function inserir(e:Event):void{
+				isValid = util.validateForm(form);
+				isValid = util.validateForm(forma) && isValid;
+				if (!isValid){
+					mensagem.text = UtilMensagens.PreenchaCampo;
+				} else {
+					this.enabled = false;
+					popular();
+					ro_requerimento.inserir(pdg_requerimentoVO,inserirResult,defaultFaultHandler);
+				}
+			}
+			
+			private function inserirResult(e:ResultEvent):void{
+				this.enabled = true;
+				txt_id_requerimento.text = e.result.toString();
+				selecionar(e);
+			}
+			
+			private function alterar(e:Event):void{
+				isValid = util.validateForm(form);
+				isValid = util.validateForm(forma) && isValid;
+				if (!isValid){
+					mensagem.text = UtilMensagens.PreenchaCampo;
+				} else {
+					this.enabled = false;
+					popular();
+					ro_requerimento.atualizar(pdg_requerimentoVO,alterarResult,defaultFaultHandler);
+				}
+			}
+			private function alterarResult(e:ResultEvent):void{
+				this.enabled = true;
+				dg_requerimento.dataProvider = e.result;
+			}
+			private function deletar(e:Event):void{
+				isValid = util.validateForm(form);
+				isValid = util.validateForm(forma) && isValid;
+				if (!isValid){
+					mensagem.text = UtilMensagens.PreenchaCampo;
+				} else {
+					this.enabled = false;
+					popular();
+					ro_requerimento.deletar(pdg_requerimentoVO,deletarResult,defaultFaultHandler);
+					limpar(e);	
+				}
+			}
+			private function deletarResult(e:ResultEvent):void{
+				this.enabled = true;
+				dg_requerimento.dataProvider = e.result;
+			}
+			
+			private function limpar(e:Event):void{
+				mensagem.text = "";
+				util.limpar_formulario(form);
+				util.limpar_formulario(forma);
+				dg_requerimento.dataProvider = null;
+			}
+			private function setcampos(e:Event):void{
+				txt_id_requerimento.text = dg_requerimento.selectedItem.id_requerimento;
+				txt_nmrequerimento.text = dg_requerimento.selectedItem.nmrequerimento;
+				txt_vrrequerimento.text = dg_requerimento.selectedItem.vrrequerimento;
+				txt_vrrequerimento.text = txt_vrrequerimento.text.replace(".",",");
+				
+				var retorno:Object = util.selecionarCombobox(dg_requerimento.selectedItem.id_tiporec,ArrayTipoRec);
+				retorno == null ? cbtiporec.selectedIndex = 0 : cbtiporec.selectedItem = retorno;
+				
+				
+				txt_dias_entrega.text = dg_requerimento.selectedItem.dias_entrega;
+				txt_txtservico.text = dg_requerimento.selectedItem.txtservico;
+				
+			}
+			
+			private function popular():void{
+				pdg_requerimentoVO = new Pdg_RequerimentoVO;
+				pdg_requerimentoVO.id_operador = systemvo.id_operador;
+				pdg_requerimentoVO.id_requerimento = txt_id_requerimento.text.length > 0 ? txt_id_requerimento.text : null;
+				pdg_requerimentoVO.nmrequerimento = txt_nmrequerimento.text.length > 0 ? txt_nmrequerimento.text.toUpperCase() : null;
+				pdg_requerimentoVO.vrrequerimento = txt_vrrequerimento.text.length > 0 ? txt_vrrequerimento.text.replace(",",".") : null;
+				pdg_requerimentoVO.id_tiporec = cbtiporec.selectedIndex > 0 ? cbtiporec.selectedItem.data : null;
+				pdg_requerimentoVO.dias_entrega = txt_dias_entrega.text;
+				pdg_requerimentoVO.txtservico = txt_txtservico.text;
+			}
+			private function popular_pesquisa():void{
+				pdg_requerimentoVO = new Pdg_RequerimentoVO;
+				pdg_requerimentoVO.id_requerimento = txt_id_requerimento.text.length > 0 ? txt_id_requerimento.text : null;
+				pdg_requerimentoVO.nmrequerimento = txt_nmrequerimento.text.length > 0 ? txt_nmrequerimento.text.toUpperCase() : null;
+				pdg_requerimentoVO.vrrequerimento = txt_vrrequerimento.text.length > 0 ? txt_vrrequerimento.text.replace(",",".") : null;
+				pdg_requerimentoVO.id_tiporec = cbtiporec.selectedIndex > 0 ? cbtiporec.selectedItem.data : null;
+				pdg_requerimentoVO.dias_entrega = txt_dias_entrega.text.length > 0 ? txt_dias_entrega.text : null;
+				pdg_requerimentoVO.txtservico = txt_txtservico.text.length > 0 ? txt_txtservico.text : null;
+			}
+			private function defaultFaultHandler(e:FaultEvent):void{
+				this.enabled = true;
+				retorno = new UtilRetornoBanco;
+				retorno.RetornoBanco(e);
+				mensagem.text = "";
+			}
+			
+		]]>
+	</mx:Script>
+<mx:Canvas  width="100%" height="100%">
+		<mx:VBox width="100%" height="100%">
+    			<mx:Label width="100%" id="mensagem" styleName="lblerro"/>
+			<mx:HBox width="100%">
+				
+			
+			<mx:Form id="form" width="100%" paddingTop="0" paddingBottom="0">
+				<mx:FormItem label="Id.:">
+					<skins:TextInput_Maiusculo id="txt_id_requerimento" editable="false"/>
+				</mx:FormItem>
+				<mx:FormItem label="Nome:" required="true">
+					<skins:TextInput_Maiusculo id="txt_nmrequerimento"/>
+				</mx:FormItem>
+				<mx:FormItem label="Valor:" required="true">
+					<skins:TextInput_Maiusculo id="txt_vrrequerimento" restrict="0-9," />
+				</mx:FormItem>
+				<mx:FormItem label="Tipo Receb.:">
+					<mx:ComboBox id="cbtiporec" selectedIndex="0"/>
+				</mx:FormItem>
+				<mx:FormItem label="Dias Entrega:" required="true">
+					<skins:TextInput_Maiusculo id="txt_dias_entrega" restrict="0-9" />
+				</mx:FormItem>
+			</mx:Form>
+				
+			<mx:Form id="forma" width="100%" height="100%">
+				
+				<mx:FormItem label="Texto Serviço:" required="true" width="100%" height="100%">
+					<mx:TextArea id="txt_txtservico" width="100%" height="100%"/>
+				</mx:FormItem>
+			</mx:Form>
+			</mx:HBox>
+			<mx:DataGrid  width="100%" height="100%" id="dg_requerimento" itemClick="setcampos(event)">
+				<mx:columns>
+					<mx:DataGridColumn headerText="Id." dataField="id_requerimento" width="100"/>
+					<mx:DataGridColumn headerText="Nome" dataField="nmrequerimento"/>
+					<mx:DataGridColumn headerText="Valor" dataField="vrrequerimento"/>
+					<mx:DataGridColumn headerText="Dias Entrega" dataField="dias_entrega"/>
+					<mx:DataGridColumn headerText="Tipo Receb." dataField="id_tiporec" labelFunction="lf_tiporec"/>
+					<mx:DataGridColumn headerText="Operador" dataField="id_operador" labelFunction="lf_operador"/>
+					<mx:DataGridColumn headerText="Dt.Cadastro" dataField="dt_cadastro" labelFunction="lf_dtcadastro"/>
+					<mx:DataGridColumn headerText="Dt.alteração" dataField="dt_alteracao" labelFunction="lf_dtalteracao"/>
+				</mx:columns>
+			</mx:DataGrid>
+		</mx:VBox>
+</mx:Canvas>
+	<skins:CtrlBar_Buttons id="ctrlbar"/>
+</MDIWindow>

@@ -1,0 +1,78 @@
+<?xml version="1.0" encoding="utf-8"?>
+<mx:TitleWindow xmlns:mx="http://www.adobe.com/2006/mxml" 
+	width="770" height="513" title="Importar Arquivo(s)" creationComplete="init(event)" close="titlewindow1_closeHandler(event)"
+	showCloseButton="true" xmlns:skins="skins.*">
+	<mx:Script source="imparquivo.as"/>
+	<mx:VBox width="100%" height="100%">
+	<mx:Label width="100%" id="mensagem" text="" styleName="lblerro"/>
+	<mx:TabNavigator width="100%"  height="100%" id="tb_nav" change="tb_complete(event)">
+		<mx:Canvas label="Enviar" width="100%"  height="100%">
+				<mx:DataGrid id="dg_files" left="0" right="0" bottom="30" top="5"/>
+				<mx:ProgressBar id="progressbar" labelPlacement="center" trackHeight="15" left="0" right="0" bottom="5" height="20"/>
+		</mx:Canvas>		
+		<mx:Canvas label="Selecionar" width="100%"  height="100%">
+			<mx:VBox width="100%" height="100%">
+				<mx:Form id="form" width="100%" paddingTop="5" paddingBottom="5">
+					<mx:FormItem label="Id:">
+						<mx:TextInput id="txt_id" width="200" editable="false"/>
+					</mx:FormItem>
+					<mx:FormItem label="Nome do Arquivo:">
+						<mx:TextInput id="txt_filename" width="200" editable="false"/>
+					</mx:FormItem>
+					<mx:FormItem label="Descricao:" required="true">
+						<mx:TextArea id="txt_descricao" width="601" height="76"/>
+					</mx:FormItem>
+				</mx:Form>
+				<mx:DataGrid width="100%"  height="100%" id="dg_arquivos">
+					<mx:columns>
+						<mx:DataGridColumn headerText="Id." dataField="id_diarioarquivos" width="60"/>
+						<mx:DataGridColumn headerText="Nome Arquivo" dataField="nmarquivo"/>
+						<mx:DataGridColumn headerText="Descrição" dataField="descricao"/>
+						<mx:DataGridColumn headerText="Editar" width="50"  >
+							<mx:itemRenderer>
+								<mx:Component>
+									<mx:VBox horizontalAlign="center">
+										<mx:Image width="16" height="16"
+												  scaleContent="true" maintainAspectRatio="false" buttonMode="true" source="@Embed('/assets/icons/pencil.png')" click="parentDocument.editar_arquivo(data.id_diarioarquivos)" />
+									</mx:VBox>
+								</mx:Component>
+							</mx:itemRenderer>
+						</mx:DataGridColumn>
+						<mx:DataGridColumn headerText="Baixar" width="50"  >
+							<mx:itemRenderer>
+								<mx:Component>
+									<mx:VBox horizontalAlign="center">
+										<mx:Image width="16" height="16"
+												  scaleContent="true" maintainAspectRatio="false" buttonMode="true" source="@Embed('/assets/icons/page_white_put.png')" click="parentDocument.baixa_arquivo(data.id_diarioarquivos)" />
+									</mx:VBox>
+								</mx:Component>
+							</mx:itemRenderer>
+						</mx:DataGridColumn>
+						<mx:DataGridColumn headerText="Deletar" width="50">
+							<mx:itemRenderer>
+								<mx:Component>
+									<mx:VBox horizontalAlign="center">
+										<mx:Image  width="16" height="16"
+												   scaleContent="true" maintainAspectRatio="false" buttonMode="true" source="@Embed('/assets/icons/cancel.png')" click="parentDocument.deletar_arquivo(data.id_diarioarquivos)" />
+									</mx:VBox>
+								</mx:Component>
+							</mx:itemRenderer>
+						</mx:DataGridColumn>
+					</mx:columns>
+				</mx:DataGrid>
+			</mx:VBox>
+		</mx:Canvas>
+	</mx:TabNavigator>
+	</mx:VBox>
+<!--<mx:ControlBar width="100%" horizontalAlign="center" id="ctr_bar">
+    <mx:Button id="bt_pesquisar" label="Pesquisar" styleName="searchButton"/>
+	<mx:Button id="bt_gravar" label="Gravar" styleName="addButton"/>
+	<mx:Button id="bt_limpar" label="Limpar" styleName="clearButton"/>
+	
+	<mx:Button label="Selecionar Arquivo" id="browseBTN"/>
+	<mx:Button label="Gravar" id="upload_btn"/>
+	<mx:Button label="Remover" id="delButton"/>
+	<mx:Button label="Remover Todos" id="clearButton"/>
+</mx:ControlBar>-->
+<skins:CtrlBar_Buttons id="ctrlbar"/>
+</mx:TitleWindow>

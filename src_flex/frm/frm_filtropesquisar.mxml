@@ -1,0 +1,211 @@
+<?xml version="1.0" encoding="utf-8"?>
+<s:TitleWindow xmlns:fx="http://ns.adobe.com/mxml/2009"
+			   xmlns:s="library://ns.adobe.com/flex/spark"
+			   xmlns:mx="library://ns.adobe.com/flex/mx"
+			   width="780" height="400" creationPolicy="all"
+			   creationComplete="titlewindow1_creationCompleteHandler(event)"
+			   close="titleWindow_close(event)"
+			   title="Assistente para Criação de Filtro">
+	<fx:Declarations>
+		<!-- Place non-visual elements (e.g., services, value objects) here -->
+	</fx:Declarations>
+	<fx:Script>
+		<![CDATA[
+			import classes.Util;
+			import classes.UtilNamesPesquisa;
+			import classes.UtilPermissaoPrograma;
+			import classes.UtilRetornoBanco;
+			
+			import flash.events.MouseEvent;
+			
+			import mx.collections.ArrayCollection;
+			import mx.containers.FormItem;
+			import mx.controls.Alert;
+			import mx.controls.ComboBox;
+			import mx.controls.DateField;
+			import mx.controls.TextInput;
+			import mx.controls.dataGridClasses.DataGridColumn;
+			import mx.core.Application;
+			import mx.events.CloseEvent;
+			import mx.events.FlexEvent;
+			import mx.managers.PopUpManager;
+			import mx.rpc.events.FaultEvent;
+			import mx.rpc.events.ResultEvent;
+			
+			import service.adm.Adm_Filtro_OperadorService;
+			import service.view.View_Field_TabelaService;
+			
+			import skins.DateField_Data;
+			import skins.TextButtonText1;
+			
+			import spark.events.IndexChangeEvent;
+			
+			import vo.adm.Adm_Filtro_OperadorVO;
+			import vo.adm.SystemVO;
+			import vo.view.View_Field_TabelaVO;
+			
+			public var tabela:String;
+			public var util:Util = new Util();
+			private var retorno:UtilRetornoBanco;
+			public var systemvo:SystemVO = SystemVO.getInstance();
+			private var ro_viewtabela:View_Field_TabelaService = View_Field_TabelaService.getInstance();
+			private var ro_filtrooperdor:Adm_Filtro_OperadorService = Adm_Filtro_OperadorService.getInstance()
+			private var view_tabelaVO:View_Field_TabelaVO;			
+			private var adm_filtrooperadorVO:Adm_Filtro_OperadorVO;
+			
+			private var dg_lst:ArrayCollection;
+			private var dt_valor:DateField_Data = new DateField_Data;
+			private var txt_valor:spark.components.TextInput = new spark.components.TextInput;
+			private var txt_button:TextButtonText1 = new TextButtonText1;
+			
+			public function Pesquisar(tabela:String):void{
+				var where:Array;
+				
+				adm_filtrooperadorVO = new Adm_Filtro_OperadorVO;
+				where = ["id_ativo = 1"];
+				ro_filtrooperdor.select(adm_filtrooperadorVO,filtrooperadorResult,defaultFaultHandler,where,null);
+				
+				var view_tabelaVO:View_Field_TabelaVO = new View_Field_TabelaVO;
+				this.tabela = tabela;
+				view_tabelaVO.relname = tabela;
+				
+				where = ["description is not null"]
+				var order:Array = ["description"]
+				ro_viewtabela.select(view_tabelaVO,listResult,defaultFaultHandler,where,order);
+			}
+			private function listResult(e:ResultEvent):void{
+				lst_campos.dataProvider = e.result as ArrayCollection;
+				
+				lst_campos.addEventListener(IndexChangeEvent.CHANGING,IndexChange);
+				
+				
+			}
+			private function filtrooperadorResult(e:ResultEvent):void{
+				cb_filtrooperador.dataProvider = e.result as ArrayCollection;
+				cb_filtrooperador.selectedIndex = 0;
+			}
+			public function IndexChange(e:IndexChangeEvent):void{
+				form_item.removeAllChildren();
+				
+				dg_lst = lst_campos.dataProvider as ArrayCollection;
+				txt_campoescolhido.text = dg_lst[lst_campos.selectedIndex]['attname'];
+				
+				if (dg_lst[lst_campos.selectedIndex]['tabela_ref'] != null){
+					txt_button = new TextButtonText1;
+					txt_button.filtroAv = false;
+					txt_button.tabela = dg_lst[lst_campos.selectedIndex]['tabela_ref'];
+					form_item.addChild(txt_button);
+				} else {
+					if (dg_lst[lst_campos.selectedIndex]['typname'] == "timestamp"){
+						dt_valor = new DateField_Data;
+						form_item.addChild(dt_valor);
+					} else {
+						txt_valor = new spark.components.TextInput;
+						form_item.addChild(txt_valor);
+					}
+				}
+			}
+			private function titlewindow1_creationCompleteHandler(event:FlexEvent):void{
+			}
+			private function initForm(e:Event):void{
+				
+			}
+
+			
+			private function titleWindow_close(event:CloseEvent):void {
+				PopUpManager.removePopUp(this);
+			}
+			
+
+			
+			private function defaultFaultHandler(e:FaultEvent):void{
+				this.enabled = true;
+				retorno = new UtilRetornoBanco;
+				retorno.RetornoBanco(e);
+			}
+			
+			
+			protected function button1_clickHandler(event:MouseEvent):void
+			{
+				if (txt_valor.text.length > 0 || dt_valor.selectedDate || txt_button.txt_id.text.length > 0){
+					if (txa_filtro.text.length > 0){
+						if (rd_e.selected){
+							txa_filtro.appendText(" and ");
+						} else {
+							txa_filtro.appendText(" or ");
+						}
+					}
+					
+					if (dg_lst[lst_campos.selectedIndex]['typname'].indexOf("int") >= 0 || dg_lst[lst_campos.selectedIndex]['typname'] == "timestamp"){
+						txa_filtro.appendText(txt_campoescolhido.text + " ");
+					} else {
+						txa_filtro.appendText("lower(remove_acento("+txt_campoescolhido.text + ")) ");
+					}					
+					
+					var filtro:String = cb_filtrooperador.selectedItem.operador;
+					
+					if (dg_lst[lst_campos.selectedIndex]['tabela_ref'] != null){
+						filtro = filtro.replace("?",txt_button.txt_id.text);
+					} else {
+						if (dg_lst[lst_campos.selectedIndex]['typname'] == "timestamp"){
+							filtro = filtro.replace("?","date('" + DateField.dateToString(dt_valor.selectedDate,'DD/MM/YYYY') +"')");
+						} else {
+							if (dg_lst[lst_campos.selectedIndex]['typname'].indexOf("int") >= 0){
+								filtro = filtro.replace("?",txt_valor.text);
+							} else if ( filtro.indexOf("ilike") >= 0){
+								filtro = filtro.replace("?",txt_valor.text);
+							} else {
+								if (filtro.indexOf("'") >= 0){
+									filtro = filtro.replace("?","lower(remove_acento("+txt_valor.text+"))");
+								} else {
+									filtro = filtro.replace("?","lower(remove_acento('"+txt_valor.text+"'))");
+								}
+							}
+						}
+					}
+					txa_filtro.appendText(filtro);
+				}
+			}
+			
+			protected function button2_clickHandler(event:MouseEvent):void
+			{
+				// TODO Auto-generated method stub
+				txa_filtro.text = "";
+				cb_filtrooperador.selectedIndex = 0;
+				txt_campoescolhido.text = "";
+				txt_valor.text = "";
+				form_item.removeAllChildren();
+				form_item.addChild(txt_valor);
+				lst_campos.selectedIndex = -1;
+			}
+			
+		]]>
+	</fx:Script>
+	<s:controlBarContent>
+		<mx:HBox id="ctr_bar" width="100%" height="100%"
+				 horizontalAlign="right">
+			<!--<s:Button label="Salvar" styleName="searchButton" />-->
+			<s:Button id="bt_concluir" label="Concluir" styleName="searchButton" />
+		</mx:HBox>
+	</s:controlBarContent>
+	<s:Label x="0" y="0" width="154" height="25" text="Campos" textAlign="center"
+			 verticalAlign="middle"/>
+	<s:List id="lst_campos" x="0" y="23" width="154" height="307" labelField="description"/>
+	<s:ComboBox id="cb_filtrooperador" x="612" y="4" selectedIndex="0" labelField="descricao"/>
+	<s:TextArea id="txa_filtro" x="182" y="141" width="586" height="176" editable="false"/>
+	<s:Button x="327" y="105" label="Incluir" click="button1_clickHandler(event)"/>
+	<s:Button x="449" y="105" label="Limpar Tudo" click="button2_clickHandler(event)"/>
+	<s:Label x="204" y="1" width="108" height="25" text="Campo Escolhido:" verticalAlign="middle"/>
+	<s:Label x="204" y="33" width="108" height="25" text="Valor:" verticalAlign="middle"/>
+	<s:Label x="542" y="3" width="64" height="25" text="Operador:" verticalAlign="middle"/>
+	<s:TextInput x="327" y="4" width="212" id="txt_campoescolhido" editable="false"/>
+	<s:HGroup x="400" y="78">
+		<s:RadioButton x="390" y="38" label="E" selected="true" id="rd_e"/>
+		<s:RadioButton x="390" y="38" label="OU" id="rd_ou"/>
+	</s:HGroup>
+	<mx:Form x="327" y="33" width="441" height="46" paddingTop="0" paddingBottom="0" paddingLeft="0">
+		<mx:FormItem id="form_item" width="100%" height="100%" paddingTop="0" paddingBottom="0" paddingLeft="0">
+			<!--<s:TextInput width="212" id="txt_valor"/>-->
+		</mx:FormItem>
+	</mx:Form>
+</s:TitleWindow>

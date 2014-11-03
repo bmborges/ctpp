@@ -1,0 +1,187 @@
+<?xml version="1.0" encoding="utf-8"?>
+<mx:Panel xmlns:fx="http://ns.adobe.com/mxml/2009" 
+		  xmlns:s="library://ns.adobe.com/flex/spark" 
+		  xmlns:mx="library://ns.adobe.com/flex/mx" layout="absolute" 
+		  creationComplete="application1_creationCompleteHandler(event)"
+		  xmlns:user="frm.user.*" title="Gravar Foto">
+	<fx:Script>
+		<![CDATA[
+			import classes.UtilMensagens;
+			import classes.UtilRetornoBanco;
+			
+			import mx.controls.Alert;
+			import mx.core.FlexGlobals;
+			import mx.effects.Resize;
+			import mx.events.FlexEvent;
+			import mx.managers.PopUpManager;
+			import mx.rpc.events.FaultEvent;
+			import mx.rpc.events.ResultEvent;
+			
+			import service.adm.Adm_OperadorService;
+			
+			import vo.adm.Adm_operadorVO;
+			import vo.adm.SystemVO;
+	
+			private var imageTypes:FileFilter = new FileFilter("Images (*.jpg, *.jpeg, *.gif, *.png)", "*.jpg; *.jpeg; *.gif; *.png");	
+			private var fileRef:FileReference;
+			private var allTypes:Array = new Array(imageTypes);	
+			
+			private var adm_operadorVO:Adm_operadorVO;
+			private var ro_operador:Adm_OperadorService = Adm_OperadorService.getInstance();
+			private var systemVO:SystemVO = SystemVO.getInstance();
+			private var retorno:UtilRetornoBanco;
+			
+			private var currentCropbox:Rectangle;
+			
+			[Bindable] private var nova:BitmapData;
+		
+		// --------------------------------------------------------------------------------------------------
+		// doImageSelect - Called when an image is selected using the selectImage ComboBox
+		// --------------------------------------------------------------------------------------------------
+		
+		private function doImageSelect():void {
+		
+		// Remove the previously cropped image
+		
+		croppedImage.source = null;
+		croppedImage.width = 0;
+		croppedImage.height = 0;
+		
+		// Disable all controls while the image is loading. This is done after the sourceImage is assigned
+		// to the ImageCropper because when the ImageCropper is disabled a sourceImage cannot be assigned.
+		
+		enableControls(false, true);			
+		}
+		
+		// --------------------------------------------------------------------------------------------------
+		// imageReady - Called when the ImageCropper component has loaded and initialized an image
+		// --------------------------------------------------------------------------------------------------
+		
+		private function imageReady():void {
+		
+		
+		if (!currentCropbox) imageCropper.setCropRect();
+
+		// Get the cropped image 
+		
+		doCrop();				
+		}
+		
+		// --------------------------------------------------------------------------------------------------
+		// doCrop - Get the cropped image from the ImageCropper component
+		// --------------------------------------------------------------------------------------------------
+		
+		private function doCrop():void {
+		
+		// Get the cropped BitmapData
+		
+		var newImage:BitmapData = imageCropper.croppedBitmapData;
+		
+		// Set the width and height of the croppedImage Image based on the dimensions of the cropped image
+		
+		croppedImage.width = newImage.width;
+		croppedImage.height = newImage.height;
+		
+		// Create a new Bitmap from the BitmapData and assign it to the croppedImage Image
+		
+		croppedImage.source = new Bitmap(newImage);
+		
+		}	
+		
+		// --------------------------------------------------------------------------------------------------
+		// enableControls - Enables or disables the controls
+		// --------------------------------------------------------------------------------------------------
+		
+		private function enableControls(enable:Boolean, includeEnabled:Boolean = false):void {
+			imageCropper.enabled = enable;
+		}
+		
+		protected function application1_creationCompleteHandler(event:FlexEvent):void
+		{
+		// TODO Auto-generated method stub
+			fileRef = new FileReference();
+			this.width = FlexGlobals.topLevelApplication.width * 0.6;
+			this.height = FlexGlobals.topLevelApplication.height * 0.9;
+			
+			bt_gravar.addEventListener(MouseEvent.CLICK,GravarFoto);
+			bt_sair.addEventListener(MouseEvent.CLICK,sair);
+			bt_browser.addEventListener(MouseEvent.CLICK,browseFiles);	
+			fileRef.addEventListener(Event.SELECT, selectHandler);
+			fileRef.addEventListener(Event.COMPLETE, completeHandler);
+		}
+		//Browse for files
+		private function browseFiles(event:Event):void{        
+			fileRef.browse(allTypes);
+		}
+		private function selectHandler(event:Event):void {
+			mensagem.text = "Carregando Imagem.....";
+			this.enabled = false;
+			fileRef.load();
+		}
+		private function completeHandler(event:Event):void {
+			
+			adm_operadorVO = new Adm_operadorVO();
+//			adm_operadorVO.id_operador = 0 ;
+			adm_operadorVO.foto = fileRef.data as ByteArray;
+			
+			ro_operador.GravaFotoTemp(adm_operadorVO,GravaFotoTempResult,defaultFaultHandler);
+		} 
+		private function GravaFotoTempResult(e:ResultEvent):void{
+			mensagem.text = "";
+			imageCropper.sourceImage = "./temp/" + e.result[0]['nmarquivo'];
+			this.enabled = true;
+		}
+		private function sair(e:Event):void{
+			PopUpManager.removePopUp(this);
+		}
+			
+		private function GravarFoto(e:Event):void{
+			
+			var file:FileReference = new FileReference();
+			file.save(croppedImage.data,"teste.jpeg");
+			
+//			adm_operadorVO = new Adm_operadorVO();
+//			adm_operadorVO.id_operador = 3 ;
+			
+//			ro_operador.GravaFoto(adm_operadorVO,GravarFotoResult);
+			
+		}
+		private function GravarFotoResult(e:ResultEvent):void{
+			mensagem.text = UtilMensagens.OperacaoRealizadaSucesso;
+		}
+		private function defaultFaultHandler(e:FaultEvent):void{
+			this.enabled = true;
+			mensagem.text = "";
+			retorno = new UtilRetornoBanco;
+			retorno.RetornoBanco(e);
+			
+		}
+		
+		]]>
+	</fx:Script>
+	<mx:VBox width="98%" paddingLeft="10" paddingRight="10">
+		<mx:Label width="100%" id="mensagem" text="" styleName="lblerro"/>
+		<mx:HBox width="100%">
+			<mx:VBox width="100%" height="100%">
+				<mx:Label text="Imagem Selecionada" fontWeight="bold" /> 
+				<user:ImageCropper id="imageCropper" width="280" height="280" enabled="true" handleColor="#FF00FF" maskColor="#660066" maskAlpha="0.6"
+								   sourceImageReady="imageReady()"  sourceImageLoadError="trace('Error while loading image')" cropRectChanged="doCrop()" cropConstraintDisabled="false"
+								   cropConstraintChanged="trace('Crop constraint changed'); doCrop()" cropDimensionsChanged="trace('Crop dimensions changed'); doCrop()" cropPositionChanged="trace('Crop position changed'); doCrop()" />			
+				
+			</mx:VBox>
+			<mx:VBox width="100%" height="100%">
+				<mx:Label text="Imagem Recortada" fontWeight="bold" />
+				<mx:Canvas backgroundColor="#000000">
+					<mx:Image id="croppedImage" scaleContent="false" />
+				</mx:Canvas>
+			</mx:VBox>
+		</mx:HBox>
+	</mx:VBox>	
+	
+	<mx:ControlBar width="100%" horizontalAlign="center" id="ctr_bar">
+		<mx:Button id="bt_browser" label="Selecionar" styleName="addButton"/>
+		<mx:Button id="bt_gravar" label="Gravar Imagem" styleName="addButton" enabled="{croppedImage.source != null ? true : false}"/>
+		<mx:Button id="bt_sair" label="Sair" styleName="addButton"/>
+	</mx:ControlBar>
+	
+</mx:Panel>

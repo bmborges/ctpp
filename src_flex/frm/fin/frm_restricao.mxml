@@ -1,0 +1,161 @@
+<?xml version="1.0" encoding="utf-8"?>
+<MDIWindow xmlns="flexmdi.containers.*" xmlns:mx="http://www.adobe.com/2006/mxml" 
+	width="628" height="370" title="Cadastro Tipo Restrição" creationComplete="init()" xmlns:skins="skins.*">
+
+	<mx:Script>
+		<![CDATA[
+			import classes.Util;
+			import classes.UtilMensagens;
+			import classes.UtilRetornoBanco;
+			
+			import mx.collections.ArrayCollection;
+			import mx.core.FlexGlobals;
+			import mx.rpc.events.FaultEvent;
+			import mx.rpc.events.ResultEvent;
+			
+			import service.ComboBoxService;
+			import service.fin.Fin_TipoRestricaoService;
+			
+			import vo.fin.Fin_BancoVO;
+			import vo.fin.Fin_TipoRestricaoVO;
+			
+			[Bindable] private var isValid:Boolean = false;
+			private var util:Util = new Util();
+			private var retorno:UtilRetornoBanco;
+			
+			private var ro_restricao:Fin_TipoRestricaoService = Fin_TipoRestricaoService.getInstance();
+			private var fin_restricaoVO:Fin_TipoRestricaoVO;
+			
+			private function init():void{
+				this.width = FlexGlobals.topLevelApplication.mdiCanvas.width;
+				this.height = FlexGlobals.topLevelApplication.mdiCanvas.height;
+				
+				this.x = 0;
+				this.y = 0;
+				
+				util.limpar_formulario(form_a);
+				util.limpar_formulario(form_b);
+				
+				ctrlbar.bt_pesquisar.addEventListener(MouseEvent.CLICK,selecionar);
+				ctrlbar.bt_inserir.addEventListener(MouseEvent.CLICK,inserir);
+				ctrlbar.bt_alterar.addEventListener(MouseEvent.CLICK,alterar);
+				ctrlbar.bt_excluir.addEventListener(MouseEvent.CLICK,deletar);
+				ctrlbar.bt_limpar.addEventListener(MouseEvent.CLICK,limpar);
+				
+				
+				ctrlbar.addChildAt(ctrlbar.bt_pesquisar,0);
+				ctrlbar.addChildAt(ctrlbar.bt_inserir,1);
+				ctrlbar.addChildAt(ctrlbar.bt_alterar,2);
+				ctrlbar.addChildAt(ctrlbar.bt_excluir,3);
+				ctrlbar.addChildAt(ctrlbar.bt_limpar,4);
+			}
+			private function create_DataGrid(e:ResultEvent):void{
+				this.enabled = true;
+				dg.dataProvider = e.result;
+			}
+			
+			private function selecionar(e:Event):void{
+				this.enabled = false;
+				popular();
+				ro_restricao.select(fin_restricaoVO,create_DataGrid,defaultFaultHandler,null,null);
+			}
+			
+			private function inserir(e:Event):void{
+				isValid = util.validateForm(form_a);
+				isValid = util.validateForm(form_b) && isValid;
+				if (!isValid){
+					mensagem.text = UtilMensagens.PreenchaCampo;
+				} else {
+					this.enabled = false;
+					popular();
+					ro_restricao.inserir(fin_restricaoVO,inserirResult,defaultFaultHandler);
+				}
+			}
+			
+			private function inserirResult(e:ResultEvent):void{
+				this.enabled = true;
+				txtid_tiporestricao.text = e.result.toString();
+				selecionar(e);
+			}
+			
+			private function alterar(e:Event):void{
+				isValid = util.validateForm(form_a);
+				isValid = util.validateForm(form_b) && isValid;
+				if (!isValid){
+					mensagem.text = UtilMensagens.PreenchaCampo;
+				} else {
+					this.enabled = false;
+					popular();
+					ro_restricao.atualizar(fin_restricaoVO,alterarResult,defaultFaultHandler);
+				}
+			}
+			private function alterarResult(e:ResultEvent):void{
+				this.enabled = true;
+				dg.dataProvider = e.result;
+			}
+			private function deletar(e:Event):void{
+				isValid = util.validateForm(form_a);
+				isValid = util.validateForm(form_b) && isValid;
+				if (!isValid){
+					mensagem.text = UtilMensagens.PreenchaCampo;
+				} else {
+					this.enabled = false;
+					popular();
+					ro_restricao.deletar(fin_restricaoVO,deletarResult,defaultFaultHandler);
+					limpar(e);	
+				}
+			}
+			private function deletarResult(e:ResultEvent):void{
+				this.enabled = true;
+				dg.dataProvider = e.result;
+			}
+			
+			
+			private function limpar(e:Event):void{
+				mensagem.text = "";
+				util.limpar_formulario(form_a);
+				util.limpar_formulario(form_b);
+				dg.dataProvider = null;
+			}
+			private function setcampos(e:Event):void{
+				txtid_tiporestricao.text = dg.selectedItem.id_tiporestricao;
+				txtnmtiporestricao.text = dg.selectedItem.nmtiporestricao;
+			}
+			
+			private function popular():void{
+				fin_restricaoVO = new Fin_TipoRestricaoVO;
+				fin_restricaoVO.id_tiporestricao = txtid_tiporestricao.text.length <= 0 ? null : txtid_tiporestricao.text;
+				fin_restricaoVO.nmtiporestricao = txtnmtiporestricao.text.length <= 0 ? null : txtnmtiporestricao.text.toUpperCase();
+				
+			}
+			private function defaultFaultHandler(e:FaultEvent):void{
+				this.enabled = true;
+				retorno = new UtilRetornoBanco;
+				retorno.RetornoBanco(e);
+				mensagem.text = "";
+			}
+		]]>
+	</mx:Script>
+	
+	<mx:Label width="100%" id="mensagem" text="" styleName="lblerro"/>
+	<mx:HBox width="100%" height="40%">
+		<mx:Form id="form_a" width="50%" height="100%">
+			<mx:FormItem label="Id.:">
+				<mx:TextInput id="txtid_tiporestricao" width="105" editable="false"/>
+			</mx:FormItem>
+			<mx:FormItem label="Descrição:" required="true">
+				<skins:TextInput_Maiusculo id="txtnmtiporestricao"/>
+			</mx:FormItem>
+		</mx:Form>
+		<mx:Form id="form_b" width="50%" height="100%">
+		</mx:Form>
+	</mx:HBox>
+	
+	<mx:DataGrid height="100%" width="100%" id="dg" itemClick="setcampos(event)" focusEnabled="true">
+		<mx:columns>
+			<mx:DataGridColumn width="60" headerText="Id." dataField="id_tiporestricao"/>
+			<mx:DataGridColumn headerText="Descrição" dataField="nmtiporestricao"/>
+		</mx:columns>
+	</mx:DataGrid>
+	<skins:CtrlBar_Buttons id="ctrlbar"/>
+</MDIWindow>

@@ -1,0 +1,267 @@
+<?xml version="1.0" encoding="utf-8"?>
+<MDIWindow xmlns="flexmdi.containers.*" xmlns:mx="http://www.adobe.com/2006/mxml" 
+		   width="782" height="476" title="Manutenção Ponto" creationComplete="init()"
+		   xmlns:s="library://ns.adobe.com/flex/spark" xmlns:skins="skins.*">
+	<mx:Script>
+		<![CDATA[
+			import classes.Util;
+			import classes.UtilMensagens;
+			import classes.UtilNamesPesquisa;
+			import classes.UtilRetornoBanco;
+			
+			import mx.collections.ArrayCollection;
+			import mx.controls.Button;
+			import mx.controls.DateField;
+			import mx.controls.Text;
+			import mx.core.FlexGlobals;
+			import mx.events.CloseEvent;
+			import mx.events.IndexChangedEvent;
+			import mx.managers.PopUpManager;
+			import mx.rpc.events.FaultEvent;
+			import mx.rpc.events.ResultEvent;
+			
+			import service.adm.Adm_CargoService;
+			import service.adm.Adm_DowService;
+			import service.fpg.Fpg_HorarioService;
+			import service.fpg.Fpg_HorarioTrabalhoService;
+			import service.fpg.Fpg_PontoService;
+			import service.fpg.Fpg_SituacaoDiaService;
+			import service.procedure.Fpg_Calculo_HorasService;
+			import service.view.View_Pto_PontoService;
+			
+			import vo.adm.Adm_cargoVO;
+			import vo.adm.SystemVO;
+			import vo.fpg.Fpg_HorarioTrabalhoVO;
+			import vo.fpg.Fpg_HorarioVO;
+			import vo.fpg.Fpg_PontoVO;
+			import vo.procedure.Fpg_Calculo_HorasVO;
+			import vo.procedure.Fpg_Ponto_TrocadoVO;
+			import vo.view.View_Pto_PontoVO;
+			
+			private var ro_ponto:Fpg_PontoService = Fpg_PontoService.getInstance();
+			private var ro_viewponto:View_Pto_PontoService = View_Pto_PontoService.getInstance();
+			private var ro_situacaodia:Fpg_SituacaoDiaService = Fpg_SituacaoDiaService.getInstance();
+			private var view_pontoVO:View_Pto_PontoVO;
+			private var calculo_horasVO:Fpg_Calculo_HorasVO;
+			private var ro_calculohoras:Fpg_Calculo_HorasService = Fpg_Calculo_HorasService.getInstance();
+			private var obj_where:Object;
+			private var util:Util = new Util();
+			private var retorno:UtilRetornoBanco;
+			private var ArraySituacaoDia:ArrayCollection;
+			private var vScrollPosition:Number;
+			[Bindable] private var isValid:Boolean = false;
+			private var systemVO:SystemVO = SystemVO.getInstance();
+			
+			
+			protected function lf_dtsistema(item:Object, column:DataGridColumn):String
+			{
+				
+				return util.formatData_DDMMYYYY(item.dt_sistema1);
+			}
+			
+			private function init():void{
+				
+				vScrollPosition = 0;
+				
+				this.width = FlexGlobals.topLevelApplication.mdiCanvas.width;
+				this.height = FlexGlobals.topLevelApplication.mdiCanvas.height;
+				
+				this.x = 0;
+				this.y = 0;
+				
+				ctrlbar.addChildAt(ctrlbar.bt_pesquisar,0);
+				ctrlbar.addChildAt(ctrlbar.bt_limpar,1);
+				ctrlbar.addChildAt(ctrlbar.bt_imprime,2);
+				ctrlbar.addChildAt(ctrlbar.bt_executar,3);
+				
+				ctrlbar.bt_executar.label = "Calcular Horas";
+
+				
+				ctrlbar.bt_pesquisar.addEventListener(MouseEvent.CLICK,selecionar);
+				ctrlbar.bt_limpar.addEventListener(MouseEvent.CLICK,limpar);
+				ctrlbar.bt_executar.addEventListener(MouseEvent.CLICK,calculohoras);
+				ctrlbar.bt_imprime.addEventListener(MouseEvent.CLICK,imprime);
+				
+				ro_situacaodia.ComboBox("nmsitdia","id_situacaodia",createcb_situacaodia,defaultFaultHandler);
+			}
+			private function createcb_situacaodia(event:ResultEvent):void{
+				ArraySituacaoDia = event.result as ArrayCollection;
+				
+			}
+			private function calculohoras(e:Event):void{
+				isValid = util.validateForm(form);
+				if (!isValid){
+					mensagem_ponto.text = UtilMensagens.PreenchaCampo;
+				} else {
+					this.enabled = false;
+					calculo_horasVO = new Fpg_Calculo_HorasVO;
+					calculo_horasVO.idparceiro_in = txtidparceiro.txt_id.text;
+					calculo_horasVO.idparceiro_fi = txtidparceiro.txt_id.text;
+					calculo_horasVO.dt_in = txtdtinicial.selectedDate;
+					calculo_horasVO.dt_fi = txtdtfinal.selectedDate;
+					
+					ro_calculohoras.Procedure(calculo_horasVO,calculohorasResult,defaultFaultHandler);
+				}
+			}
+			private function calculohorasResult(e:ResultEvent):void{
+				this.enabled = true;
+				mensagem_ponto.text = UtilMensagens.OperacaoRealizadaSucesso;
+				selecionar(e);		
+			}
+			private function create_DataGrid(event:ResultEvent):void {
+				this.enabled = true;
+				dg_ponto.dataProvider = event.result;
+				dg_ponto.verticalScrollPosition = vScrollPosition;
+			}
+			private function selecionar(e:Event):void{
+				isValid = util.validateForm(form);
+				if (!isValid){
+					mensagem_ponto.text = UtilMensagens.PreenchaCampo;
+				} else {
+					this.enabled = false;
+					popular();
+					
+					var where:Array = ["date(dt_sistema1) >= date('" + DateField.dateToString(txtdtinicial.selectedDate,'DD/MM/YYYY') + "')","date(dt_sistema2) <= date('" + DateField.dateToString(txtdtfinal.selectedDate,'DD/MM/YYYY') + "')"];
+					
+					ro_viewponto.select(view_pontoVO,where,create_DataGrid,defaultFaultHandler);
+				}
+			}
+			private function limpar(e:Event):void{
+				mensagem_ponto.text = "";
+				util.limpar_formulario(form);
+				dg_ponto.dataProvider = null;
+				vScrollPosition = 0;
+			}
+			private function setcampos(e:Event):void{
+				vScrollPosition = dg_ponto.verticalScrollPosition;
+				var manut:frm_manutponto  = PopUpManager.createPopUp(this,frm_manutponto,true) as frm_manutponto;
+				manut.addEventListener(CloseEvent.CLOSE,closePopUpWindow);
+				PopUpManager.centerPopUp(manut);
+				
+				var X:Number = manut.width / 2;
+				var Y:Number = manut.height / 2;
+				
+				var newX:Number = FlexGlobals.topLevelApplication.mdiCanvas.width / 2;
+				var newY:Number = FlexGlobals.topLevelApplication.mdiCanvas.height / 2;
+				
+				manut.x = newX - X;
+				manut.y = newY - Y;
+				
+				manut.fpg_pontoVO = new Fpg_PontoVO;
+				manut.fpg_pontoVO.id_ponto = dg_ponto.selectedItem.id_ponto;
+				
+				manut.pontotrocadoVO = new Fpg_Ponto_TrocadoVO;
+				manut.pontotrocadoVO.idponto = dg_ponto.selectedItem.id_ponto;
+				
+				
+				manut.fpg_horatrabalho = new Fpg_HorarioTrabalhoVO;
+				manut.fpg_horatrabalho.id_horariotrabalho = dg_ponto.selectedItem.id_horariotrabalho;
+				
+				manut.horario_ent.text = dg_ponto.selectedItem.fpg_idjustificativa > 0 ? "" : dg_ponto.selectedItem.horario_ent;
+				manut.intervalo_sai.text = dg_ponto.selectedItem.fpg3_idjustificativa > 0 ? "" : dg_ponto.selectedItem.intervalo_sai;
+				manut.intervalo_ent.text = dg_ponto.selectedItem.fpg4_idjustificativa > 0 ? "" : dg_ponto.selectedItem.intervalo_ent;
+				manut.horario_sai.text = dg_ponto.selectedItem.fpg2_idjustificativa > 0 ? "" : dg_ponto.selectedItem.horario_sai;
+				
+				
+				manut.fpg_idjustificativa.txt_id.text = dg_ponto.selectedItem.fpg_idjustificativa ? dg_ponto.selectedItem.fpg_idjustificativa : "";
+				manut.fpg_idjustificativa.txt_nome.text = dg_ponto.selectedItem.fpg_idjustificativa ? dg_ponto.selectedItem.fpg_idjustificativa_desc : "";
+				manut.fpg2_idjustificativa.txt_id.text = dg_ponto.selectedItem.fpg2_idjustificativa ? dg_ponto.selectedItem.fpg2_idjustificativa : "";
+				manut.fpg2_idjustificativa.txt_nome.text = dg_ponto.selectedItem.fpg2_idjustificativa ? dg_ponto.selectedItem.fpg2_idjustificativa_desc : "";
+				
+				manut.fpg3_idjustificativa.txt_id.text = dg_ponto.selectedItem.fpg3_idjustificativa ? dg_ponto.selectedItem.fpg3_idjustificativa : "";
+				manut.fpg3_idjustificativa.txt_nome.text = dg_ponto.selectedItem.fpg3_idjustificativa ? dg_ponto.selectedItem.fpg3_idjustificativa_desc : "";
+				manut.fpg4_idjustificativa.txt_id.text = dg_ponto.selectedItem.fpg4_idjustificativa ? dg_ponto.selectedItem.fpg4_idjustificativa : "";
+				manut.fpg4_idjustificativa.txt_nome.text = dg_ponto.selectedItem.fpg4_idjustificativa ? dg_ponto.selectedItem.fpg4_idjustificativa_desc : "";
+				
+				
+				manut.cb_situacaodia.dataProvider = ArraySituacaoDia;
+				
+				manut.cb_situacaodia.selectedItem = util.selecionarComboboxString(dg_ponto.selectedItem.folga,ArraySituacaoDia);
+				
+				
+				
+			}
+			private function closePopUpWindow(evt:Event):void {
+				selecionar(evt);				
+			}
+			
+			private function popular():void{
+				view_pontoVO = new View_Pto_PontoVO;
+				view_pontoVO.id_parceiro = txtidparceiro.txt_id.text.length <= 0 ? null : txtidparceiro.txt_id.text;
+				
+			}
+			private function defaultFaultHandler(e:FaultEvent):void{
+				this.enabled = true;
+				retorno = new UtilRetornoBanco;
+				retorno.RetornoBanco(e);
+				
+				mensagem_ponto.text = "";
+			}
+			public function imprime(e:Event):void{
+				
+				isValid = util.validateForm(form);
+				if (!isValid){
+					mensagem_ponto.text = UtilMensagens.PreenchaCampo;
+				} else {
+					this.enabled = false;
+					mensagem_ponto.text = UtilMensagens.RelatorioGerando;
+					
+					var obj:Object = new Object();
+					obj.p_idparceiroini = txtidparceiro.txt_id.text.length > 0 ? parseInt(txtidparceiro.txt_id.text) : 0;
+					obj.p_idparceirofin = txtidparceiro.txt_id.text.length > 0 ? parseInt(txtidparceiro.txt_id.text) : 0;
+					obj.p_dtinicial = txtdtinicial.selectedDate;
+					obj.p_dtfinal = txtdtfinal.selectedDate;
+					obj.nmoperador = systemVO.nickname;
+					ro_ponto.Report(obj,"PDF","RptPTO_CartaoPonto","pto",imprimeResult,defaultFaultHandler);
+				}
+			}
+			public function imprimeResult(e:ResultEvent):void{
+				this.enabled = true;
+				mensagem_ponto.text = UtilMensagens.RelatorioGerado;
+				util.abrepdf(e.result[0]['destinationUrl']);
+			}
+			
+		]]>
+	</mx:Script>
+	<mx:VBox width="100%" height="100%">
+			<mx:VBox width="100%" height="100%">
+				<mx:Label width="100%" id="mensagem_ponto" styleName="lblerro"/>
+					<mx:HBox width="100%">
+						<mx:Form id="form" width="50%" height="100%">
+							<mx:FormItem label="Funcionário:" required="true">
+								<skins:TextButtonText id="txtidparceiro" tabela="{UtilNamesPesquisa.fpg_cadfunc}" titulo="Funcionário"/>
+							</mx:FormItem>
+							<mx:FormItem label="Data Inicial:" required="true">
+								<skins:DateField_Data id="txtdtinicial"/>
+							</mx:FormItem>
+							<mx:FormItem label="Data Final:" required="true">
+								<skins:DateField_Data id="txtdtfinal"/>
+							</mx:FormItem>
+						</mx:Form>
+					</mx:HBox>
+					<mx:DataGrid width="100%" height="100%" id="dg_ponto" itemClick="setcampos(event)" focusEnabled="false">
+						<mx:columns>
+							<mx:DataGridColumn headerText="Data" width="100" dataField="dt_sistema1" labelFunction="lf_dtsistema"/>
+							<mx:DataGridColumn headerText="Dia Semana" dataField="dow"/>
+							<mx:DataGridColumn headerText="Sit. Dia" dataField="nmfolga"/>
+							<mx:DataGridColumn headerText="Entrada" dataField="horario_ent"/>
+							<mx:DataGridColumn headerText="Inter. Saída" dataField="intervalo_sai"/>
+							<mx:DataGridColumn headerText="Inter. Entrada" dataField="intervalo_ent"/>
+							<mx:DataGridColumn headerText="Saida" dataField="horario_sai"/>
+							<mx:DataGridColumn headerText="Hora Total" dataField="horatotal"/>
+							<mx:DataGridColumn headerText="Faltas" dataField="faltas"/>
+							<mx:DataGridColumn headerText="Extra Entrada" dataField="extra_ent"/>
+							<mx:DataGridColumn headerText="Extra Saida" dataField="extra_sai"/>
+							<mx:DataGridColumn headerText="Total Extras" dataField="extras"/>
+						</mx:columns>
+					</mx:DataGrid>
+					<mx:DataGrid width="100%" height="50" id="dg_horastrabalhadas" focusEnabled="false">
+						<mx:columns>
+							<mx:DataGridColumn headerText="Dia Semana" dataField="dow"/>
+						</mx:columns>
+					</mx:DataGrid>
+				</mx:VBox>
+	</mx:VBox>
+	
+	<skins:CtrlBar_Buttons id="ctrlbar"/>
+</MDIWindow>

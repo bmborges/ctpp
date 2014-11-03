@@ -1,0 +1,385 @@
+<?xml version="1.0" encoding="utf-8"?>
+<MDIWindow xmlns="flexmdi.containers.*" xmlns:mx="http://www.adobe.com/2006/mxml"
+		   width="876" height="430" title="Cadastro Curso" creationComplete="init()" xmlns:skins="skins.*">
+<mx:Script>
+	<![CDATA[
+		import classes.Util;
+		
+		import vo.crs.Crs_CursoMateriaVO;
+		
+		import classes.UtilMensagens;
+		import classes.UtilRetornoBanco;
+		
+		import flash.events.Event;
+		import flash.events.MouseEvent;
+		
+		import mx.collections.ArrayCollection;
+		import mx.controls.Alert;
+		import mx.core.Application;
+		import mx.core.FlexGlobals;
+		import mx.events.IndexChangedEvent;
+		import mx.rpc.events.FaultEvent;
+		import mx.rpc.events.ResultEvent;
+		
+		import service.ComboBoxService;
+		import service.crs.Crs_CursoMateriaService;
+		import service.crs.Crs_CursoService;
+		
+		import vo.crs.Crs_CursoVO;
+		
+		[Bindable] private var ArrayTipo:ArrayCollection;
+		[Bindable] private var ArrayMateria:ArrayCollection;
+		[Bindable] private var ArrayModulo:ArrayCollection;
+		[Bindable] private var ArrayAtivo:ArrayCollection;
+		[Bindable] private var isValid:Boolean = false;
+		
+		
+		
+		private var ro_curso:Crs_CursoService = Crs_CursoService.getInstance();
+		private var ro_cursomateria:Crs_CursoMateriaService = Crs_CursoMateriaService.getInstance();	
+		private var crs_cursoVO:Crs_CursoVO;
+		private var crs_cursomateriaVO:Crs_CursoMateriaVO;
+		private var ro_combobox:ComboBoxService = ComboBoxService.getInstance();
+		private var util:Util = new Util();
+		private var retorno:UtilRetornoBanco;
+		
+		private function init():void{
+			
+			this.width = FlexGlobals.topLevelApplication.mdiCanvas.width;
+			this.height = FlexGlobals.topLevelApplication.mdiCanvas.height;
+			
+			this.x = 0;
+			this.y = 0;
+			
+			ro_combobox.Crs_TipoCurso(createcomboxtipo,defaultFaultHandler);
+			ro_combobox.Materia(createcomboxmateria,defaultFaultHandler);
+			ro_combobox.Modulo(createcomboxmodulo,defaultFaultHandler);
+			ro_combobox.Adm_Ativo(createcomboxativo,defaultFaultHandler);
+
+			ctrlbar.bt_pesquisar.addEventListener(MouseEvent.CLICK,selecionar);
+			ctrlbar.bt_inserir.addEventListener(MouseEvent.CLICK,inserir);
+			ctrlbar.bt_alterar.addEventListener(MouseEvent.CLICK,alterar);
+			ctrlbar.bt_excluir.addEventListener(MouseEvent.CLICK,deletar);
+			ctrlbar.bt_limpar.addEventListener(MouseEvent.CLICK,limpar);
+			
+			ctrlbar.addChildAt(ctrlbar.bt_pesquisar,0);
+			ctrlbar.addChildAt(ctrlbar.bt_inserir,1);
+			ctrlbar.addChildAt(ctrlbar.bt_alterar,2);
+			ctrlbar.addChildAt(ctrlbar.bt_excluir,3);
+			ctrlbar.addChildAt(ctrlbar.bt_limpar,4);
+			
+		}
+		public function accordioncomplete(e:IndexChangedEvent):void{
+			var currentIndex:int=e.newIndex;
+			if (currentIndex == 0){
+			}else if (currentIndex == 1){
+				limpar(e);
+				selecionar(e);
+			}
+		}
+		private function createcomboxativo(event:ResultEvent):void{
+			ArrayAtivo = event.result as ArrayCollection;
+			cbativo.dataProvider = ArrayAtivo;
+		}
+		private function createcomboxtipo(event:ResultEvent):void{
+			ArrayTipo = event.result as ArrayCollection;
+			cbtipo.dataProvider = ArrayTipo;
+		}
+		private function createcomboxmodulo(event:ResultEvent):void{
+			ArrayModulo = event.result as ArrayCollection;
+			cbmodulo.dataProvider = ArrayModulo;
+		}
+		private function createcomboxmateria(event:ResultEvent):void{
+			ArrayMateria = event.result as ArrayCollection;
+			cbmateria.dataProvider = ArrayMateria;
+		}
+		protected function lf_modulo(item:Object, column:DataGridColumn):String{
+			var retorno:Object = util.selecionarCombobox(item.id_modulo,ArrayModulo);
+			if(item.id_modulo != 0){
+				return retorno.label;
+			}
+				return null;				
+		}
+		protected function lf_materia(item:Object, column:DataGridColumn):String{
+			var retorno:Object = util.selecionarCombobox(item.id_materia,ArrayMateria);
+			return retorno.label;
+		}
+		protected function lf_ativo(item:Object, column:DataGridColumn):String{
+			var retorno:Object = util.selecionarCombobox(item.id_ativo,ArrayAtivo);
+			return retorno.label;
+		}
+		
+		private function create_DataGrid(event:ResultEvent):void {
+			this.enabled = true;
+			if (accordion_curso.selectedIndex == 0){
+				dg_curso.dataProvider = event.result;
+			} else if (accordion_curso.selectedIndex == 1){
+				dg_cursomateria.dataProvider = event.result;
+			}
+		}
+		private function selecionar(e:Event):void{
+			this.enabled = false;
+			if (accordion_curso.selectedIndex == 0){
+				popular();
+				ro_curso.select(crs_cursoVO,create_DataGrid,defaultFaultHandler, null, null);
+			} else if (accordion_curso.selectedIndex == 1){
+				popular();
+				var order:Array = ["id_modulo","id_materia"];
+				ro_cursomateria.select(crs_cursomateriaVO,create_DataGrid,defaultFaultHandler,order);
+			}
+		}
+		private function inserir(e:Event):void{
+			if (accordion_curso.selectedIndex == 0){
+				isValid = util.validateForm(form_cursoa);
+				isValid = util.validateForm(form_cursob) && isValid;
+				if (!isValid){
+					mensagem_curso.text = UtilMensagens.PreenchaCampo;
+				} else {
+					this.enabled = false;
+					popular();
+					ro_curso.inserir(crs_cursoVO,inserirResult,defaultFaultHandler);
+				}
+			} else if (accordion_curso.selectedIndex == 1){
+				isValid = util.validateForm(form_materiaa);
+				isValid = util.validateForm(form_materiab) && isValid;
+				if (!isValid){
+					mensagem_cursomateria.text = UtilMensagens.PreenchaCampo;
+				} else {
+					this.enabled = false;
+					popular();
+					ro_cursomateria.inserir(crs_cursomateriaVO,inserirResult,defaultFaultHandler);
+				}
+			}
+		}
+		
+		private function inserirResult(e:ResultEvent):void{
+			this.enabled = true;
+			if (accordion_curso.selectedIndex == 0){
+				txtid_curso.text = e.result.toString();
+			} else if (accordion_curso.selectedIndex == 1){
+				txtid_cursomateria.text = e.result.toString();
+			}
+			selecionar(e);
+		}
+		
+		private function alterar(e:Event):void{
+			if (accordion_curso.selectedIndex == 0){
+				isValid = util.validateForm(form_cursoa);
+				isValid = util.validateForm(form_cursob) && isValid;
+				if (!isValid){
+					mensagem_curso.text = UtilMensagens.PreenchaCampo;
+				} else {
+					this.enabled = false;
+					popular();
+					ro_curso.atualizar(crs_cursoVO,alterarResult,defaultFaultHandler);
+				}
+			} else if (accordion_curso.selectedIndex == 1){
+				isValid = util.validateForm(form_materiaa);
+				isValid = util.validateForm(form_materiab) && isValid;
+				if (!isValid){
+					mensagem_cursomateria.text = UtilMensagens.PreenchaCampo;
+				} else {
+					this.enabled = false;
+					popular();
+					ro_cursomateria.atualizar(crs_cursomateriaVO,alterarResult,defaultFaultHandler);
+				}
+			}
+		}
+		private function alterarResult(e:ResultEvent):void{
+			this.enabled = true;
+			if (accordion_curso.selectedIndex == 0){
+				dg_curso.dataProvider = e.result;
+			} else if (accordion_curso.selectedIndex == 1){
+				dg_cursomateria.dataProvider = e.result;
+			}
+		}
+		private function deletar(e:Event):void{
+			if (accordion_curso.selectedIndex == 0){
+				isValid = util.validateForm(form_cursoa);
+				isValid = util.validateForm(form_cursob) && isValid;
+				if (!isValid){
+					mensagem_curso.text = UtilMensagens.PreenchaCampo;
+				} else {
+					this.enabled = false;
+					popular();
+					ro_curso.deletar(crs_cursoVO,deletarResult,defaultFaultHandler);
+				}
+			} else if (accordion_curso.selectedIndex == 1){
+				isValid = util.validateForm(form_materiaa);
+				isValid = util.validateForm(form_materiab) && isValid;
+				if (!isValid){
+					mensagem_cursomateria.text = UtilMensagens.PreenchaCampo;
+				} else {
+					this.enabled = false;
+					popular();
+					ro_cursomateria.deletar(crs_cursomateriaVO,deletarResult,defaultFaultHandler);
+				}
+			}
+		}
+		private function deletarResult(e:ResultEvent):void{
+			this.enabled = true;
+			if (accordion_curso.selectedIndex == 0){
+				dg_curso.dataProvider = e.result;
+			} else if (accordion_curso.selectedIndex == 1){
+				dg_cursomateria.dataProvider = e.result;
+			}
+			limpar(e);	
+		}
+		private function limpar(e:Event):void{
+			if (accordion_curso.selectedIndex == 0){
+				util.limpar_formulario(form_cursoa);
+				util.limpar_formulario(form_cursob);
+				util.limpar_formulario(form_materiaa);
+				util.limpar_formulario(form_materiab);
+				mensagem_curso.text = null;
+				dg_curso.dataProvider = null;
+				dg_cursomateria.dataProvider = null;
+			} else if (accordion_curso.selectedIndex == 1){
+				util.limpar_formulario(form_materiaa);
+				util.limpar_formulario(form_materiab);
+				
+				mensagem_cursomateria.text = null;
+				dg_cursomateria.dataProvider = null;
+			}
+		}
+		private function setcampos(e:Event):void{
+			if (accordion_curso.selectedIndex == 0){
+				txtid_curso.text = dg_curso.selectedItem.id_curso;
+				txtnmcurso.text = dg_curso.selectedItem.nmcurso;
+				cbtipo.selectedItem = util.selecionarCombobox(dg_curso.selectedItem.id_tipocurso,ArrayTipo);
+				txtcurriculo.text = dg_curso.selectedItem.curriculo;
+				cbativo.selectedItem = util.selecionarCombobox(dg_curso.selectedItem.id_ativo,ArrayAtivo);
+				txtautorizacao.text = dg_curso.selectedItem.autorizacao;
+				txthabilitacao.text = dg_curso.selectedItem.habilitacao;
+			} else if (accordion_curso.selectedIndex == 1){
+				txtid_cursomateria.text = dg_cursomateria.selectedItem.id_cursomateria;
+				cbmateria.selectedItem = util.selecionarCombobox(dg_cursomateria.selectedItem.id_materia,ArrayMateria);
+				cbmodulo.selectedItem = util.selecionarCombobox(dg_cursomateria.selectedItem.id_modulo,ArrayModulo);
+				txtcarga_horaria.text = dg_cursomateria.selectedItem.carga_horaria;
+				txtqtd_aulas.text = dg_cursomateria.selectedItem.qtd_aulas;
+				
+			}
+		}
+		
+		private function popular():void{
+			if (accordion_curso.selectedIndex == 0){
+				crs_cursoVO = new Crs_CursoVO();
+				crs_cursoVO.id_curso = txtid_curso.text.length <= 0 ? null : txtid_curso.text;
+				crs_cursoVO.nmcurso = txtnmcurso.text.length <= 0 ? null : txtnmcurso.text.toUpperCase();
+				crs_cursoVO.id_tipocurso = cbtipo.selectedItem ? cbtipo.selectedItem.data : null;
+				crs_cursoVO.curriculo = txtcurriculo.text.length <= 0 ? null : txtcurriculo.text;
+				crs_cursoVO.id_ativo = cbativo.selectedItem ? cbativo.selectedItem.data : null;
+				crs_cursoVO.autorizacao = txtautorizacao.text.length <= 0 ? null : txtautorizacao.text.toUpperCase();
+				crs_cursoVO.habilitacao = txthabilitacao.text.length <= 0 ? null : txthabilitacao.text.toUpperCase();
+				
+			} else if (accordion_curso.selectedIndex == 1){
+				// select
+				crs_cursomateriaVO = new Crs_CursoMateriaVO();
+				crs_cursomateriaVO.id_cursomateria = txtid_cursomateria.text.length <= 0 ? null : txtid_cursomateria.text;
+				crs_cursomateriaVO.id_curso = txtid_curso.text;
+				crs_cursomateriaVO.id_materia = cbmateria.selectedItem ? cbmateria.selectedItem.data : null;
+				crs_cursomateriaVO.id_modulo = cbmodulo.selectedItem ? cbmodulo.selectedItem.data : null;
+				crs_cursomateriaVO.carga_horaria = txtcarga_horaria.text.length <= 0 ? null : txtcarga_horaria.text;
+				crs_cursomateriaVO.qtd_aulas = txtqtd_aulas.text.length <= 0 ? null : txtqtd_aulas.text;
+			}
+		}
+		private function defaultFaultHandler(e:FaultEvent):void{
+			this.enabled = true;
+			retorno = new UtilRetornoBanco;
+			retorno.RetornoBanco(e);
+			if (accordion_curso.selectedIndex == 0){
+				mensagem_curso.text = "";
+			} else if (accordion_curso.selectedIndex == 1){
+				mensagem_cursomateria.text = "";
+			}
+			
+		}
+
+	]]>
+</mx:Script>
+     <mx:TabNavigator id="accordion_curso" width="100%" height="100%" change="accordioncomplete(event)" creationPolicy="all">
+    		<mx:Canvas id="c_curso" label="Curso" width="100%" height="100%">
+    			<mx:VBox width="100%" height="100%">
+					<mx:Label width="100%" id="mensagem_curso" text="" styleName="lblerro"/>
+					<mx:HBox width="100%" >
+						<mx:Form id="form_cursoa" width="50%" height="100%">
+							<mx:FormItem label="Id.:">
+								<mx:TextInput id="txtid_curso" width="82" editable="false"/>
+							</mx:FormItem>
+							<mx:FormItem label="Curso:" required="true">
+								<skins:TextInput_Maiusculo id="txtnmcurso" width="216"/>
+							</mx:FormItem>
+							<mx:FormItem label="Habilitação:" required="true">
+								<skins:TextInput_Maiusculo id="txthabilitacao" width="216"/>
+							</mx:FormItem>							
+							<mx:FormItem label="Tipo:" required="true">
+								<mx:ComboBox id="cbtipo"/>
+							</mx:FormItem>
+						</mx:Form>
+						<mx:Form id="form_cursob" width="50%" height="100%">
+							<mx:FormItem label="Autorização:" required="true">
+								<skins:TextInput_Maiusculo id="txtautorizacao" width="216"/>
+							</mx:FormItem>
+							<mx:FormItem label="Currículo:" required="true">
+								<skins:TextInput_Maiusculo id="txtcurriculo" restrict="0-9"/>
+							</mx:FormItem>
+							<mx:FormItem label="Ativo:" required="true">
+								<mx:ComboBox id="cbativo"/>
+							</mx:FormItem>
+						</mx:Form>
+					</mx:HBox>
+					<mx:DataGrid width="100%" height="100%" id="dg_curso" itemClick="setcampos(event)" focusEnabled="false">
+						<mx:columns>
+							<mx:DataGridColumn headerText="Id." width="60" dataField="id_curso"/>
+							<mx:DataGridColumn headerText="Currículo"  width="70" dataField="curriculo"/>
+							<mx:DataGridColumn headerText="Curso" dataField="nmcurso"/>
+							<mx:DataGridColumn headerText="Habilitação" dataField="habilitacao"/>
+							<mx:DataGridColumn headerText="Autorização" dataField="autorizacao"/>
+							<mx:DataGridColumn headerText="Ativo"  width="60" dataField="id_ativo" labelFunction="lf_ativo"/>
+						</mx:columns>
+					</mx:DataGrid>					
+				</mx:VBox>
+	</mx:Canvas>
+	<mx:Canvas id="c_cursomateria" label="Matéria(s)" width="100%" height="100%" enabled="{txtid_curso.text.length > 0 ? true : false}">
+		<mx:VBox width="100%" height="100%">
+			<mx:Label width="100%" id="mensagem_cursomateria" text="" styleName="lblerro"/>
+			<mx:HBox width="100%">
+				<mx:Form id="form_materiaa" width="50%">
+					<mx:FormItem label="Id.:">
+						<mx:TextInput id="txtid_cursomateria" width="82" editable="false"/>
+					</mx:FormItem>
+					<mx:FormItem label="Modulo:">
+						<mx:ComboBox id="cbmodulo" prompt="Selecione..." selectedIndex="-1" />
+					</mx:FormItem>
+				</mx:Form>
+				<mx:Form id="form_materiab" width="50%" >
+					<mx:FormItem label="Materia:" required="true">
+						<mx:ComboBox id="cbmateria" prompt="Selecione..." selectedIndex="-1" />
+					</mx:FormItem>
+					<mx:FormItem label="Carga Horária:"  required="true">
+						<skins:TextInput_Maiusculo id="txtcarga_horaria" width="102" restrict="0-9\\."/>
+					</mx:FormItem>
+					<mx:FormItem label="Qtd. Aulas:"  required="true">
+						<skins:TextInput_Maiusculo id="txtqtd_aulas" width="102" restrict="0-9"/>
+					</mx:FormItem>
+				</mx:Form>
+			</mx:HBox>
+			<mx:DataGrid id="dg_cursomateria" width="100%" height="100%" focusEnabled="false"
+						 itemClick="setcampos(event)">
+				<mx:columns>
+					<mx:DataGridColumn width="60" dataField="id_cursomateria" headerText="Id."
+									   resizable="false"/>
+					<mx:DataGridColumn dataField="id_modulo" headerText="Módulo" resizable="false" labelFunction="lf_modulo"/>
+					<mx:DataGridColumn width="80" dataField="id_materia" headerText="Matéria" labelFunction="lf_materia"
+									   resizable="false"/>
+					<mx:DataGridColumn width="80" dataField="carga_horaria"
+									   headerText="Carga Horária" resizable="false"/>
+					<mx:DataGridColumn width="80" dataField="qtd_aulas"
+									   headerText="Qtd. Aulas" resizable="false"/>
+				</mx:columns>
+			</mx:DataGrid>
+		</mx:VBox>
+	</mx:Canvas>
+</mx:TabNavigator>
+<skins:CtrlBar_Buttons id="ctrlbar"/>
+</MDIWindow>

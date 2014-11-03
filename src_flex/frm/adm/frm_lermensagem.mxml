@@ -1,0 +1,101 @@
+<?xml version="1.0" encoding="utf-8"?>
+<mx:TitleWindow xmlns:mx="http://www.adobe.com/2006/mxml" 
+				width="696" height="513" title="Mensagem" creationComplete="init(event)" close="titlewindow1_closeHandler(event)"
+				showCloseButton="true" xmlns:skins="skins.*">
+	<mx:Script>
+		<![CDATA[
+			import classes.UtilRetornoBanco;
+			
+			import mx.core.FlexGlobals;
+			import mx.events.CloseEvent;
+			import mx.events.FlexEvent;
+			import mx.managers.PopUpManager;
+			import mx.rpc.events.FaultEvent;
+			import mx.rpc.events.ResultEvent;
+			
+			import service.adm.Adm_MensagemService;
+			
+			import vo.adm.Adm_MensagemVO;
+			import vo.adm.SystemVO;
+			
+			[Bindable] public var dados:Object;
+			[Bindable] public var id_situacao:int;
+			
+			
+			private var adm_mensagemVO:Adm_MensagemVO;
+			private var ro_mensagem:Adm_MensagemService = Adm_MensagemService.getInstance();
+			private var systemvo:SystemVO = SystemVO.getInstance();
+			private var retorno:UtilRetornoBanco;
+			
+			public function init(e:Event):void{
+				
+				var timer:Timer = new Timer(1000,1);
+				timer.addEventListener(TimerEvent.TIMER,initCampos);
+				timer.start()
+				
+			}
+			private function initCampos(e:Event):void{
+				if (id_situacao == 1){
+					ctrlbar.bt_excluir.addEventListener(MouseEvent.CLICK,lida);
+					ctrlbar.addChildAt(ctrlbar.bt_excluir,0);
+					ctrlbar.bt_excluir.label = "Marcar como Lida";
+				} else {
+					ctrlbar.bt_inserir.addEventListener(MouseEvent.CLICK,lida);
+					ctrlbar.addChildAt(ctrlbar.bt_inserir,0);
+					ctrlbar.bt_inserir.label = "Marcar como não Lida";
+				}
+				
+				dt_envio.selectedDate = dados.dt_mensagem;
+				assunto.text = dados.assunto;
+				txtmensagem.text = dados.mensagem;
+			}
+			private function lida(e:Event):void{
+				this.enabled = false;
+				adm_mensagemVO = new Adm_MensagemVO;
+				adm_mensagemVO.id_mensagem = dados.id_mensagem;
+				if (id_situacao == 1){
+					adm_mensagemVO.id_situacao = 2;
+				} else {
+					adm_mensagemVO.id_situacao = 1;					
+				}
+				
+				ro_mensagem.atualizar(adm_mensagemVO,lidaResult,defaultFaultHandler);
+				
+			}
+			private function lidaResult(e:ResultEvent):void{
+				this.enabled = true;
+				FlexGlobals.topLevelApplication.panelmensagens.ConsultaMsg(e);
+				PopUpManager.removePopUp(this);
+				
+			}
+			private function defaultFaultHandler(e:FaultEvent):void{
+				this.enabled = true;
+				retorno = new UtilRetornoBanco;
+				retorno.RetornoBanco(e);
+				mensagem.text = "";
+			}
+			protected function titlewindow1_closeHandler(event:CloseEvent):void		{
+				// TODO Auto-generated method stub
+				PopUpManager.removePopUp(this);
+			}
+			
+		]]>
+	</mx:Script>
+	<mx:Canvas width="100%" height="100%">
+	<mx:VBox width="100%" height="100%">
+		<mx:Label width="100%" id="mensagem" text="" styleName="lblerro"/>
+		<mx:VBox width="100%" height="100%" horizontalAlign="center">
+			<mx:HBox width="100%"  horizontalAlign="center">
+				<mx:Label text="Dt. Envio"/>
+				<skins:DateField_Data enabled="false" id="dt_envio"/>
+				<mx:Label text="Assunto"/>
+				<mx:TextInput enabled="false" id="assunto"/>
+				<mx:Label text="Remetente"/>
+				<mx:TextInput width="159" enabled="false"/>
+			</mx:HBox>
+			<mx:TextArea id="txtmensagem" width="623" height="323" editable="false"/>
+		</mx:VBox>
+	</mx:VBox>
+	</mx:Canvas>
+	<skins:CtrlBar_Buttons id="ctrlbar"/>
+</mx:TitleWindow>

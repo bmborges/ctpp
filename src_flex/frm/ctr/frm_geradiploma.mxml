@@ -1,0 +1,223 @@
+<?xml version="1.0" encoding="utf-8"?>
+<MDIWindow resizable="false" 
+	xmlns="flexmdi.containers.*" xmlns:mx="http://www.adobe.com/2006/mxml" 
+	width="1188" height="492" title="Gera Diploma" creationComplete="init()" 
+	layout="absolute" horizontalAlign="center" xmlns:skins="skins.*" xmlns:local="*">
+	<mx:Script>
+		<![CDATA[
+			import classes.*;
+			
+			import service.ctr.View_Ctr_Contrato_AlunoService;
+			
+			import flash.events.Event;
+			import flash.events.MouseEvent;
+			import flash.net.URLRequest;
+			import flash.net.URLRequestMethod;
+			import flash.net.URLVariables;
+			import flash.net.navigateToURL;
+			
+			import mx.collections.ArrayCollection;
+			import mx.controls.Alert;
+			import mx.controls.DateField;
+			import mx.core.FlexGlobals;
+			import mx.events.CloseEvent;
+			import mx.events.CollectionEvent;
+			import mx.events.FlexEvent;
+			import mx.events.IndexChangedEvent;
+			import mx.events.ListEvent;
+			import mx.managers.PopUpManager;
+			import mx.rpc.events.FaultEvent;
+			import mx.rpc.events.ResultEvent;
+			import mx.validators.Validator;
+			
+			import service.ctr.Ctr_DiplomaService;
+			
+			import vo.adm.SystemVO;
+			import vo.ctr.Ctr_DiplomaVO;
+			import vo.view.View_Ctr_Contrato_AlunoVO;
+			
+			public var util:Util = new Util();
+			
+			[Bindable] private var isValid:Boolean;
+			private var cdseqpgto:int;
+			private var retorno:UtilRetornoBanco;
+			
+			private var systemvo:SystemVO = SystemVO.getInstance();
+
+			private var ro_ctrdiploma:Ctr_DiplomaService = Ctr_DiplomaService.getInstance();
+			private var ro_viewctr:View_Ctr_Contrato_AlunoService = View_Ctr_Contrato_AlunoService.getInstance();
+			
+			private var ctr_diplomaVO:Ctr_DiplomaVO;
+			private var ctr_viewcontratoalunoVO:View_Ctr_Contrato_AlunoVO;
+			
+			public function init():void{
+				this.width = FlexGlobals.topLevelApplication.mdiCanvas.width;
+				this.height = FlexGlobals.topLevelApplication.mdiCanvas.height;
+				
+				this.x = 0;
+				this.y = 0;
+				
+				ctrlbar.addChildAt(ctrlbar.bt_pesquisar,0);
+				ctrlbar.addChildAt(ctrlbar.bt_inserir,1);
+				
+				ctrlbar.bt_inserir.label = "Gerar Diploma";
+				
+				ctrlbar.addChildAt(ctrlbar.bt_limpar,2);
+				ctrlbar.addChildAt(ctrlbar.bt_imprime,3);	
+					
+				ctrlbar.bt_pesquisar.addEventListener(MouseEvent.CLICK,selecionar);
+				ctrlbar.bt_inserir.addEventListener(MouseEvent.CLICK,gerar);
+				ctrlbar.bt_limpar.addEventListener(MouseEvent.CLICK,limpar);
+				ctrlbar.bt_imprime.addEventListener(MouseEvent.CLICK,imprime);
+				
+			}
+			public function selecionar(e:Event):void{
+					isValid = util.validateForm(form_a);
+					if (!isValid){
+						mensagem.text = UtilMensagens.PreenchaCampo;
+					} else {
+						mensagem.text = "";
+						this.enabled = false;
+						
+						ctr_viewcontratoalunoVO = new View_Ctr_Contrato_AlunoVO;
+						ctr_viewcontratoalunoVO.id_contrato = txtid_contrato.txt_id.text;
+						ro_viewctr.select(ctr_viewcontratoalunoVO,viewcontratoResult,defaultFaultHandler,null,null);
+					}
+			}
+			private function viewcontratoResult(e:ResultEvent):void{
+				var retorno:ArrayCollection = e.result as ArrayCollection;
+				
+				txtnmcurso.text = retorno[0]['nmcurso'];			
+				
+				ctr_diplomaVO = new Ctr_DiplomaVO;
+				ctr_diplomaVO.id_contrato = txtid_contrato.txt_id.text;
+				ctr_diplomaVO.id_diploma = txtid_diploma.text.length <= 0 ? null : txtid_diploma.text;
+				
+				ro_ctrdiploma.select(ctr_diplomaVO,createDatagrid,defaultFaultHandler,null,null);
+			}			
+			private function lf_dtlivro(item:Object,column:DataGridColumn):String{
+				return util.formatData_DDMMYYYY(item.dt_livro);
+			}
+			public function gerar(e:Event):void{
+				
+				isValid = util.validateForm(form_b);
+				if (!isValid){
+					mensagem.text = UtilMensagens.PreenchaCampo;
+				} else {
+					Alert.yesLabel = "Sim";
+					Alert.noLabel = "Não";
+					Alert.show('Confirmar ?','Gera Contrato',Alert.YES|Alert.NO,this,gerarResult);
+				}
+				
+			}
+			public function gerarResult(e:CloseEvent):void{
+				if (e.detail == Alert.YES){
+					ctr_diplomaVO = new Ctr_DiplomaVO;
+					ctr_diplomaVO.dt_livro = txtdtlivro.selectedDate
+					ctr_diplomaVO.dt_sistema = new Date;
+					ctr_diplomaVO.id_contrato = txtid_contrato.txt_id.text
+					ctr_diplomaVO.id_diploma = txtid_diploma.text.length <= 0 ? null : txtid_diploma.text;
+					ctr_diplomaVO.id_operador = systemvo.id_operador;
+					ctr_diplomaVO.livro = txtlivro.text;
+					ctr_diplomaVO.pagina = txtpagina.text;
+					ctr_diplomaVO.sistec = txtsistec.text;
+					
+					ro_ctrdiploma.inserir(ctr_diplomaVO,diplomaResult,defaultFaultHandler);
+						
+				}
+				
+			}
+			private function diplomaResult(e:ResultEvent):void{
+				txtid_diploma.text = e.result.toString();
+				selecionar(e);
+			}
+			public function limpar(e:Event):void{
+					mensagem.text = null;
+					dg_diploma.dataProvider = null;
+					util.limpar_formulario(form_a);
+					util.limpar_formulario(form_b);
+					util.limpar_formulario(form_c);
+				
+			}
+			public function createDatagrid(e:ResultEvent):void {
+				this.enabled = true;
+				dg_diploma.dataProvider = e.result;
+				
+			}
+	
+			private function imprime(e:Event):void{
+				
+					this.enabled = false;
+					mensagem.text = UtilMensagens.RelatorioGerando;
+					
+					var obj:Object = new Object();
+					obj.p_iddiploma = txtid_diploma.text;
+					
+					ro_ctrdiploma.Report(obj,"PDF","Rpt_Diploma","pdg",imprimeResult,defaultFaultHandler);
+				
+			}
+			public function imprimeResult(e:ResultEvent):void{
+				this.enabled = true;
+				mensagem.text = UtilMensagens.RelatorioGerado;
+				util.abrepdf(e.result[0]['destinationUrl']);
+			}
+			private function defaultFaultHandler(e:FaultEvent):void{
+				this.enabled = true;
+				retorno = new UtilRetornoBanco;
+				retorno.RetornoBanco(e);
+				mensagem.text = "";
+			}
+			private function setcampos(e:Event):void{
+				txtid_contrato.txt_id.text = dg_diploma.selectedItem.id_contrato;
+				txtid_diploma.text = dg_diploma.selectedItem.id_diploma;
+				txtlivro.text = dg_diploma.selectedItem.livro;
+				txtdtlivro.selectedDate = dg_diploma.selectedItem.dt_livro;
+				txtpagina.text = dg_diploma.selectedItem.pagina;
+				txtsistec.text = dg_diploma.selectedItem.sistec;
+			}
+		]]>
+	</mx:Script>
+	<mx:VBox width="100%" height="100%">
+		<mx:Label width="100%" id="mensagem" text="" styleName="lblerro"/>
+		<mx:VBox width="100%">
+			<mx:Form id="form_a" width="100%" height="100%">
+				<mx:FormItem label="Cd. Contrato:" required="true" paddingTop="0" paddingBottom="0" direction="horizontal" width="100%">
+					<skins:TextButtonText id="txtid_contrato" tabela="{UtilNamesPesquisa.ctr_contrato}" titulo="Contrato"/>
+					<mx:Spacer width="50"/>
+					<mx:Label text="Curso:"/>
+					<mx:TextInput width="30%" editable="false" id="txtnmcurso"/>
+				</mx:FormItem>
+			</mx:Form>
+			<mx:Form id="form_b" width="100%" height="100%">
+				<mx:FormItem label="Id.:">
+					<skins:TextInput_Maiusculo id="txtid_diploma" width="82" editable="false"/>
+				</mx:FormItem>
+				<mx:FormItem label="Livro:" required="true">
+					<skins:TextInput_Maiusculo id="txtlivro" />
+				</mx:FormItem>
+				<mx:FormItem label="Página:" required="true">
+					<mx:TextInput id="txtpagina" maxChars="30" />
+				</mx:FormItem>
+				<mx:FormItem label="Dt. Livro:" required="true">
+					<skins:DateField_Data id="txtdtlivro"/>
+				</mx:FormItem>
+				<mx:FormItem label="Nr. Sistec:" required="true">
+					<mx:TextInput id="txtsistec"/>
+				</mx:FormItem>
+			</mx:Form>
+			<mx:Form id="form_c" width="100%" height="100%">
+			</mx:Form>
+		</mx:VBox>
+		<mx:DataGrid width="100%" height="100%" id="dg_diploma" itemClick="setcampos(event)" focusEnabled="false">
+			<mx:columns>
+				<mx:DataGridColumn headerText="Id." width="60" dataField="id_diploma"/>
+				<mx:DataGridColumn headerText="Livro" width="400" dataField="livro"/>
+				<mx:DataGridColumn headerText="Página" dataField="pagina"/>
+				<mx:DataGridColumn headerText="Dt. Livro" dataField="dt_livro" labelFunction="lf_dtlivro"/>
+				<mx:DataGridColumn headerText="Sistec" dataField="sistec"/>
+				<mx:DataGridColumn headerText="Operador" dataField="id_operador"/>
+			</mx:columns>
+		</mx:DataGrid>
+	</mx:VBox>
+<skins:CtrlBar_Buttons id="ctrlbar"/>		
+</MDIWindow>

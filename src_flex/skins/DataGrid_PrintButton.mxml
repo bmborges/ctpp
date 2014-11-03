@@ -1,0 +1,135 @@
+<?xml version="1.0" encoding="utf-8"?>
+<mx:Canvas  xmlns:fx="http://ns.adobe.com/mxml/2009" 
+			xmlns:s="library://ns.adobe.com/flex/spark" 
+			xmlns:mx="library://ns.adobe.com/flex/mx" width="100%" height="100%">
+	<fx:Declarations>
+		<!-- Place non-visual elements (e.g., services, value objects) here -->
+	</fx:Declarations>	
+	<fx:Script>
+		<![CDATA[
+			import classes.Util;
+			import classes.UtilRetornoBanco;
+			
+			import frm.FormPrintView;
+			
+			import mx.collections.ArrayCollection;
+			import mx.controls.dataGridClasses.DataGridColumn;
+			import mx.core.FlexGlobals;
+			import mx.formatters.DateFormatter;
+			import mx.printing.FlexPrintJob;
+			import mx.printing.FlexPrintJobScaleType;
+			import mx.rpc.events.FaultEvent;
+			import mx.rpc.events.ResultEvent;
+			
+			import service.view.View_Field_TabelaService;
+			
+			import vo.view.View_Field_TabelaVO;
+			
+			public var tabela:String;
+			private var retorno:UtilRetornoBanco;
+			private var util:Util = new Util();
+			private var ar:ArrayCollection;
+			private var i:int;
+
+			private function doPrint(event:MouseEvent):void { 
+//				// Create an instance of the FlexPrintJob class. 
+//				var printJob:FlexPrintJob = new FlexPrintJob(); 
+//				// Start the print job. 
+//				if (printJob.start() != true) return; 
+//				// Add the object to print. Do not scale it. 
+//				printJob.addObject(this.datagrid, FlexPrintJobScaleType.NONE); 
+//				// Send the job to the printer. 
+//				printJob.send(); 
+				
+				var printJob : FlexPrintJob = new FlexPrintJob();
+				var thePrintView : FormPrintView = new FormPrintView();
+				
+				FlexGlobals.topLevelApplication.addElement(thePrintView);
+				
+				if(printJob.start() != true)
+					return;
+				
+				//Set the print view properties.
+				thePrintView.width=printJob.pageWidth;
+				thePrintView.height=printJob.pageHeight;
+				
+				thePrintView.printableDataGrid.dataProvider = datagrid.dataProvider;
+				thePrintView.printableDataGrid.columns = datagrid.columns ;
+				
+				printJob.addObject(thePrintView);
+				
+				printJob.send();
+				
+				FlexGlobals.topLevelApplication.removeElement(thePrintView);				
+				
+			} 
+			
+			public function Pesquisar(tabela:String):void{
+				
+				datagrid.columns = new Array;
+				
+				var view_tabelaVO:View_Field_TabelaVO = new View_Field_TabelaVO;
+				var ro_viewtabela:View_Field_TabelaService = View_Field_TabelaService.getInstance();
+				this.tabela = tabela;
+				view_tabelaVO.relname = tabela;
+				
+				var where:Array = ["description is not null"]
+				ro_viewtabela.select(view_tabelaVO,cbResult,defaultFaultHandler,where,null);
+			}
+			private function cbResult(e:ResultEvent):void{
+				
+				ar = e.result as ArrayCollection;
+				var cols:Array = datagrid.columns;
+				
+				for (i = 0; i < ar.length; i++) 
+				{
+					var dgc:DataGridColumn = new DataGridColumn;
+					dgc.headerText = ar[i]['description'];
+					dgc.dataField = ar[i]['attname'];
+					
+					if(ar[i]['description'].indexOf("Id.") >= 0){
+						dgc.width = 80;
+					}
+					
+					if (ar[i]['typname'] == "timestamp"){
+						dgc.labelFunction = lbfunction_dt;
+					}
+					if (ar[i]['attname'] == "id_ativo"){
+//						dgc.labelFunction = lf_ativo;
+						//					} else if (ar[i]['attname'] == "id_cargo" && tabela != "adm_cargo"){
+						//						dgc.labelFunction = lf_cargo;
+						//					} else if (ar[i]['attname'] == "dt_acesso"){
+						//						dgc.labelFunction = lf_dtacesso;
+						//					} else if (ar[i]['attname'] == "id_operador" && tabela != "adm_operador"){
+						//						dgc.labelFunction = lf_operador;
+					}
+					
+					cols.push(dgc);
+				}
+				datagrid.columns = cols;
+				
+				
+			}
+			protected function lbfunction_dt(item:Object, column:DataGridColumn):String{
+				var df:DateFormatter = new DateFormatter();
+				df.formatString = "DD/MM/YYYY";
+				
+				return df.format(item[column.dataField]);
+			}
+			private function defaultFaultHandler(e:FaultEvent):void{
+				this.enabled = true;
+				retorno = new UtilRetornoBanco;
+				retorno.RetornoBanco(e);
+			}
+			
+			
+		]]>
+	</fx:Script>
+	<mx:VBox width="100%" height="100%">
+		<mx:DataGrid id="datagrid" width="100%" height="100%"/>
+		<mx:HBox horizontalAlign="right" width="100%">
+			<s:Button width="30" toolTip="Imprime Grid" styleName="magnifyButton" click="doPrint(event)" visible="false"/>
+		</mx:HBox>
+	</mx:VBox>
+	
+</mx:Canvas>

@@ -1,0 +1,880 @@
+<?xml version="1.0" encoding="utf-8"?>
+<MDIWindow xmlns="flexmdi.containers.*" 
+		   xmlns:mx="http://www.adobe.com/2006/mxml" 
+		   width="910" height="472" title="Cadastro Turma" creationComplete="init()" 
+		   xmlns:controls="com.adobe.flex.extras.controls.*" xmlns:skins="skins.*">
+	<mx:Script>
+		<![CDATA[
+			import classes.*;
+			
+			import service.pdg.Pdg_DiarioService;
+			
+			import flash.events.Event;
+			import flash.events.MouseEvent;
+			import flash.sampler.NewObjectSample;
+			
+			import frm.crs.frm_geradiario;
+			
+			import mx.collections.ArrayCollection;
+			import mx.controls.Alert;
+			import mx.controls.Button;
+			import mx.controls.dataGridClasses.DataGridColumn;
+			import mx.core.FlexGlobals;
+			import mx.events.CloseEvent;
+			import mx.events.IndexChangedEvent;
+			import mx.managers.PopUpManager;
+			import mx.rpc.events.FaultEvent;
+			import mx.rpc.events.ResultEvent;
+			
+			import service.adm.Adm_DowService;
+			import service.adm.Adm_FeriasService;
+			import service.adm.Adm_OperadorService;
+			import service.crs.Crs_CursoService;
+			import service.crs.Crs_SalaService;
+			import service.crs.Crs_TurmaEduService;
+			import service.crs.Crs_TurmaHorService;
+			import service.crs.Crs_TurmaService;
+			import service.crs.Crs_TurmaStatusService;
+			import service.pdg.Pdg_DiarioStatusService;
+			import service.view.View_Crs_TurmaEduService;
+			import service.view.View_Crs_TurmaHorService;
+			
+			import vo.adm.Adm_DowVO;
+			import vo.adm.Adm_FeriasVO;
+			import vo.adm.SystemVO;
+			import vo.crs.Crs_SalaVO;
+			import vo.crs.Crs_TurmaEduVO;
+			import vo.crs.Crs_TurmaHorVO;
+			import vo.crs.Crs_TurmaVO;
+			import vo.pdg.Pdg_DiarioVO;
+			import vo.view.View_Crs_TurmaEduVO;
+			import vo.view.View_Crs_TurmaHorVO;
+			
+			
+			[Bindable] public var ArrayDOW:ArrayCollection;
+			[Bindable] public var ArrayOperador:ArrayCollection;
+			[Bindable] public var ArrayDStatus:ArrayCollection;
+			[Bindable] public var ArrayMateria_Hor:ArrayCollection;
+			[Bindable] public var ArrayMateria_Edu:ArrayCollection;
+			[Bindable] public var ArraySala:ArrayCollection;
+			[Bindable] public var ArrayCurso:ArrayCollection;
+			[Bindable] public var ArrayTurmaStatus:ArrayCollection;
+			[Bindable] private var isValid:Boolean = false;
+			
+			private var systemvo:SystemVO = SystemVO.getInstance();
+			public var util:Util = new Util();
+			private var retorno:UtilRetornoBanco;
+			private var ro_turma:Crs_TurmaService = Crs_TurmaService.getInstance();
+			private var ro_turmahor:Crs_TurmaHorService = Crs_TurmaHorService.getInstance();
+			private var ro_turmaedu:Crs_TurmaEduService = Crs_TurmaEduService.getInstance();
+			private var ro_ferias:Adm_FeriasService = Adm_FeriasService.getInstance();
+			private var ro_curso:Crs_CursoService = Crs_CursoService.getInstance();
+			private var ro_operador:Adm_OperadorService = Adm_OperadorService.getInstance();
+			private var ro_sala:Crs_SalaService = Crs_SalaService.getInstance();
+			private var ro_dow:Adm_DowService = Adm_DowService.getInstance();
+			private var ro_turmastatus:Crs_TurmaStatusService = Crs_TurmaStatusService.getInstance();
+			private var ro_viewturmahor:View_Crs_TurmaHorService = View_Crs_TurmaHorService.getInstance();
+			private var ro_viewturmaedu:View_Crs_TurmaEduService = View_Crs_TurmaEduService.getInstance();
+			private var ro_diariostatus:Pdg_DiarioStatusService = Pdg_DiarioStatusService.getInstance();
+			
+			private var view_turmahorVO:View_Crs_TurmaHorVO;
+			private var crs_turmaVO:Crs_TurmaVO;
+			private var crs_turmaeduVO:Crs_TurmaEduVO;
+			private var adm_feriasVO:Adm_FeriasVO;
+			private var crs_turmahorVO:Crs_TurmaHorVO;
+			private var crs_salaVO:Crs_SalaVO;
+			private var adm_dowVO:Adm_DowVO;
+			private var view_turmaeduVO:View_Crs_TurmaEduVO;
+			
+			private var vScroll:Number = 0;
+			
+			private function initButtons():void{
+				ctrlbar.removeAllChildren();
+				
+				if (accordion_turma.selectedIndex == 0){
+					// turma
+					ctrlbar.addChildAt(ctrlbar.bt_pesquisar,0);
+					ctrlbar.addChildAt(ctrlbar.bt_inserir,1);
+					ctrlbar.addChildAt(ctrlbar.bt_alterar,2);
+					ctrlbar.addChildAt(ctrlbar.bt_excluir,3);
+					ctrlbar.addChildAt(ctrlbar.bt_limpar,4);
+					
+				} else if (accordion_turma.selectedIndex == 1){
+					//horario
+					ctrlbar.addChildAt(ctrlbar.bt_pesquisar,0);
+					ctrlbar.addChildAt(ctrlbar.bt_inserir,1);
+					ctrlbar.addChildAt(ctrlbar.bt_alterar,2);
+					ctrlbar.addChildAt(ctrlbar.bt_excluir,3);
+					ctrlbar.addChildAt(ctrlbar.bt_limpar,4);
+					
+				} else if (accordion_turma.selectedIndex == 2){
+					//educador
+					ctrlbar.addChildAt(ctrlbar.bt_inserir,0);
+					ctrlbar.addChildAt(ctrlbar.bt_alterar,1);
+					ctrlbar.addChildAt(ctrlbar.bt_executar,2);
+					ctrlbar.bt_executar.label = "Gerar Diário";
+					ctrlbar.addChildAt(ctrlbar.bt_limpar,3);
+					
+				} else if (accordion_turma.selectedIndex == 3){
+					//alunos
+				} else if (accordion_turma.selectedIndex == 4){
+					//ferias
+					ctrlbar.addChildAt(ctrlbar.bt_pesquisar,0);
+					ctrlbar.addChildAt(ctrlbar.bt_inserir,1);
+					ctrlbar.addChildAt(ctrlbar.bt_alterar,2);
+					ctrlbar.addChildAt(ctrlbar.bt_excluir,3);
+					ctrlbar.addChildAt(ctrlbar.bt_limpar,4);
+				}
+			}
+			private function init():void{
+				
+				this.width = FlexGlobals.topLevelApplication.mdiCanvas.width;
+				this.height = FlexGlobals.topLevelApplication.mdiCanvas.height;
+				
+				this.x = 0;
+				this.y = 0;
+				
+				initButtons();
+				
+				ctrlbar.bt_pesquisar.addEventListener(MouseEvent.CLICK,selecionar);
+				ctrlbar.bt_inserir.addEventListener(MouseEvent.CLICK,inserir);
+				ctrlbar.bt_alterar.addEventListener(MouseEvent.CLICK,alterar);
+				ctrlbar.bt_excluir.addEventListener(MouseEvent.CLICK,deletar);
+				ctrlbar.bt_limpar.addEventListener(MouseEvent.CLICK,limpar);
+				ctrlbar.bt_executar.addEventListener(MouseEvent.CLICK,pdg_criadiario);
+				
+				ro_curso.ComboBox("nmcurso","id_curso",createArrayCurso,defaultFaultHandler);
+				ro_sala.ComboBox("nmsala","id_sala",createArraysala,defaultFaultHandler);
+				ro_dow.ComboBox("nmdia","id_dow",createArraydow,defaultFaultHandler);
+				ro_turmastatus.ComboBox("nmstatus","status", createArrayTurmaStatus,defaultFaultHandler);
+				
+			}
+
+			private function accordioncomplete(e:IndexChangedEvent):void{
+				var currentIndex:int=e.newIndex;
+				initButtons();
+				if (currentIndex == 0){
+//					selecionar(e);
+					this.title = "Cadastro Turma";
+				}else if (currentIndex == 1){
+					this.title = "Turma: " + txtid_turma.text+" - "+txtnmturma.text;
+					ro_curso.CursoMateria(txtid_curso.txt_id.text,createcomboxcursomateria,defaultFaultHandler);
+					limpar(e);
+					selecionar(e);
+				}else if (currentIndex == 2){
+					this.title = "Turma: " + txtid_turma.text+" - "+txtnmturma.text;
+					ro_operador.Adm_OperadorSemAluno(createcomboxeducador,defaultFaultHandler);
+					ro_curso.CursoMateria(txtid_curso.txt_id.text,createcomboxcursomateria,defaultFaultHandler);
+					ro_diariostatus.ComboBox("nmstatus","id_status",createArrayDStatus,defaultFaultHandler);
+					limpar(e);
+					selecionar(e);
+				}else if (currentIndex == 3){
+					this.title = "Turma: " + txtid_turma.text+" - "+txtnmturma.text;
+					selecionar(e);
+				}else if (currentIndex == 4){
+					this.title = "Turma: " + txtid_turma.text+" - "+txtnmturma.text;
+					limpar(e);
+					selecionar(e);
+				}
+			}
+			private function createDataGrid(e:ResultEvent):void{
+				this.enabled = true;
+				if (accordion_turma.selectedIndex == 0){
+					dg_turma.dataProvider = e.result;
+				}else if (accordion_turma.selectedIndex == 1){
+					dg_horario.dataProvider = e.result;
+				}else if (accordion_turma.selectedIndex == 2){
+					dg_educador.dataProvider = e.result;
+					if (vScroll > 0){
+						dg_educador.verticalScrollPosition = vScroll;
+					}
+				}else if (accordion_turma.selectedIndex == 3){
+					dg_aluno.dataProvider = e.result
+				}else if (accordion_turma.selectedIndex == 4){
+					dg_ferias.dataProvider = e.result
+				}
+				vScroll = 0;
+			}
+			private function createArrayCurso(e:ResultEvent):void{
+				ArrayCurso = e.result as ArrayCollection;
+			}
+			private function createArrayDStatus(e:ResultEvent):void{
+				ArrayDStatus = e.result as ArrayCollection;
+			}	
+			private function createcomboxeducador(event:ResultEvent):void{
+				cbeducador.dataProvider = event.result as ArrayCollection;
+				ArrayOperador = event.result as ArrayCollection;
+			}
+			private function createcomboxcursomateria(event:ResultEvent):void{
+				cbcursomateriahor.dataProvider = event.result as ArrayCollection;
+				cbcursomateriaedu.dataProvider = event.result as ArrayCollection;
+				ArrayMateria_Edu = event.result as ArrayCollection;
+				ArrayMateria_Hor = event.result as ArrayCollection;
+			}
+			private function createArraydow(event:ResultEvent):void{
+				cbdiasemana.dataProvider = event.result as ArrayCollection;
+				ArrayDOW = event.result as ArrayCollection;;
+			}
+			private function createArrayTurmaStatus(event:ResultEvent):void{
+				cbturmastatus.dataProvider = event.result as ArrayCollection;
+				ArrayTurmaStatus = event.result as ArrayCollection;;
+			}
+			private function createArraysala(event:ResultEvent):void{
+				cbsala.dataProvider = event.result as ArrayCollection;
+				ArraySala = event.result as ArrayCollection;;
+			}
+			private function crs_dttermino_turma(e:Event):void{
+				//	r_statement.crs_dttermino_turma(parseInt(txtid_turma.text),createDataGrid);
+				mensagem_horario.text = UtilMensagens.OperacaoRealizadaSucesso;
+			}
+			private function pdg_criadiario(e:Event):void{
+				
+				var gdiario:frm_geradiario = new frm_geradiario();
+				
+				gdiario = PopUpManager.createPopUp(this,frm_geradiario,true) as frm_geradiario;
+				PopUpManager.centerPopUp(gdiario);
+				gdiario.id_turma = parseInt(txtid_turma.text);
+				gdiario.cbmodulo_diario(txtid_turma.text);
+				gdiario.addEventListener(CloseEvent.CLOSE,fechageradiario);
+				
+			}
+			protected function fechageradiario(event:CloseEvent):void{
+				selecionar(event);
+			}
+
+
+			protected function labeldtformat_dtinicio(item:Object, column:DataGridColumn):String
+			{
+				return util.formatData_DDMMYYYY(item.dt_inicial);
+			}
+			protected function labeldtformat_dtfinal(item:Object, column:DataGridColumn):String
+			{
+				return util.formatData_DDMMYYYY(item.dt_final);
+			}
+			protected function labelhrformat_hrinicio(item:Object, column:DataGridColumn):String
+			{
+				return util.formatHora(item.hr_inicio);
+			}
+			protected function labelhrformat_hrtermino(item:Object, column:DataGridColumn):String
+			{
+				return util.formatHora(item.hr_termino);
+			}
+			protected function labeldtformat_dtferiado(item:Object, column:DataGridColumn):String
+			{
+				return util.formatData_DDMMYYYY(item.dt_feriado);	
+			}
+			protected function labeldtformat_dtfinalfim(item:Object, column:DataGridColumn):String
+			{
+				return util.formatData_DDMMYYYY(item.dt_final_fim);	
+			}
+			protected function labeldtformat_dtiniciofim(item:Object, column:DataGridColumn):String
+			{
+				return util.formatData_DDMMYYYY(item.dt_inicio_fim);	
+			}
+			protected function lf_dtinicio(item:Object, column:DataGridColumn):String
+			{
+				return util.formatData_DDMMYYYY(item.dt_inicio);	
+			}
+			protected function labeldtformat_dtiniciomeio(item:Object, column:DataGridColumn):String
+			{
+				return util.formatData_DDMMYYYY(item.dt_inicio_meio);	
+			}
+			protected function labeldtformat_dtfinalmeio(item:Object, column:DataGridColumn):String
+			{
+				return util.formatData_DDMMYYYY(item.dt_final_meio);	
+			}
+			protected function lf_dtcadastro(item:Object, column:DataGridColumn):String
+			{
+				return util.formatData_DDMMYYYY(item.dt_cadastro);	
+			}
+			protected function lf_iddiario(item:Object, column:DataGridColumn):String
+			{
+				if (item.id_diario == 0){
+					return "";
+				}
+				return item.id_diario;
+			}
+			protected function lf_status(item:Object, column:DataGridColumn):String{
+				var retorno:Object = util.selecionarCombobox(item.status,ArrayTurmaStatus);
+				return retorno.label;
+			}
+			private function inserir(e:Event):void{
+				if (accordion_turma.selectedIndex == 0){
+					isValid = util.validateForm(form_turmaa);
+					isValid = util.validateForm(form_turmab) && isValid;
+					if (!isValid){
+						mensagem_turma.text = UtilMensagens.PreenchaCampo;
+					} else {
+						popula_turma(1);
+						ro_turma.inserir(crs_turmaVO,inserirResult,defaultFaultHandler)
+					}
+				} else if (accordion_turma.selectedIndex == 1){
+					isValid = util.validateForm(form_horarioa);
+					isValid = util.validateForm(form_horariob) && isValid;
+					if (!isValid){
+						mensagem_horario.text = UtilMensagens.PreenchaCampo;
+					} else {
+						popula_horario();
+						crs_turmahorVO.id_operador = systemvo.id_operador;
+						ro_turmahor.inserir(crs_turmahorVO,inserirResult,defaultFaultHandler);
+					}
+				}  else if (accordion_turma.selectedIndex == 2){
+					isValid = util.validateForm(form_educadora);
+					if (!isValid){
+						mensagem_horario.text = UtilMensagens.PreenchaCampo;
+					} else {
+						popula_educador();
+						ro_turmaedu.inserir(crs_turmaeduVO,inserirResult,defaultFaultHandler);
+					}
+				} else if (accordion_turma.selectedIndex == 4){
+					isValid = util.validateForm(form_feriasa);
+					isValid = util.validateForm(form_feriasb) && isValid;
+					if (!isValid){
+						mensagem_ferias.text = UtilMensagens.PreenchaCampo;
+					} else {
+						popula_ferias();
+						ro_ferias.inserir(adm_feriasVO,inserirResult,defaultFaultHandler);
+					}
+				}
+			} 				
+			private function inserirResult(e:ResultEvent):void{
+				if (accordion_turma.selectedIndex == 0){
+					txtid_turma.text = e.result.toString();
+					selecionar(e);
+				} else if (accordion_turma.selectedIndex == 1){
+					selecionar(e);
+				} else if (accordion_turma.selectedIndex == 2){
+					selecionar(e);
+				} else if (accordion_turma.selectedIndex == 3){
+				} else if (accordion_turma.selectedIndex == 4){
+					txtid_ferias.text = e.result.toString();
+					selecionar(e);
+				}
+			}
+			private function alterar(e:Event):void{
+				if (accordion_turma.selectedIndex == 0){
+					isValid = util.validateForm(form_turmaa);
+					isValid = util.validateForm(form_turmab) && isValid;
+					if (!isValid){
+						mensagem_turma.text = UtilMensagens.PreenchaCampo;			
+					} else {
+						popula_turma(1);
+						ro_turma.atualizar(crs_turmaVO,alterarResult,defaultFaultHandler);
+					}
+				} else if (accordion_turma.selectedIndex == 1){
+					isValid = util.validateForm(form_horarioa);
+					isValid = util.validateForm(form_horariob) && isValid;
+					if (!isValid){
+						mensagem_horario.text = UtilMensagens.PreenchaCampo;			
+					} else {
+						popula_horario();
+						crs_turmahorVO.id_operador = systemvo.id_operador;
+						ro_turmahor.atualizar(crs_turmahorVO,alterarResult,defaultFaultHandler);
+						limpar(e);
+					}	
+				} else if (accordion_turma.selectedIndex == 2){
+					isValid = util.validateForm(form_educadora);
+					if (!isValid){
+						mensagem_educador.text = UtilMensagens.PreenchaCampo;			
+					} else {
+						popula_educador();
+						ro_turmaedu.atualizar(crs_turmaeduVO,alterarResult,defaultFaultHandler);
+					}
+				} else if (accordion_turma.selectedIndex == 3){
+				} else if (accordion_turma.selectedIndex == 4){
+					isValid = util.validateForm(form_feriasa);
+					isValid = util.validateForm(form_feriasb) && isValid; 
+					if (!isValid){
+						mensagem_ferias.text = UtilMensagens.PreenchaCampo;			
+					} else {
+						popula_ferias();
+						ro_ferias.atualizar(adm_feriasVO,alterarResult,defaultFaultHandler);
+					}
+				}
+			}
+			private function alterarResult(e:ResultEvent):void{
+				if (accordion_turma.selectedIndex == 0){
+					dg_turma.dataProvider = e.result;
+				} else if (accordion_turma.selectedIndex == 1){
+					selecionar(e);
+				} else if (accordion_turma.selectedIndex == 2){
+					limpar(e);
+				} else if (accordion_turma.selectedIndex == 3){
+				} else if (accordion_turma.selectedIndex == 4){
+					dg_ferias.dataProvider = e.result;
+				}
+			}
+			public function deletar(e:Event):void{
+				if (accordion_turma.selectedIndex == 0){
+					isValid = util.validateForm(form_turmaa);
+					isValid = util.validateForm(form_turmab) && isValid;
+					if (!isValid){
+						mensagem_turma.text = UtilMensagens.PreenchaCampo;			
+					} else {
+						popula_turma(1);
+						ro_turma.deletar(crs_turmaVO,deletarResult,defaultFaultHandler);
+					}
+				} else if (accordion_turma.selectedIndex == 1){
+					isValid = util.validateForm(form_horarioa);
+					isValid = util.validateForm(form_horariob) && isValid;
+					if (!isValid){
+						mensagem_horario.text = UtilMensagens.PreenchaCampo;			
+					} else {
+						popula_horario();
+						ro_turmahor.deletar(crs_turmahorVO,deletarResult,defaultFaultHandler);
+					}	
+				} else if (accordion_turma.selectedIndex == 2){
+					isValid = util.validateForm(form_educadora);
+					if (!isValid){
+						mensagem_educador.text = UtilMensagens.PreenchaCampo;			
+					} else {
+						popula_educador();
+						ro_turmaedu.deletar(crs_turmaeduVO,deletarResult,defaultFaultHandler);
+					}
+				} else if (accordion_turma.selectedIndex == 3){
+				} else if (accordion_turma.selectedIndex == 4){
+					isValid = util.validateForm(form_feriasa);
+					isValid = util.validateForm(form_feriasb) && isValid; 
+					if (!isValid){
+						mensagem_ferias.text = UtilMensagens.PreenchaCampo;			
+					} else {
+						popula_ferias();
+						ro_ferias.deletar(adm_feriasVO,deletarResult,defaultFaultHandler);
+					}
+				}
+			}
+			public function deletarResult(e:ResultEvent):void{
+				limpar(e);
+				selecionar(e);
+			}
+			private function popula_turma(tipo:int):void{
+				crs_turmaVO = new Crs_TurmaVO();
+				crs_turmaVO.id_turma = txtid_turma.text.length <= 0 ? null : txtid_turma.text;
+				crs_turmaVO.nmturma = txtnmturma.text.length <= 0 ? null : txtnmturma.text.toUpperCase();
+				crs_turmaVO.id_curso = txtid_curso.txt_id.text.length <= 0 ? null : txtid_curso.txt_id.text;
+				crs_turmaVO.dt_inicial = txtdtinicio.selectedDate ? txtdtinicio.selectedDate : null;
+				crs_turmaVO.dt_final = txtdtfinal.selectedDate ? txtdtfinal.selectedDate : null;
+				crs_turmaVO.status = cbturmastatus.selectedItem.data;
+				if (tipo == 1){
+					crs_turmaVO.id_operador = systemvo.id_operador;
+				}
+			}
+			private function popula_horario():void{
+				crs_turmahorVO = new Crs_TurmaHorVO();
+				crs_turmahorVO.id_turmahor = txtid_turmahor.text.length > 0 ? txtid_turmahor.text : null;
+				crs_turmahorVO.id_turma = txtid_turma.text;
+				
+					var data:Date;
+					var txt:Array = new Array();
+					
+					data = new Date();
+					txt = txthrinicio.text.split(":");
+					data.hours = txt[0];
+					data.minutes = txt[1];
+					crs_turmahorVO.hr_inicio = data;
+
+					data = new Date();
+					txt = txthrtermino.text.split(":");
+					data.hours = txt[0];
+					data.minutes = txt[1];
+					crs_turmahorVO.hr_termino = data;
+					
+					crs_turmahorVO.id_dow = cbdiasemana.selectedItem.data;
+					crs_turmahorVO.id_cursomateria = cbcursomateriahor.selectedItem.data;
+					crs_turmahorVO.id_sala = cbsala.selectedIndex > 0 ? cbsala.selectedItem.data: null;
+					
+			}
+			private function popula_educador():void{
+				crs_turmaeduVO = new Crs_TurmaEduVO();
+				crs_turmaeduVO.id_turma = txtid_turma.text;
+				crs_turmaeduVO.id_operador = cbeducador.selectedItem ? cbeducador.selectedItem.data : null;
+				crs_turmaeduVO.id_cursomateria = cbcursomateriaedu.selectedItem ? cbcursomateriaedu.selectedItem.data : null;
+				crs_turmaeduVO.id_turmaedu = dg_educador.selectedItem ? dg_educador.selectedItem.id_turmaedu : null;
+			}
+			private function popula_ferias():void{
+				adm_feriasVO = new Adm_FeriasVO();
+				adm_feriasVO.id_ferias = txtid_ferias.text.length <= 0 ? null : txtid_ferias.text;
+				adm_feriasVO.ano = txtano.text;
+				adm_feriasVO.dt_inicio_meio = txtiniciomeio.selectedDate;
+				adm_feriasVO.dt_final_meio = txtfinalmeio.selectedDate;
+				adm_feriasVO.dt_inicio_fim = txtinicioano.selectedDate;
+				adm_feriasVO.dt_final_fim = txtfinalano.selectedDate;
+				adm_feriasVO.id_turma = txtid_turma.text;
+			}                
+			public function selecionar(e:Event):void{
+				this.enabled = false;
+				var order:Array;
+				if (accordion_turma.selectedIndex == 0){
+					popula_turma(0);
+					order = ["id_turma"];
+					ro_turma.select(crs_turmaVO,createDataGrid,defaultFaultHandler,null,order);
+				} else if (accordion_turma.selectedIndex == 1){
+					view_turmahorVO = new View_Crs_TurmaHorVO;
+					view_turmahorVO.id_turma = txtid_turma.text;
+					
+					ro_viewturmahor.select(view_turmahorVO,createDataGrid,defaultFaultHandler,null,null);
+				} else if (accordion_turma.selectedIndex == 2){
+					view_turmaeduVO = new View_Crs_TurmaEduVO;
+					view_turmaeduVO.id_turma = txtid_turma.text;
+					
+					ro_viewturmaedu.select(view_turmaeduVO,createDataGrid,defaultFaultHandler,null,null);
+				} else if (accordion_turma.selectedIndex == 3){
+					//			remote.selectTable_turmaalu(parseInt(txtid_turma.text),createDataGrid);
+				} else if (accordion_turma.selectedIndex == 4){
+					popula_ferias();
+					var where:Array = ["id_turma = " + txtid_turma.text];
+					order = ["ano desc"];
+					ro_ferias.select(adm_feriasVO,createDataGrid,defaultFaultHandler,where,order);
+				}
+				
+			}
+			public function limpar(e:Event):void{
+				if (accordion_turma.selectedIndex == 0){
+					util.limpar_formulario(form_turmaa);
+					util.limpar_formulario(form_turmab);
+					util.limpar_formulario(form_horarioa);
+					util.limpar_formulario(form_horariob);
+					util.limpar_formulario(form_educadora);
+					
+					dg_turma.dataProvider = null;
+					dg_horario.dataProvider = null;
+					dg_educador.dataProvider = null;
+					dg_aluno.dataProvider = null;
+					
+					mensagem_turma.text = ''
+				} else if (accordion_turma.selectedIndex == 1){
+					util.limpar_formulario(form_horarioa);
+					util.limpar_formulario(form_horariob);
+					
+					mensagem_horario.text = '';
+				} else if (accordion_turma.selectedIndex == 2){
+					util.limpar_formulario(form_educadora);
+					
+					mensagem_educador.text = '';
+					selecionar(e);
+				} else if (accordion_turma.selectedIndex == 4){
+					
+					util.limpar_formulario(form_feriasa);
+					util.limpar_formulario(form_feriasb);
+					mensagem_ferias.text = null;
+					dg_ferias.dataProvider = null;
+				}
+			}
+			public function setcampos(e:Event):void{
+				if (accordion_turma.selectedIndex == 0){
+					txtid_turma.text = dg_turma.selectedItem.id_turma;
+					txtnmturma.text = dg_turma.selectedItem.nmturma;
+					txtid_curso.txt_id.text = dg_turma.selectedItem.id_curso;
+					var obj:Object = util.selecionarCombobox(dg_turma.selectedItem.id_curso,ArrayCurso);
+					txtid_curso.txt_nome.text =  obj.label;
+					txtdtinicio.selectedDate = dg_turma.selectedItem.dt_inicial;
+					txtdtfinal.selectedDate = dg_turma.selectedItem.dt_final ;
+					cbturmastatus.selectedItem = util.selecionarCombobox(dg_turma.selectedItem.status,ArrayTurmaStatus);
+					
+					
+				}else if (accordion_turma.selectedIndex == 1 ){
+					txtid_turmahor.text = dg_horario.selectedItem.id_turmahor;
+					txthrinicio.text = dg_horario.selectedItem.hr_inicio ? util.doubleDigitFormat(dg_horario.selectedItem.hr_inicio.hours)+":"+util.doubleDigitFormat(dg_horario.selectedItem.hr_inicio.minutes) : "";
+					txthrtermino.text = dg_horario.selectedItem.hr_termino ? util.doubleDigitFormat(dg_horario.selectedItem.hr_termino.hours)+":"+util.doubleDigitFormat(dg_horario.selectedItem.hr_termino.minutes) : "";
+					cbdiasemana.selectedItem = util.selecionarCombobox(dg_horario.selectedItem.id_dow,ArrayDOW);
+					
+					if (dg_horario.selectedItem.id_sala > 0){
+						cbsala.selectedIndex = 0;
+					} else {
+						cbsala.selectedItem = util.selecionarCombobox(dg_horario.selectedItem.id_sala,ArraySala);
+					}
+					
+					cbcursomateriahor.selectedItem = util.selecionarCombobox(dg_horario.selectedItem.id_cursomateria,ArrayMateria_Hor);
+					
+				} else if (accordion_turma.selectedIndex == 2){
+					cbeducador.selectedItem = util.selecionarCombobox(dg_educador.selectedItem.id_operador,ArrayOperador);
+					cbcursomateriaedu.selectedItem = util.selecionarCombobox(dg_educador.selectedItem.id_cursomateria,ArrayMateria_Edu);
+				} else if (accordion_turma.selectedIndex == 4){
+					//		txtid_ferias.text = dg_ferias.selectedItem.id_ferias;
+					//		txtano.text = dg_ferias.selectedItem.ano;
+					//		txtinicioano.text = (dg_ferias.selectedItem.dt_inicio_fim ? util.formatData(dg_ferias.selectedItem.dt_inicio_fim) : "");
+					//		txtiniciomeio.text = (dg_ferias.selectedItem.dt_inicio_meio ? util.formatData(dg_ferias.selectedItem.dt_inicio_meio) : "");
+					//		txtfinalano.text = (dg_ferias.selectedItem.dt_final_fim ? util.formatData(dg_ferias.selectedItem.dt_final_fim) : "");
+					//		txtfinalmeio.text = (dg_ferias.selectedItem.dt_final_meio ? util.formatData(dg_ferias.selectedItem.dt_final_meio) : "");
+				}
+			}
+			private function defaultFaultHandler(e:FaultEvent):void{
+				this.enabled = true;
+				retorno = new UtilRetornoBanco;
+				retorno.RetornoBanco(e);
+				if (accordion_turma.selectedIndex == 0){
+					mensagem_turma.text = "";
+				} else if (accordion_turma.selectedIndex == 1){
+					mensagem_horario.text = "";
+				} else if (accordion_turma.selectedIndex == 2){
+					mensagem_educador.text = "";
+				} else if (accordion_turma.selectedIndex == 3){
+					mensagem_ferias.text = "";
+				}
+				
+			}      
+			public function atualiza_status(id_diario:int,cb:mx.controls.ComboBox):void{
+				
+				if (cb.selectedIndex > 0) {
+					this.enabled = false;
+					
+					vScroll = dg_educador.verticalScrollPosition;
+					
+					var pdg_diarioVO:Pdg_DiarioVO = new Pdg_DiarioVO;
+					var ro_diario:Pdg_DiarioService = Pdg_DiarioService.getInstance();
+					
+					pdg_diarioVO.id_diario = id_diario;
+					pdg_diarioVO.id_status = cb.selectedItem.data;
+					
+					ro_diario.atualizar2(pdg_diarioVO,statusResult,defaultFaultHandler);
+				}
+			}			
+			private function statusResult(e:ResultEvent):void{
+				this.enabled = true;
+				selecionar(e);
+			}
+			
+			public function atualiza_data(id_diario:int,df:DateField_Data):void{
+				
+				if (df.selectedDate != null) {
+					this.enabled = false;
+					
+					vScroll = dg_educador.verticalScrollPosition;
+					
+					var pdg_diarioVO:Pdg_DiarioVO = new Pdg_DiarioVO;
+					var ro_diario:Pdg_DiarioService = Pdg_DiarioService.getInstance();
+					
+					pdg_diarioVO.id_diario = id_diario;
+					pdg_diarioVO.dt_inicio = df.selectedDate;
+					
+					ro_diario.atualizar2(pdg_diarioVO,statusResult,defaultFaultHandler);
+				}
+			}	
+			public function ImpDiario(id_diario:int):void{
+				mensagem_educador.text = UtilMensagens.RelatorioGerando;
+				this.enabled = false;
+				
+				var map:Object = new Object();
+				map.p_iddiarioini = id_diario;
+				map.p_iddiariofin = id_diario;
+				map.p_idturmaini = "0";
+				map.p_idturmafin = "99999999";
+				map.p_idoperadorini = "0";
+				map.p_idoperadorfin = "99999999";
+				map.p_bimestre = null;
+				map.nmoperador = systemvo.nickname;
+				ro_turma.Report(map,"PDF","Rpt_Diario","pdg",imprimeResult,defaultFaultHandler);
+				
+			}
+			public function imprimeResult(e:ResultEvent):void{
+				this.enabled = true;
+				mensagem_educador.text = UtilMensagens.RelatorioGerado;
+				util.abrepdf(e.result[0]['destinationUrl']);
+			}
+
+
+		]]>
+	</mx:Script>
+     <mx:TabNavigator id="accordion_turma" width="100%" height="100%" change="accordioncomplete(event)" creationPolicy="all">
+    	<mx:Canvas id="c_turma" label="Turma" width="100%" height="100%">
+    		<mx:VBox width="100%" height="100%">
+				<mx:Label width="100%" id="mensagem_turma" text="" styleName="lblerro"/>
+				<mx:HBox width="100%" height="40%">
+					<mx:Form id="form_turmaa" width="50%" height="100%">
+						<mx:FormItem label="Id.:">
+							<mx:TextInput id="txtid_turma" editable="false"/>
+						</mx:FormItem>
+						<mx:FormItem label="Nome Turma:">
+							<skins:TextInput_Maiusculo id="txtnmturma"/>
+						</mx:FormItem>
+						<mx:FormItem label="Dt. Inicio:" required="true">
+							<skins:DateField_Data id="txtdtinicio"/>
+						</mx:FormItem>
+						<mx:FormItem label="Dt. Final:">
+							<skins:DateField_Data id="txtdtfinal"/>
+						</mx:FormItem>
+					</mx:Form>
+					<mx:Form id="form_turmab" width="50%" height="100%">
+						<mx:FormItem visible="false">
+							<mx:TextInput/>
+						</mx:FormItem>
+						<mx:FormItem label="Curso:" required="true" >
+							<skins:TextButtonText1 id="txtid_curso" tabela="crs_curso"/>
+						</mx:FormItem>
+						<mx:FormItem label="Status:" required="true">
+							<mx:ComboBox id="cbturmastatus" selectedIndex="0"/>	
+						</mx:FormItem>
+					</mx:Form>
+				</mx:HBox>
+				<mx:DataGrid width="100%" height="60%" id="dg_turma" focusEnabled="false" itemClick="setcampos(event)">
+					<mx:columns>
+						<mx:DataGridColumn width="60" dataField="id_turma" headerText="Id."  resizable="false"/>
+						<mx:DataGridColumn dataField="nmturma" headerText="Turma" resizable="false"/>
+						<mx:DataGridColumn dataField="dt_inicial" headerText="Dt. Inicio" resizable="false" labelFunction="labeldtformat_dtinicio"/>
+						<mx:DataGridColumn dataField="dt_final" headerText="Dt. Final" resizable="false" labelFunction="labeldtformat_dtfinal"/>
+						<mx:DataGridColumn dataField="dt_cadastro" headerText="Dt. Cadastro" resizable="false" labelFunction="lf_dtcadastro"/>
+						<mx:DataGridColumn dataField="status" headerText="Status" resizable="false" labelFunction="lf_status"/>
+					</mx:columns>
+				</mx:DataGrid>
+				
+			</mx:VBox>
+				
+		</mx:Canvas>
+    		<mx:Canvas id="c_horario" label="Horário(s)" width="100%" height="100%" enabled="{txtid_turma.text.length > 0 ? true : false}">
+    			<mx:VBox width="100%" height="100%">
+					<mx:Label width="100%" id="mensagem_horario" text="" styleName="lblerro"/>
+					<mx:HBox width="100%" height="30%">
+						<mx:Form id="form_horarioa" width="50%" height="100%">
+							<mx:FormItem label="Id.:" >
+								<mx:TextInput id="txtid_turmahor" width="70" editable="false"/>
+							</mx:FormItem>							
+							<mx:FormItem label="Horário Inicio:" required="true">
+								<skins:TextInput_Hora id="txthrinicio"/>
+							</mx:FormItem>
+							<mx:FormItem label="Horário Termino:" required="true">
+								<skins:TextInput_Hora id="txthrtermino"/>
+							</mx:FormItem>
+							<mx:FormItem label="Dia Semana:" required="true">
+								<mx:ComboBox id="cbdiasemana" prompt="Selecione..." selectedIndex="0"/>
+							</mx:FormItem>
+						</mx:Form>
+						<mx:Form id="form_horariob" width="50%" height="100%">
+								<mx:FormItem label="Matéria:" required="true">
+									<mx:ComboBox id="cbcursomateriahor" selectedIndex="0"/>
+								</mx:FormItem>							
+								<mx:FormItem label="Sala:">
+									<mx:ComboBox id="cbsala" selectedIndex="0"/>
+								</mx:FormItem>	
+						</mx:Form>
+					</mx:HBox>
+					<mx:DataGrid width="100%" height="70%" id="dg_horario" focusEnabled="false" itemClick="setcampos(event)">
+						<mx:columns>
+							<mx:DataGridColumn width="80" dataField="id_turmahor" headerText="Id."  resizable="false"/>
+							<mx:DataGridColumn headerText="Hr. Inicio" dataField="hr_inicio" labelFunction="labelhrformat_hrinicio"/>
+							<mx:DataGridColumn headerText="Hr. Termino" dataField="hr_termino" labelFunction="labelhrformat_hrtermino"/>
+							<mx:DataGridColumn headerText="Modulo" dataField="nmmodulo"/>
+							<mx:DataGridColumn headerText="Dia Semana" dataField="nmdia"/>
+							<mx:DataGridColumn headerText="Matéria" dataField="nmmateria"/>
+							<mx:DataGridColumn headerText="Sala" dataField="nmsala"/>
+							<mx:DataGridColumn headerText="Operador" dataField="nmoperador"/>
+						</mx:columns>
+					</mx:DataGrid>
+				</mx:VBox>
+				</mx:Canvas>
+	<mx:Canvas id="c_educador" label="Educador(es)" width="100%" height="100%" enabled="{txtid_turma.text.length > 0 ? true : false}">
+    	<mx:VBox width="100%" height="100%">
+			<mx:Label width="100%" id="mensagem_educador" text="" styleName="lblerro"/>
+			<mx:VBox width="100%" height="20%" horizontalAlign="center">
+				<mx:Form id="form_educadora" paddingTop="5" paddingBottom="5">
+					<mx:FormItem label="Educador:" required="true">
+						<mx:ComboBox id="cbeducador" selectedIndex="0"/>	
+					</mx:FormItem>
+					<mx:FormItem label="Matéria:" required="true">
+						<mx:ComboBox id="cbcursomateriaedu" selectedIndex="0"/>
+					</mx:FormItem>
+				</mx:Form> 
+			</mx:VBox>
+			<mx:DataGrid y="88" height="80%" width="100%" id="dg_educador" focusEnabled="false" itemClick="setcampos(event)">
+				<mx:columns>
+					<mx:DataGridColumn headerText="Excluir" width="60">
+						<mx:itemRenderer>
+							<mx:Component>
+								<mx:VBox horizontalAlign="center">
+									<mx:Image id="imgIcon"
+											  source="@Embed('./assets/icons/cancel.png')"
+											  width="16" height="16"
+											  scaleContent="true" maintainAspectRatio="false" buttonMode="true" click="parentDocument.deletar(event);"/>
+								</mx:VBox>
+							</mx:Component>
+						</mx:itemRenderer>
+					</mx:DataGridColumn>
+					<mx:DataGridColumn headerText="Imp. Diário" width="80">
+						<mx:itemRenderer>
+							<mx:Component>
+								<mx:VBox horizontalAlign="center">
+									<mx:Image visible="{data.id_diario > 0 ? true : false}" buttonMode="true" source="@Embed('/assets/icons/small-printer.png')" click="parentDocument.ImpDiario(data.id_diario)" />
+								</mx:VBox>
+							</mx:Component>
+						</mx:itemRenderer>
+					</mx:DataGridColumn>
+					<mx:DataGridColumn headerText="Id. Diário" dataField="id_diario" labelFunction="lf_iddiario"/>
+					<mx:DataGridColumn headerText="Nome" dataField="nmoperador" width="150"/>
+					<mx:DataGridColumn headerText="Matéria" dataField="nmmateria" width="150"/>
+					<mx:DataGridColumn headerText="Modulo" dataField="nmmodulo" width="150"/>
+					<!--<mx:DataGridColumn headerText="Data Inicio" dataField="dt_inicio" labelFunction="lf_dtinicio"/>-->
+					<mx:DataGridColumn headerText="Data Inicio" editable="true">
+						<mx:itemRenderer>
+							<mx:Component>
+								<mx:HBox horizontalAlign="center">
+									<skins:DateField_Data selectedDate="{data.dt_inicio}" id="data_diario" focusOut="parentDocument.atualiza_data(data.id_diario, data_diario)"/>
+								</mx:HBox>
+							</mx:Component>
+						</mx:itemRenderer>
+					</mx:DataGridColumn>
+
+					<mx:DataGridColumn headerText="Status" dataField="nmstatus" editable="false"/>
+					<mx:DataGridColumn headerText="Alterar Status" width="200" editable="false">
+						<mx:itemRenderer>
+							<mx:Component>
+								<mx:HBox horizontalAlign="center" verticalAlign="middle">
+									<mx:ComboBox dataProvider="{parentDocument.ArrayDStatus}" id="cb_status" change="parentDocument.atualiza_status(data.id_diario,cb_status); cb_status.selectedIndex = 0;" />
+								</mx:HBox>
+							</mx:Component>
+						</mx:itemRenderer>
+					</mx:DataGridColumn>
+				</mx:columns>
+			</mx:DataGrid>
+		</mx:VBox>
+    </mx:Canvas>
+	<mx:Canvas label="Aluno(s)" width="100%" height="100%" enabled="false">
+		<mx:DataGrid height="100%" width="100%" id="dg_aluno" focusEnabled="false">
+			<mx:columns>
+				<mx:DataGridColumn headerText="Id." dataField="id_aluno" width="60"/>
+				<mx:DataGridColumn headerText="Nome" dataField="nome"/>
+				<mx:DataGridColumn headerText="Telefone" dataField="numero"/>
+			</mx:columns>
+		</mx:DataGrid>
+	</mx:Canvas>
+		 <mx:Canvas id="c_ferias" label="Ferias" width="100%" height="100%" enabled="{txtid_turma.text.length > 0 ? true : false}">
+			 <mx:VBox width="100%" height="100%">
+				 <mx:Label width="100%" id="mensagem_ferias" text="" styleName="lblerro"/>
+				 <mx:HBox width="100%" height="40%">
+					 <mx:Form id="form_feriasa" width="50%" height="100%">
+						 <mx:FormItem label="Id.:" >
+							 <mx:TextInput id="txtid_ferias" width="70" editable="false"/>
+						 </mx:FormItem>
+						 <mx:FormItem label="Ano:" required="true">
+							 <skins:TextInput_Maiusculo id="txtano" width="70" editable="true"/>
+						 </mx:FormItem>
+						 <mx:FormItem label="Inicio Aulas:" required="true" toolTip="Data Início Aulas">
+							 <skins:DateField_Data id="txtfinalano"/>
+						 </mx:FormItem>
+						 <mx:FormItem label="Termino Aulas:" required="true" toolTip="Data Término Aulas">
+							 <skins:DateField_Data id="txtinicioano"/>
+						 </mx:FormItem>
+					 </mx:Form>
+					 <mx:Form  id="form_feriasb" width="50%" height="100%">
+						 <mx:FormItem label="Dt. Início Ferias:" required="true" toolTip="Data Início Férias">
+							 <skins:DateField_Data id="txtiniciomeio"/>
+						 </mx:FormItem>
+						 <mx:FormItem label="Dt. Final Ferias:" required="true" toolTip="Data Término Férias">
+							 <skins:DateField_Data id="txtfinalmeio"/>
+						 </mx:FormItem>
+					 </mx:Form>
+				 </mx:HBox>
+				 <mx:DataGrid width="100%" height="100%" id="dg_ferias" itemClick="setcampos(event)" focusEnabled="false">
+					 <mx:columns>
+						 <mx:DataGridColumn headerText="Id." width="60" dataField="id_ferias"/>
+						 <mx:DataGridColumn headerText="Ano" dataField="ano"/>
+						 <mx:DataGridColumn headerText="Inicio Aulas" dataField="dt_final_fim" labelFunction="labeldtformat_dtfinalfim"/>
+						 <mx:DataGridColumn headerText="Termino Aulas" dataField="dt_inicio_fim" labelFunction="labeldtformat_dtiniciofim"/>
+						 <mx:DataGridColumn headerText="Dt. Início Férias" dataField="dt_inicio_meio" labelFunction="labeldtformat_dtiniciomeio"/>
+						 <mx:DataGridColumn headerText="Dt. Final Férias" dataField="dt_final_meio" labelFunction="labeldtformat_dtfinalmeio"/>
+					 </mx:columns>
+				 </mx:DataGrid>
+			 </mx:VBox>
+		 </mx:Canvas>	 
+</mx:TabNavigator>
+    
+<skins:CtrlBar_Buttons id="ctrlbar"/>
+</MDIWindow>

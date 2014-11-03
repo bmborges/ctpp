@@ -1,0 +1,222 @@
+<?xml version="1.0" encoding="utf-8"?>
+<s:TitleWindow xmlns:fx="http://ns.adobe.com/mxml/2009"
+			   xmlns:s="library://ns.adobe.com/flex/spark"
+			   xmlns:mx="library://ns.adobe.com/flex/mx"
+			   xmlns:skins="skins.*"
+			   width="400" height="350"
+			   creationComplete="titlewindow_creationCompleteHandler(event)"
+			   close="titlewindow1_closeHandler(event)"
+			   title="Status Contrato">
+	<s:layout>
+		<s:VerticalLayout paddingLeft="10" paddingRight="10" paddingBottom="10" paddingTop="10" gap="5"/>
+	</s:layout>
+	
+	<fx:Script>
+		<![CDATA[
+			import classes.Util;
+			import classes.UtilRetornoBanco;
+			
+			import mx.collections.ArrayCollection;
+			import mx.controls.Alert;
+			import mx.core.FlexGlobals;
+			import mx.events.CloseEvent;
+			import mx.events.FlexEvent;
+			import mx.managers.PopUpManager;
+			import mx.rpc.events.FaultEvent;
+			import mx.rpc.events.ResultEvent;
+			import mx.validators.Validator;
+			
+			import service.ctr.Ctr_ContratoService;
+			import service.ctr.Ctr_StatusService;
+			
+			import spark.components.RadioButton;
+			
+			import vo.adm.SystemVO;
+			import vo.ctr.Ctr_ContratoVO;
+			import vo.ctr.Ctr_StatusVO;
+			
+
+			private var systemvo:SystemVO = SystemVO.getInstance();
+			private var ro_contrato:Ctr_ContratoService = Ctr_ContratoService.getInstance();
+			private var ctr_contratoVO:Ctr_ContratoVO;
+			private var ro_status:Ctr_StatusService = Ctr_StatusService.getInstance();
+			private var ctr_statusVO:Ctr_StatusVO;
+			private var retorno:UtilRetornoBanco;
+			
+			[Bindable] public var isValid:Boolean = false;
+			private var util:Util = new Util();
+			public var id_contrato:int;
+			public var id_aluno:int;
+			private var rbiValue:Object;
+			private var rbi:mx.controls.RadioButton;
+			private var rbSelectedLabel:String;
+			private var titlewindow:frm_histcanc;
+			
+			protected function titlewindow_closeHandler(e:Event):void
+			{
+				PopUpManager.removePopUp(this);
+			}
+			
+			protected function titlewindow_creationCompleteHandler(event:FlexEvent):void
+			{
+				
+				var timer:Timer = new Timer(100,1);
+				timer.addEventListener(TimerEvent.TIMER,initForm);
+				timer.start()
+					
+				
+			}
+			private function initForm(e:Event):void{
+				ctr_statusVO = new Ctr_StatusVO;
+				ctr_statusVO.opcao = 1;
+				
+				ro_status.select(ctr_statusVO,pesquisaCamposResult,defaultFaultHandler,null,null);
+			}
+			private function pesquisaCamposResult(e:ResultEvent):void{
+				var rs:ArrayCollection = e.result as ArrayCollection;
+				
+				for (var i:int = 0; i < rs.length; i++) 
+				{
+					var radiobt:mx.controls.RadioButton = new mx.controls.RadioButton;
+					g_radio.addElement(radiobt);
+					radiobt.value = rs[i]['id_ctrstatus'];
+					radiobt.label =  rs[i]['nmopcao'];
+					radiobt.id =  rs[i]['nmopcao'];
+					if (rs[i]['ativo_opcao'] == 1){
+						radiobt.enabled = true;
+					} else {
+						radiobt.enabled = false;
+					}
+				}
+				
+				bt_fechar.addEventListener(MouseEvent.CLICK,titlewindow_closeHandler);
+				bt_confirmar.addEventListener(MouseEvent.CLICK,confirm);
+			}
+			protected function confirm(e:Event):void{
+				var i:int;
+				for (i = 0 ; i < g_radio.numElements; i ++){
+					rbi = g_radio.getElementAt(i) as mx.controls.RadioButton;
+					if (rbi.selected == true){
+						mensagem.text = "";
+						rbiValue = rbi.value;
+						Alert.yesLabel = "Sim";
+						Alert.noLabel = "Não";
+						Alert.show("Deseja realizar o(a) " + rbi.label + " do Contrato nº " + id_contrato, rbi.label + " Contrato",Alert.YES|Alert.NO,this,confirmResult);
+					} else {
+						mensagem.text = "Selecione um Status";
+					}
+				}
+			}
+			protected function confirmResult(e:CloseEvent):void{
+				if (e.detail == Alert.YES){
+					    ctr_statusVO = new Ctr_StatusVO;
+						ctr_statusVO.id_ctrstatus = rbiValue;
+						ro_status.select(ctr_statusVO,ctrStatusResult,defaultFaultHandler,null,null);
+				}
+			}
+			private function ctrStatusResult(e:ResultEvent):void{
+				var result:ArrayCollection = e.result as ArrayCollection;
+				
+				mensagem.text = "";
+				
+				if (result[0]['abre_hist'] == 1){
+					
+					titlewindow = PopUpManager.createPopUp(this,frm_histcanc,true) as frm_histcanc;
+					
+					titlewindow.id_contrato = id_contrato;
+					titlewindow.id_aluno = id_aluno;
+					PopUpManager.centerPopUp(titlewindow);
+					
+					
+					var X:Number = titlewindow.width / 2;
+					var Y:Number = titlewindow.height / 2;
+					
+					var newX:Number = FlexGlobals.topLevelApplication.mdiCanvas.width / 2;
+					var newY:Number = FlexGlobals.topLevelApplication.mdiCanvas.height / 2;
+					
+					titlewindow.x = newX - X;
+					titlewindow.y = newY - Y;
+					
+					if(result[0]['abre_cancparc'] == 1) {
+						titlewindow["bt_confirmar"].addEventListener(MouseEvent.CLICK,OpenCancParc);
+					}
+					if(result[0]['abre_cancparc'] == 0) {
+					    var sql:String = "";
+						var where:String = "";
+						sql = "id_ctrstatus = " + rbiValue + "::integer";
+						where = "id_contrato = " + id_contrato;
+							
+						ro_contrato..SqlAtualizar(sql,where,null,defaultFaultHandler);
+
+						PopUpManager.removePopUp(this);
+					}
+				}
+				
+			}
+			private function OpenCancParc(e:Event):void{
+				
+				 	PopUpManager.removePopUp(titlewindow);
+				
+					var titlewindow2:frm_cancparcela;
+					titlewindow2 = PopUpManager.createPopUp(this,frm_cancparcela,true) as frm_cancparcela;
+					
+					titlewindow2.id_contrato = id_contrato;
+					titlewindow2.id_aluno = id_aluno;
+					PopUpManager.centerPopUp(titlewindow2);
+					
+					
+					var X:Number = titlewindow2.width / 2;
+					var Y:Number = titlewindow2.height / 2;
+					
+					var newX:Number = FlexGlobals.topLevelApplication.mdiCanvas.width / 2;
+					var newY:Number = FlexGlobals.topLevelApplication.mdiCanvas.height / 2;
+					
+					titlewindow2.x = newX - X;
+					titlewindow2.y = newY - Y;
+					
+					titlewindow2["bt_finalizar"].addEventListener(MouseEvent.CLICK,CloseCancParc);
+				
+
+			}
+			private function CloseCancParc(e:Event):void{
+			    var sql:String = "";
+				var where:String = "";
+				sql = "id_ctrstatus = " + rbiValue + "::integer";
+				where = "id_contrato = " + id_contrato;
+				ro_contrato.SqlAtualizar(sql,where,null,defaultFaultHandler);
+
+				PopUpManager.removePopUp(this);
+			}
+			protected function statementResult(e:Event):void{
+				mensagem.text = "Operação Realizada com Sucesso.";
+			}
+			protected function titlewindow1_closeHandler(event:CloseEvent):void
+			{
+				PopUpManager.removePopUp(this);
+			}
+			private function defaultFaultHandler(e:FaultEvent):void{
+				this.enabled = true;
+				retorno = new UtilRetornoBanco;
+				retorno.RetornoBanco(e);
+				
+				mensagem.text = "";
+				
+			}
+			
+		]]>
+	</fx:Script>
+	<fx:Declarations>
+	</fx:Declarations>
+	<s:Label id="mensagem" width="100%" styleName="lblerro"/>
+	<mx:Label text="Selecione Status do Contrato" width="100%"/>
+	<mx:HRule width="100%" height="3"/>
+	<s:VGroup width="100%" id="g_radio">
+	</s:VGroup>
+	<s:controlBarContent>
+		<mx:HBox width="100%" height="100%" horizontalAlign="center">
+			<s:Button id="bt_confirmar" label="Ok" styleName="addButton"/>
+			<s:Button id="bt_fechar" label="Fechar" styleName="clearButton"/>
+		</mx:HBox>
+	</s:controlBarContent>
+		
+</s:TitleWindow>

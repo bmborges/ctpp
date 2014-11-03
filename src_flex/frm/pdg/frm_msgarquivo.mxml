@@ -1,0 +1,96 @@
+<?xml version="1.0" encoding="utf-8"?>
+<mx:TitleWindow 
+	xmlns="flexmdi.containers.*" xmlns:mx="http://www.adobe.com/2006/mxml" 
+	width="706" height="459" title="Envia Mensagem" creationComplete="init()" 
+	layout="absolute" horizontalAlign="center" xmlns:skins="skins.*"
+	showCloseButton="true" close="titlewindow1_closeHandler(event)"
+	xmlns:local="*">
+	<mx:Script>
+		<![CDATA[
+			import classes.Util;
+			import classes.UtilMensagens;
+			import classes.UtilNamesPesquisa;
+			import classes.UtilRetornoBanco;
+			
+			import frm.frm_pesquisar;
+			
+			import mx.controls.Alert;
+			import mx.core.FlexGlobals;
+			import mx.events.CloseEvent;
+			import mx.managers.PopUpManager;
+			import mx.rpc.events.FaultEvent;
+			import mx.rpc.events.ResultEvent;
+			
+			import service.pdg.Pdg_DiarioService;
+			
+			import vo.adm.SystemVO;
+			
+			private var util:Util = new Util();
+			private var systemVO:SystemVO = SystemVO.getInstance();
+			private var ro_diario:Pdg_DiarioService = Pdg_DiarioService.getInstance();
+			private var retorno:UtilRetornoBanco;
+			
+			[Bindable] public var qtdeA:int;
+			[Bindable] public var id_diariocont:int;
+			[Bindable] private var isValid:Boolean = false;
+			
+			private function init():void{
+				
+				var timer:Timer = new Timer(1000,1);
+				timer.addEventListener(TimerEvent.TIMER,initCampos);
+				timer.start()
+				
+			}
+			private function initCampos(e:Event):void{
+				ctrlbar.bt_inserir.addEventListener(MouseEvent.CLICK,enviar);
+				ctrlbar.addChildAt(ctrlbar.bt_inserir,0);
+				ctrlbar.bt_inserir.label = "Enviar";
+				
+				txtcabecalho.text = "Caro Aluno ? acabei de lançar no dia ? Aula ?," + qtdeA + " arquivo(s) sobre o seguinte conteúdo. ";
+				txtrodape.text= "Bons Estudos, Professor(a) " + systemVO.nmoperador;
+			}
+			private function enviar(e:Event):void{
+				isValid = util.validateForm(form);
+				if (!isValid) {
+					mensagem.text = UtilMensagens.PreenchaCampo;
+				} else {
+					var map:Object = new Object();
+					map.id_diariocont = id_diariocont;
+					map.id_operador = systemVO.id_operador;
+					map.mensagem = txtcabecalho.text +"\n"+ txtmensagem.text +"\n"+ txtrodape.text;
+					
+					ro_diario.EnviarMensagemContArquivo(map,enviarResult,defaultFaultHandler);
+				}
+			}
+			public function enviarResult(e:ResultEvent):void{
+				this.enabled = true;
+				mensagem.text = UtilMensagens.OperacaoRealizadaSucesso;
+			}
+			protected function titlewindow1_closeHandler(event:CloseEvent):void		{
+				// TODO Auto-generated method stub
+				PopUpManager.removePopUp(this);
+			}
+			private function defaultFaultHandler(e:FaultEvent):void{
+				this.enabled = true;
+				mensagem.text = "";
+				retorno = new UtilRetornoBanco;
+				retorno.RetornoBanco(e);
+			}
+			
+			
+		]]>
+	</mx:Script>
+<mx:Canvas  width="100%" height="100%">
+		<mx:VBox width="100%" height="100%" paddingLeft="10" paddingRight="10">
+    		<mx:Label width="100%" id="mensagem" styleName="lblerro"/>
+			<mx:TextArea id="txtcabecalho" width="100%" height="35" editable="false"/>
+			<mx:Form id="form" width="100%" height="253">
+				<mx:FormItem width="100%" height="100%" label="Mensagem" required="true">
+					<mx:TextArea id="txtmensagem" width="100%" height="100%"/>
+				</mx:FormItem>
+			</mx:Form>
+			<mx:TextArea id="txtrodape" width="100%" height="37" editable="false"/>
+		</mx:VBox>
+</mx:Canvas>
+	<skins:CtrlBar_Buttons id="ctrlbar"/>
+</mx:TitleWindow>

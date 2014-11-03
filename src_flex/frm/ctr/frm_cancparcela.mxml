@@ -1,0 +1,403 @@
+<?xml version="1.0" encoding="utf-8"?>
+<s:TitleWindow xmlns:fx="http://ns.adobe.com/mxml/2009"
+			   xmlns:s="library://ns.adobe.com/flex/spark"
+			   xmlns:mx="library://ns.adobe.com/flex/mx"
+			   xmlns:skins="skins.*"
+			   width="1044" height="432" close="titlewindow1_closeHandler(event)"
+			   creationComplete="titlewindow_creationCompleteHandler(event)"
+			   title="Cancelamento Parcela Contrato">
+	<s:layout>
+		<s:VerticalLayout paddingLeft="10" paddingRight="10" paddingBottom="10" paddingTop="10" gap="5"/>
+	</s:layout>
+	
+	<fx:Script>
+		<![CDATA[
+			import classes.Util;
+			import classes.UtilMensagens;
+			import classes.UtilRetornoBanco;
+			
+			import flexmdi.containers.MDIWindow;
+			
+			import frm.fin.frm_geraboleto;
+			
+			import mx.collections.ArrayCollection;
+			import mx.controls.Alert;
+			import mx.core.FlexGlobals;
+			import mx.events.CloseEvent;
+			import mx.events.FlexEvent;
+			import mx.managers.PopUpManager;
+			import mx.rpc.events.FaultEvent;
+			import mx.rpc.events.ResultEvent;
+			import mx.validators.Validator;
+			
+			import service.fin.Fin_DuplicataService;
+			import service.fin.Fin_FormaPgtService;
+			import service.fin.Fin_TipoRecService;
+			import service.procedure.Fin_AjusteDup_RecebimentoService;
+			import service.procedure.Fin_Ajuste_OrdemDupService;
+			import service.view.View_Ctr_DuplicataService;
+			
+			import spark.components.RadioButton;
+			
+			import vo.adm.SystemVO;
+			import vo.fin.Fin_DuplicataVO;
+			import vo.procedure.Fin_AjusteDup_RecebimentoVO;
+			import vo.procedure.Fin_Ajuste_OrdemDupVO;
+			import vo.view.View_Ctr_DuplicataVO;
+			
+			private var systemvo:SystemVO = SystemVO.getInstance();
+			private var ro_duplicata:Fin_DuplicataService = Fin_DuplicataService.getInstance();
+			private var ro_formapgt:Fin_FormaPgtService = Fin_FormaPgtService.getInstance();
+			private var retorno:UtilRetornoBanco;
+			private var fin_duplicataVO:Fin_DuplicataVO;
+			private var fin_ajusteordemVO:Fin_Ajuste_OrdemDupVO;
+			[Bindable] private var ArrayTipoPag:ArrayCollection;	
+			[Bindable] private var ArrayTipoRec:ArrayCollection;
+			
+			[Bindable] public var isValid:Boolean = false;
+			private var view_ctrduplicataVO:View_Ctr_DuplicataVO;
+			private var fin_ajustedupVO:Fin_AjusteDup_RecebimentoVO;
+			private var ro_viewctrduplicata:View_Ctr_DuplicataService = View_Ctr_DuplicataService.getInstance();
+			private var ro_finajusteordem:Fin_Ajuste_OrdemDupService = Fin_Ajuste_OrdemDupService.getInstance();
+			private var ro_tiporec:Fin_TipoRecService = Fin_TipoRecService.getInstance();
+
+			private var ro_ajustedup:Fin_AjusteDup_RecebimentoService = Fin_AjusteDup_RecebimentoService.getInstance();
+			private var util:Util = new Util();
+			public var id_contrato:int;
+			public var id_aluno:int;
+			
+			protected function lb_dtvencimento(item:Object, column:DataGridColumn):String
+			{
+				return util.formatData_DDMMYYYY(item.dt_vencimento);	
+			}
+			protected function titlewindow_closeHandler(e:Event):void
+			{
+				PopUpManager.removePopUp(this);
+			}
+			
+			protected function titlewindow_creationCompleteHandler(event:FlexEvent):void
+			{
+				bt_gravparcela.addEventListener(MouseEvent.CLICK,gravarParcela);
+//				bt_cancelar.addEventListener(MouseEvent.CLICK,gravarCanc);
+				bt_finalizar.addEventListener(MouseEvent.CLICK,gravarCanc);
+				chk_selectall.addEventListener(MouseEvent.CLICK,atualiza_ctr);
+				ro_formapgt.ComboBox("nmformapgt","id_formapgt",createcomboxformapgt,defaultFaultHandler);
+				ro_tiporec.ComboBox("nmtiporec","id_tiporec",createcomboxtiporec,defaultFaultHandler);
+				
+				
+				this.enabled = false;
+				fin_ajustedupVO = new Fin_AjusteDup_RecebimentoVO;
+				fin_ajustedupVO.id_contrato = id_contrato;
+				
+				ro_ajustedup.Procedure(fin_ajustedupVO,ro_ajustedupResult,defaultFaultHandler);
+				
+			}
+			private function ro_ajustedupResult(e:Event):void{
+				this.enabled = false;
+				view_ctrduplicataVO = new View_Ctr_DuplicataVO;
+				view_ctrduplicataVO.id_contrato = id_contrato;
+				
+				var where:Array = ["saldo > 0"];
+				
+				ro_viewctrduplicata.select(view_ctrduplicataVO, where,createDatagrid_duplicatas,defaultFaultHandler);
+			}
+			private function finalizar(e:Event):void{
+//				remote_duplicata.count_boleto_cancelamento(id_contrato,countResult);
+			}
+			private function defaultFaultHandler(e:FaultEvent):void{
+				this.enabled = true;
+				mensagem.text = "";
+				retorno = new UtilRetornoBanco;
+				retorno.RetornoBanco(e);
+			}
+			private function countResult(e:ResultEvent):void{
+				var count:int = parseInt(e.result.toString());
+				if (count > 0) {
+					Alert.show("Deseja finalizar e gerar os Boletos agora ?","Gerar Boleto(s)",3,this,finalizarBoletoResult);
+				} else {
+					Alert.show("Confirmar Cancelamento ?","Confirmação",3,this,finalizarResult);
+				}
+			}
+			protected function finalizarBoletoResult(e:CloseEvent):void{
+				if (e.detail == Alert.YES){
+					geraboleto()
+				} else {
+					PopUpManager.removePopUp(this);
+				}
+			}
+			private function geraboleto():void{
+				var gboleto:frm_geraboleto = new frm_geraboleto();
+				
+				gboleto = PopUpManager.createPopUp(this,frm_geraboleto,true) as frm_geraboleto;
+				PopUpManager.centerPopUp(gboleto);
+				gboleto.id_contrato = id_contrato;
+				
+				gboleto.addEventListener(CloseEvent.CLOSE,fechageraboleto);
+				
+			}
+			
+			protected function fechageraboleto(event:CloseEvent):void
+			{
+				
+				PopUpManager.removePopUp(this);
+				
+//				var url:String = "http://" + systemvo.pathreport + "/ServletIreport/Rpt_Boleto";
+//				var request:URLRequest = new URLRequest(url);
+//				var variables:URLVariables = new URLVariables();
+//				variables.p_idcontratoini = id_contrato.toString();
+//				variables.p_idcontratofin = id_contrato.toString();
+//				variables.retorno = "PDF";
+//				request.data = variables;
+//				request.method = URLRequestMethod.POST;
+//				
+//				navigateToURL(request,"_blank");	
+			}
+			protected function finalizarResult(e:CloseEvent):void{
+				if (e.detail == Alert.YES){
+					PopUpManager.removePopUp(this);					
+				}
+			}
+			protected function titlewindow1_closeHandler(event:CloseEvent):void
+			{
+//				PopUpManager.removePopUp(this);
+			}
+			private function createDatagrid_duplicatas(event:ResultEvent):void {
+				this.enabled = true;
+				dg_duplicata.dataProvider = event.result;
+			}
+			private function createcomboxformapgt(event:ResultEvent):void{
+				ArrayTipoPag = event.result as ArrayCollection;
+				cbtipopag.dataProvider = ArrayTipoPag;
+			}
+			private function createcomboxtiporec(event:ResultEvent):void{
+				ArrayTipoRec = event.result as ArrayCollection;
+				cbtiporec.dataProvider = ArrayTipoRec;
+				
+				cbtiporec.selectedItem = util.selecionarCombobox(5,ArrayTipoRec);
+			}
+			private function gravarParcela(e:Event):void{
+				if (cbtipopag.selectedIndex == 0 || txtvalor.text.length <= 0 || txtdtvencimento.selectedDate == null){
+					mensagem.text = "Preencha os dados Corretamente";
+					if (cbtipopag.selectedIndex == 0){
+						cbtipopag.errorString = "Campo Obrigatorio";
+					}
+					if (txtvalor.text.length <= 0){
+						txtvalor.errorString = "Campo Obrigatorio";
+					}
+					if (txtdtvencimento.selectedDate == null){
+						txtdtvencimento.errorString = "Campo Obrigatorio";
+					}
+				} else {
+						this.enabled = false;
+						var parcelas:int = 1;
+						if (cbqtdeparcela.selectedIndex > 0) {
+							parcelas = cbqtdeparcela.selectedItem.data;;
+						}
+						var i:int = 0;
+						var saldo:Number = Number(txtvalor.text);
+						do {
+							fin_duplicataVO = new Fin_DuplicataVO();
+							fin_duplicataVO.id_contrato = id_contrato;
+							fin_duplicataVO.valor = txtvalor.text;
+							fin_duplicataVO.saldo = txtvalor.text;
+							fin_duplicataVO.id_tiporec = cbtiporec.selectedItem.data;
+							fin_duplicataVO.id_formapgt = cbtipopag.selectedItem.data;
+							fin_duplicataVO.id_modulo = null;
+							fin_duplicataVO.id_tabvalores = null;
+							fin_duplicataVO.dt_vencimento = txtdtvencimento.selectedDate;
+							fin_duplicataVO.subtotal = txtvalor.text;
+							fin_duplicataVO.id_situacao = 0;
+							fin_duplicataVO.id_operador = systemvo.id_operador;
+							fin_duplicataVO.desconto = 0;
+							ro_duplicata.inserir(fin_duplicataVO,null,defaultFaultHandler);
+							i++;
+						} while ( i < parcelas);
+						executaAjusteOrdemDup();
+				}
+			}
+			public function executaAjusteOrdemDup():void{
+				
+				fin_ajusteordemVO = new Fin_Ajuste_OrdemDupVO();
+				fin_ajusteordemVO.id_contrato = id_contrato;
+				ro_finajusteordem.Procedure(fin_ajusteordemVO,null,defaultFaultHandler);
+				
+				view_ctrduplicataVO = new View_Ctr_DuplicataVO;
+				view_ctrduplicataVO.id_contrato = id_contrato;
+				
+				var where2:Array = ["saldo > 0 and id_tiporec = 5"];
+				
+				ro_viewctrduplicata.select(view_ctrduplicataVO, where2,createDatagrid_parcelascanc,defaultFaultHandler);	
+				
+			}
+			private function createDatagrid_parcelascanc(event:ResultEvent):void {
+				this.enabled = true;
+				dg_parcelascanc.dataProvider = event.result;
+			}
+			private function gravarCanc(e:Event):void{
+				Alert.show("Confirmar Cancelamento das Parcelas Selecionadas","Cancelamento",3,this,confirmResult);
+			}
+			protected function confirmResult(e:CloseEvent):void{
+				if (e.detail == Alert.YES){
+					chk_selectall.selected = false;
+					var sql:String = "";
+					var where:String = "";
+					sql = "id_situacao = 9, id_operador = " + systemvo.id_operador;
+					where = "cancelar = 1 and id_contrato = " + id_contrato;
+					ro_duplicata.SqlAtualizar(sql,where,null,defaultFaultHandler);
+					
+					PopUpManager.removePopUp(this);
+					
+				}
+			}
+			private function cancelaResult(event:ResultEvent):void{
+				mensagem.text = UtilMensagens.OperacaoRealizadaSucesso;
+//				remote_duplicata.selectTable_fin_duplicatas(id_contrato,createDatagrid_duplicatas);
+			}
+			public function atualiza_selec(data:Boolean):void{
+			
+				var sql:String = "";
+				var where:String = "";
+				if (data == true){
+					sql = "cancelar = 1";
+					where = "id_duplicata = " + dg_duplicata.selectedItem.id_duplicata;
+				} else {
+					sql = "cancelar = 2";
+					where = "id_duplicata = " + dg_duplicata.selectedItem.id_duplicata;
+				}
+				ro_duplicata.SqlAtualizar(sql,where,null,defaultFaultHandler);
+				
+				view_ctrduplicataVO = new View_Ctr_DuplicataVO;
+				view_ctrduplicataVO.id_contrato = id_contrato;
+				
+				var where2:Array = ["saldo > 0"];
+				
+				ro_viewctrduplicata.select(view_ctrduplicataVO, where2,createDatagrid_duplicatas,defaultFaultHandler);				
+				
+			}
+			public function atualiza_ctr(e:Event):void{
+				this.enabled = false;
+				var sql:String = "";
+				var where:String = "";
+				if (chk_selectall.selected == true){
+					sql = "cancelar = 1";
+					where = "saldo > 0 and id_contrato = " + id_contrato;
+				} else {
+					sql = "cancelar = 2";
+					where = "saldo > 0 and id_contrato = " + id_contrato;
+				}
+				ro_duplicata.SqlAtualizar(sql,where,null,defaultFaultHandler);
+				
+
+				view_ctrduplicataVO = new View_Ctr_DuplicataVO;
+				view_ctrduplicataVO.id_contrato = id_contrato;
+				
+				var where2:Array = ["saldo > 0"];
+				
+				ro_viewctrduplicata.select(view_ctrduplicataVO, where2,createDatagrid_duplicatas,defaultFaultHandler);
+				
+			}
+			private function Result_atualizaCtr(e:Event):void{
+				view_ctrduplicataVO = new View_Ctr_DuplicataVO;
+				view_ctrduplicataVO.id_contrato = id_contrato;
+				
+				var where:Array = ["saldo > 0"];
+				
+				ro_viewctrduplicata.select(view_ctrduplicataVO, where,createDatagrid_duplicatas,defaultFaultHandler);
+			}
+			public function deletar_multa():void{
+				this.enabled = false;
+				fin_duplicataVO = new Fin_DuplicataVO;
+				fin_duplicataVO.id_duplicata = dg_parcelascanc.selectedItem.id_duplicata;
+				
+				ro_duplicata.deletar(fin_duplicataVO,null,defaultFaultHandler);
+				
+				view_ctrduplicataVO = new View_Ctr_DuplicataVO;
+				view_ctrduplicataVO.id_contrato = id_contrato;
+				
+				var where2:Array = ["saldo > 0 and id_tiporec = 5"];
+				
+				ro_viewctrduplicata.select(view_ctrduplicataVO, where2,createDatagrid_parcelascanc,defaultFaultHandler);
+			}
+		]]>
+	</fx:Script>
+	<fx:Declarations>
+	</fx:Declarations>
+				<mx:Label width="100%" id="mensagem" text="" styleName="lblerro"/>
+				<mx:DataGrid width="100%" height="60%" id="dg_duplicata" horizontalScrollPolicy="auto" verticalScrollPolicy="auto">
+					<mx:columns>
+						<mx:DataGridColumn headerText="Canc." width="50">
+							<mx:itemRenderer>
+								<fx:Component>
+									<mx:VBox horizontalAlign="center">
+										<mx:CheckBox id="chk_canc" change="parentDocument.atualiza_selec(chk_canc.selected)" click="data.checked=!data.checked" visible="{data.dt_pagamento == null &amp;&amp; data.dt_cancelamento == null ? true : false ? true : false}" selected="{data.cancelar == 1 ? true : false}"/>
+									</mx:VBox>
+								</fx:Component>
+							</mx:itemRenderer>
+						</mx:DataGridColumn>
+						<mx:DataGridColumn headerText="Modulo" dataField="nmmodulo" width="80"/>
+						<mx:DataGridColumn headerText="Número" dataField="parcela" width="60"/>
+						<mx:DataGridColumn width="100" dataField="nmtiporec" headerText="Tipo Rec."/>
+						<mx:DataGridColumn width="100" dataField="nmformapgt" headerText="Tipo Pag."/>
+						<mx:DataGridColumn width="100" dataField="dt_vencimento" headerText="Dt. Venc." labelFunction="lb_dtvencimento"/>
+						<mx:DataGridColumn width="100" dataField="valor" headerText="Valor"/>
+						<mx:DataGridColumn width="100" dataField="subtotal" headerText="Vr. Saldo"/>
+						<mx:DataGridColumn width="100" dataField="dt_pagamento" headerText="Dt. Pagamento"/>
+						<mx:DataGridColumn width="100" dataField="dt_cancelamento" headerText="Dt. Cancelamento"/>
+					</mx:columns>
+				</mx:DataGrid>
+	<mx:HBox width="100%">
+		<mx:CheckBox id="chk_selectall" x="5" width="111" label="Marcar Todos"/>
+	</mx:HBox>
+	<mx:HBox width="100%" horizontalAlign="center">
+		<mx:FormItem id="fi_qtdeparcela" label="Parcelas" required="true">
+			<mx:ComboBox id="cbqtdeparcela" selectedIndex="0">
+				<mx:ArrayList>
+					<fx:Object label="1" data="1"/>
+					<fx:Object label="2" data="2"/>
+					<fx:Object label="3" data="3"/>
+					<fx:Object label="4" data="4"/>
+				</mx:ArrayList>
+			</mx:ComboBox>
+				
+		</mx:FormItem>
+		<mx:FormItem id="fi_tiporecebimento" label="Tipo Receb.:" required="true" enabled="false">
+			<mx:ComboBox id="cbtiporec" selectedIndex="0"/>
+		</mx:FormItem>
+		<mx:FormItem id="fi_tipopagamento" label="Forma Pag.:" required="true">
+			<mx:ComboBox id="cbtipopag" selectedIndex="0"/>
+		</mx:FormItem>
+		<mx:FormItem id="fi_desconto" label="Valor:" required="true">
+			<skins:TextInput_Maiusculo id="txtvalor" width="98" restrict="0-9."/>
+		</mx:FormItem>
+		<mx:FormItem id="fi_dtvenc" label="Dt. Venc.:" required="true">
+			<skins:DateField_Data id="txtdtvencimento"/>
+		</mx:FormItem>
+		<mx:Button width="54" id="bt_gravparcela" enabled="true" styleName="add"/>
+	</mx:HBox>
+	<mx:DataGrid width="100%" height="40%" id="dg_parcelascanc">
+		<mx:columns>
+			<mx:DataGridColumn dataField="nmtiporec" headerText="Descrição"/>
+			<mx:DataGridColumn dataField="parcela" headerText="Parcela"/>
+			<mx:DataGridColumn dataField="dt_vencimento" headerText="Data Venc." labelFunction="lb_dtvencimento"/>
+			<mx:DataGridColumn dataField="saldo" headerText="Valor"/>
+			<mx:DataGridColumn headerText="Excluir" width="50">
+				<mx:itemRenderer>
+					<fx:Component>
+						<mx:VBox horizontalAlign="center">
+							<mx:Image id="imgIcon"
+									  source="@Embed('./assets/icons/cancel.png')"
+									  width="16" height="16"
+									  scaleContent="true" maintainAspectRatio="false" buttonMode="true" click="parentDocument.deletar_multa();"/>
+						</mx:VBox>
+					</fx:Component>
+				</mx:itemRenderer>
+			</mx:DataGridColumn>
+		</mx:columns>
+	</mx:DataGrid>
+	<s:controlBarContent>
+		<mx:HBox width="100%" height="100%" horizontalAlign="center">
+			<!--<s:Button id="bt_cancelar" label="Cancelar" styleName="addButton"/>-->
+			<s:Button id="bt_finalizar" label="Finalizar" styleName="addButton"/>
+		</mx:HBox>
+	</s:controlBarContent>		
+</s:TitleWindow>

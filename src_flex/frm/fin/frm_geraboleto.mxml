@@ -1,0 +1,109 @@
+<?xml version="1.0" encoding="utf-8"?>
+<s:TitleWindow xmlns:fx="http://ns.adobe.com/mxml/2009"
+			   xmlns:s="library://ns.adobe.com/flex/spark"
+			   xmlns:mx="library://ns.adobe.com/flex/mx"
+			   width="312" height="206" title="Gera Boleto"
+			   close="titlewindow_closeHandler(event)">
+	<fx:Declarations>
+		<!-- Place non-visual elements (e.g., services, value objects) here -->
+	</fx:Declarations>
+	<fx:Script>
+		<![CDATA[
+			import classes.Util;
+			import classes.UtilMensagens;
+			import classes.UtilRetornoBanco;
+			
+			import mx.collections.ArrayCollection;
+			import mx.controls.Alert;
+			import mx.events.CloseEvent;
+			import mx.managers.PopUpManager;
+			import mx.rpc.events.FaultEvent;
+			import mx.rpc.events.ResultEvent;
+			
+			import service.ComboBoxService;
+			import service.fin.Fin_BancoService;
+			import service.fin.Fin_GeraBoletoService;
+			
+			import vo.fin.Fin_GeraBoletoVO;
+			
+			[Bindable] private var ArrayBanco:ArrayCollection;
+			[Bindable] private var ArrayModulo:ArrayCollection;
+			[Bindable] private var isValid:Boolean = false;
+			[Bindable] public var id_contrato:int;
+			private var util:Util = new Util();
+			
+			private var fin_geraboletoVO:Fin_GeraBoletoVO;
+			
+			private var ro_banco:Fin_BancoService = Fin_BancoService.getInstance();
+			private var ro_geraboleto:Fin_GeraBoletoService = Fin_GeraBoletoService.getInstance();
+			private var ro_combobox:ComboBoxService = ComboBoxService.getInstance();
+			private var retorno:UtilRetornoBanco;
+			
+			protected function titlewindow_closeHandler(event:CloseEvent):void
+			{
+				PopUpManager.removePopUp(this);
+			}
+			private function createcomboboxbanco(event:ResultEvent):void
+			{
+				ArrayBanco = event.result as ArrayCollection;
+				cb_banco.dataProvider = ArrayBanco;
+				ro_combobox.TurmaModulo(id_contrato,createcbturmamodulo,defaultFaultHandler);
+			}
+			private function createcbturmamodulo(event:ResultEvent):void{
+				ArrayModulo = event.result as ArrayCollection;
+				cb_modulo.dataProvider = ArrayModulo;
+			}
+			private function statementResult(e:Event):void{
+				mensagem.text = UtilMensagens.OperacaoRealizadaSucesso;
+			}
+			protected function bt_gerar_clickHandler(event:MouseEvent):void
+			{
+				isValid = util.validateForm(form);
+				if (!isValid) 
+				{
+					mensagem.text = UtilMensagens.PreenchaCampo;	
+				} else {
+					fin_geraboletoVO = new Fin_GeraBoletoVO();
+					fin_geraboletoVO.id_contrato = id_contrato;
+					fin_geraboletoVO.id_banco = cb_banco.selectedItem.data;
+					fin_geraboletoVO.id_modulo = cb_modulo.selectedItem != null ? cb_modulo.selectedItem.data : null; 
+					
+					ro_geraboleto.Procedure(fin_geraboletoVO,statementResult,defaultFaultHandler);
+				}
+			}
+			private function defaultFaultHandler(e:FaultEvent):void{
+				this.enabled = true;
+				mensagem.text = "";
+				retorno = new UtilRetornoBanco;
+				retorno.RetornoBanco(e);
+			}
+			
+		]]>
+	</fx:Script>
+	<s:creationComplete>
+		<![CDATA[
+//		ro_banco.ComboBox("nmbanco","id_banco",createcomboboxbanco,defaultFaultHandler);
+		ro_banco.ComboBoxBancoAtivo(createcomboboxbanco,defaultFaultHandler);
+		]]>
+	</s:creationComplete>
+	<s:layout>
+		<s:VerticalLayout paddingLeft="10" paddingRight="10" paddingTop="10" paddingBottom="10" gap="10"/>
+			
+	</s:layout>
+	<s:Label id="mensagem" width="100%" styleName="lblerro"/>
+	<mx:Form width="100%" id="form">
+		<mx:FormItem label="Banco" horizontalAlign="center" width="100%" required="true">
+			<mx:ComboBox id="cb_banco" selectedIndex="0"/>
+		</mx:FormItem>
+		<mx:FormItem label="Modulo" horizontalAlign="center" width="100%">
+			<mx:ComboBox id="cb_modulo" selectedIndex="0"/>
+		</mx:FormItem>
+		
+	</mx:Form>
+<s:HGroup horizontalAlign="center" width="100%">
+	<s:Button id="bt_gerar" label="Gerar" click="bt_gerar_clickHandler(event)"/>
+	
+</s:HGroup>
+
+		
+</s:TitleWindow>

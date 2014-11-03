@@ -1,0 +1,154 @@
+<?xml version="1.0" encoding="utf-8"?>
+<MDIWindow xmlns="flexmdi.containers.*" xmlns:mx="http://www.adobe.com/2006/mxml" 
+	width="628" height="370" title="Cadastro Mídia" creationComplete="init()" xmlns:skins="skins.*">
+
+	<mx:Script>
+		<![CDATA[
+			import classes.Util;
+			
+			import mx.core.FlexGlobals;
+			
+			import classes.UtilMensagens;
+			import classes.UtilRetornoBanco;
+			
+			import mx.collections.ArrayCollection;
+			import mx.rpc.events.FaultEvent;
+			import mx.rpc.events.ResultEvent;
+			
+			import service.cnt.Cnt_MidiaService;
+			
+			import vo.cnt.Cnt_MidiaVO;
+			
+			[Bindable] private var isValid:Boolean = false;
+			private var util:Util = new Util();
+			private var retorno:UtilRetornoBanco;
+			
+			private var ro_midia:Cnt_MidiaService = Cnt_MidiaService.getInstance();
+			private var cnt_midiaVO:Cnt_MidiaVO;
+			
+			private function init():void{
+				this.width = FlexGlobals.topLevelApplication.mdiCanvas.width;
+				this.height = FlexGlobals.topLevelApplication.mdiCanvas.height;
+				
+				this.x = 0;
+				this.y = 0;
+				
+				util.limpar_formulario(form);
+				
+				ctrlbar.bt_pesquisar.addEventListener(MouseEvent.CLICK,selecionar);
+				ctrlbar.bt_inserir.addEventListener(MouseEvent.CLICK,inserir);
+				ctrlbar.bt_alterar.addEventListener(MouseEvent.CLICK,alterar);
+				ctrlbar.bt_excluir.addEventListener(MouseEvent.CLICK,deletar);
+				ctrlbar.bt_limpar.addEventListener(MouseEvent.CLICK,limpar);
+				
+				
+				ctrlbar.addChildAt(ctrlbar.bt_pesquisar,0);
+				ctrlbar.addChildAt(ctrlbar.bt_inserir,1);
+				ctrlbar.addChildAt(ctrlbar.bt_alterar,2);
+				ctrlbar.addChildAt(ctrlbar.bt_excluir,3);
+				ctrlbar.addChildAt(ctrlbar.bt_limpar,4);
+			}
+			private function create_DataGrid(e:ResultEvent):void{
+				this.enabled = true;
+				dg_midia.dataProvider = e.result;
+			}
+			
+			private function selecionar(e:Event):void{
+				this.enabled = false;
+				popular();
+				ro_midia.select(cnt_midiaVO,create_DataGrid,defaultFaultHandler);
+			}
+			
+			private function inserir(e:Event):void{
+				isValid = util.validateForm(form);
+				if (!isValid){
+					mensagem.text = UtilMensagens.PreenchaCampo;
+				} else {
+					this.enabled = false;
+					popular();
+					ro_midia.inserir(cnt_midiaVO,inserirResult,defaultFaultHandler);
+				}
+			}
+			
+			private function inserirResult(e:ResultEvent):void{
+				this.enabled = true;
+				txtid_midia.text = e.result.toString();
+				selecionar(e);
+			}
+			
+			private function alterar(e:Event):void{
+				isValid = util.validateForm(form);
+				if (!isValid){
+					mensagem.text = UtilMensagens.PreenchaCampo;
+				} else {
+					this.enabled = false;
+					popular();
+					ro_midia.atualizar(cnt_midiaVO,alterarResult,defaultFaultHandler);
+				}
+			}
+			private function alterarResult(e:ResultEvent):void{
+				this.enabled = true;
+				dg_midia.dataProvider = e.result;
+			}
+			private function deletar(e:Event):void{
+				isValid = util.validateForm(form);
+				if (!isValid){
+					mensagem.text = UtilMensagens.PreenchaCampo;
+				} else {
+					this.enabled = false;
+					popular();
+					ro_midia.deletar(cnt_midiaVO,deletarResult,defaultFaultHandler);
+					limpar(e);	
+				}
+			}
+			private function deletarResult(e:ResultEvent):void{
+				this.enabled = true;
+				dg_midia.dataProvider = e.result;
+			}
+			
+			
+			private function limpar(e:Event):void{
+				mensagem.text = "";
+				util.limpar_formulario(form);
+				dg_midia.dataProvider = null;
+			}
+			private function setcampos(e:Event):void{
+				txtid_midia.text = dg_midia.selectedItem.id_midia;
+				txtnmmidia.text = dg_midia.selectedItem.nmmidia;
+			}
+			
+			private function popular():void{
+				cnt_midiaVO = new Cnt_MidiaVO;
+				cnt_midiaVO.id_midia = txtid_midia.text.length <= 0 ? null : txtid_midia.text;
+				cnt_midiaVO.nmmidia = txtnmmidia.text.length <= 0 ? null : txtnmmidia.text.toUpperCase();
+				
+			}
+			private function defaultFaultHandler(e:FaultEvent):void{
+				this.enabled = true;
+				retorno = new UtilRetornoBanco;
+				retorno.RetornoBanco(e);
+				mensagem.text = "";
+			}
+		]]>
+	</mx:Script>
+	
+	<mx:Label width="100%" id="mensagem" text="" styleName="lblerro"/>
+	<mx:HBox width="100%">
+		<mx:Form id="form" width="50%" height="100%">
+			<mx:FormItem label="Id.:">
+				<mx:TextInput id="txtid_midia" width="105" editable="false"/>
+			</mx:FormItem>
+			<mx:FormItem label="Mídia:" required="true">
+				<skins:TextInput_Maiusculo id="txtnmmidia"/>
+			</mx:FormItem>				
+		</mx:Form>
+	</mx:HBox>
+	
+	<mx:DataGrid height="100%" width="100%" id="dg_midia" itemClick="setcampos(event)" focusEnabled="true">
+		<mx:columns>
+			<mx:DataGridColumn width="60" headerText="Id." dataField="id_midia"/>
+			<mx:DataGridColumn headerText="Mídia" dataField="nmmidia"/>
+		</mx:columns>
+	</mx:DataGrid>
+	<skins:CtrlBar_Buttons id="ctrlbar"/>
+</MDIWindow>

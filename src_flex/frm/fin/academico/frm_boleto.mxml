@@ -1,0 +1,45 @@
+<?xml version="1.0" encoding="utf-8"?>
+<MDIWindow resizable="false" 
+	xmlns="flexmdi.containers.*" xmlns:mx="http://www.adobe.com/2006/mxml" width="870" height="424" title="Mensalidade / 2º Via" 
+	creationComplete="init()" xmlns:ns1="com.degrafa.*" layout="absolute" horizontalAlign="center" xmlns:skins="skins.*">
+<mx:Script source="frmboleto.as"/>
+   		<mx:Canvas  width="100%" height="100%">
+    		<mx:VBox width="100%" height="100%">
+				<mx:Label width="100%" id="mensagem" styleName="lblerro"/>
+				<mx:Form id="form" width="100%">
+					<mx:FormItem label="Cd. Contrato:" direction="horizontal" width="100%" required="true">
+						<mx:TextInput width="111" enabled="false" id="txtid_contrato" />
+						<mx:Button id="b_aluno" width="30" styleName="btpesquisa" click="{openpesquisa(UtilNamesPesquisa.contratoAcademico,txtid_contrato,txt_nmaluno)}"/>
+						<mx:TextInput  width="40%" enabled="false" id="txt_nmaluno"/>
+					</mx:FormItem>
+					<mx:FormItem label="Turma:" direction="horizontal" width="100%">
+						<mx:TextInput width="300" enabled="false" id="txtnmturma" />
+					</mx:FormItem>
+				</mx:Form>
+				<mx:HBox width="100%" height="100%">
+				<mx:DataGrid width="100%" height="100%" resizableColumns="false" id="dg_boleto">
+					<mx:columns>
+						
+						<mx:DataGridColumn headerText="Imp." width="50"  >
+							<mx:itemRenderer>
+								<mx:Component>
+									<mx:VBox horizontalAlign="center">
+										<mx:Image buttonMode="true" source="@Embed('/assets/icons/small-printer.png')" visible="{data.mostrar == 0 ? true : false}" click="parentDocument.select_impboleta(data.id_boleto)" />
+										<!--<mx:CheckBox id="chk_imprime" change="parentDocument.select_impboleta(data.checked)" click="data.checked=!data.checked" selected="{data.checked}"/>-->
+									</mx:VBox>
+								</mx:Component>
+							</mx:itemRenderer>
+						</mx:DataGridColumn>
+						<mx:DataGridColumn headerText="Tipo" dataField="nmtiporec"/>
+						<mx:DataGridColumn headerText="Parcela" dataField="parcela"/>
+						<mx:DataGridColumn headerText="Modulo" dataField="nmmodulo"/>
+						<mx:DataGridColumn headerText="Cd. Boleto" dataField="nr_boleto"/>
+						<mx:DataGridColumn headerText="Dt. Vencimento" dataField="dt_vencimento"/>
+						<mx:DataGridColumn headerText="Dt. Pagamento" dataField="dt_pagamento"/>
+						<mx:DataGridColumn headerText="Valor" dataField="valor"/>
+					</mx:columns>
+				</mx:DataGrid>
+				</mx:HBox>
+			</mx:VBox>
+</mx:Canvas>
+</MDIWindow>

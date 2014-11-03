@@ -1,0 +1,143 @@
+<?xml version="1.0" encoding="utf-8"?>
+<s:TitleWindow xmlns:fx="http://ns.adobe.com/mxml/2009"
+			   xmlns:s="library://ns.adobe.com/flex/spark"
+			   xmlns:mx="library://ns.adobe.com/flex/mx"
+			   xmlns:skins="skins.*"
+			   width="394" height="344" close="titlewindow1_closeHandler(event)"
+			   creationComplete="titlewindow_creationCompleteHandler(event)"
+			   title="Histórico Contrato">
+	<s:layout>
+		<s:VerticalLayout paddingLeft="10" paddingRight="10" paddingBottom="10" paddingTop="10" gap="5"/>
+	</s:layout>
+	
+	<fx:Script>
+		<![CDATA[
+			import classes.Util;
+			import classes.UtilMensagens;
+			import classes.UtilRetornoBanco;
+			
+			import mx.collections.ArrayCollection;
+			import mx.controls.Alert;
+			import mx.core.FlexGlobals;
+			import mx.events.CloseEvent;
+			import mx.events.FlexEvent;
+			import mx.events.ListEvent;
+			import mx.managers.PopUpManager;
+			import mx.rpc.events.FaultEvent;
+			import mx.rpc.events.ResultEvent;
+			import mx.validators.Validator;
+			
+			import service.ctr.Ctr_HistoricoService;
+			import service.ctr.Ctr_MotivoHistoricoService;
+			import service.ctr.Ctr_TipoHistoricoService;
+			
+			import spark.components.RadioButton;
+			
+			import vo.adm.SystemVO;
+			import vo.ctr.Ctr_HistoricoVO;
+			
+			private var systemvo:SystemVO = SystemVO.getInstance();
+			[Bindable] private var ArrayTipo:ArrayCollection;
+			[Bindable] private var ArrayMotivo:ArrayCollection;
+			[Bindable] public var isValid:Boolean = false;
+			[Bindable] public var id_historico:int;
+			
+			private var ro_historico:Ctr_HistoricoService = Ctr_HistoricoService.getInstance();
+			private var ro_tipohistorico:Ctr_TipoHistoricoService = Ctr_TipoHistoricoService.getInstance();
+			private var ro_motivohistorico:Ctr_MotivoHistoricoService = Ctr_MotivoHistoricoService.getInstance();
+			private var ctr_historicoVO:Ctr_HistoricoVO;
+			private var util:Util = new Util();
+			public var id_contrato:int;
+			public var id_aluno:int;
+			private var retorno:UtilRetornoBanco;
+			
+			protected function titlewindow_closeHandler(e:Event):void
+			{
+				PopUpManager.removePopUp(this);
+			}
+			
+			protected function titlewindow_creationCompleteHandler(event:FlexEvent):void
+			{
+				ro_tipohistorico.ComboBox("nmtipohistorico","id_tipohistorico",createcbtipo,defaultFaultHandler);
+				ro_motivohistorico.ComboBox("nmmotivohistorico","id_motivohistorico",createcbmotivo,defaultFaultHandler);
+				cbtipo.addEventListener(ListEvent.CHANGE,cbmotivoSelect);
+				cbmotivo.dataProvider = null;
+				id_historico = 0;
+				bt_fechar.addEventListener(MouseEvent.CLICK,titlewindow_closeHandler);
+				bt_confirmar.addEventListener(MouseEvent.CLICK,inserir);
+			}
+			protected function cbmotivoSelect(e:Event):void{
+				if(cbtipo.selectedIndex > 0){
+					ro_motivohistorico.Ctr_MotivoTipoHistorico(cbtipo.selectedItem.data,cbmotivoSelectResult,defaultFaultHandler);
+				} else {
+					cbmotivo.dataProvider = null;
+				}
+			}
+			private function cbmotivoSelectResult(e:ResultEvent):void{
+				cbmotivo.dataProvider = e.result;
+			}			
+			protected function inserir(e:Event):void{
+				isValid = util.validateForm(form);
+				if (!isValid){
+					mensagem.text = UtilMensagens.PreenchaCampo;
+				}else{
+					popular();
+					ro_historico.inserir(ctr_historicoVO,inserirResult,defaultFaultHandler);
+				}
+			}
+			protected function inserirResult(e:ResultEvent):void{
+				id_historico = e.result.toString();
+			}
+			protected function titlewindow1_closeHandler(event:CloseEvent):void
+			{
+//				PopUpManager.removePopUp(this);
+			}
+			private function createcbtipo(event:ResultEvent):void{
+				ArrayTipo = event.result as ArrayCollection;
+				cbtipo.dataProvider = ArrayTipo;
+			}
+			private function createcbmotivo(event:ResultEvent):void{
+				ArrayMotivo = event.result as ArrayCollection;
+				cbmotivo.dataProvider = ArrayMotivo;
+			}
+			private function popular():void{
+				ctr_historicoVO = new Ctr_HistoricoVO;
+				ctr_historicoVO.id_historico = id_historico == 0 ? null : id_historico;
+				ctr_historicoVO.descricao = txa_historico.text.toUpperCase();
+				ctr_historicoVO.id_contrato = id_contrato;
+				ctr_historicoVO.id_motivohistorico = cbmotivo.selectedItem.data;
+				ctr_historicoVO.id_tipohistorico = cbtipo.selectedItem.data;
+				ctr_historicoVO.id_operador = systemvo.id_operador;
+			}
+			private function defaultFaultHandler(e:FaultEvent):void{
+				this.enabled = true;
+				retorno = new UtilRetornoBanco;
+				retorno.RetornoBanco(e);
+				
+				mensagem.text = "";
+				
+			}
+		]]>
+	</fx:Script>
+	<fx:Declarations>
+	</fx:Declarations>
+	<s:Label id="mensagem" width="100%" styleName="lblerro"/>
+	<mx:Form id="form" paddingTop="0" paddingBottom="0" width="100%" height="100%">
+		<mx:FormItem label="Tipo:" required="true">
+			<mx:ComboBox id="cbtipo" selectedIndex="0"/>
+		</mx:FormItem>
+		<mx:FormItem label="Motivo:" required="true">
+			<mx:ComboBox id="cbmotivo" selectedIndex="0"/>
+		</mx:FormItem>
+		<mx:FormItem required="true" width="100%" label="Histórico" height="100%">
+			<mx:TextArea id="txa_historico" width="100%" height="100%"/>
+		</mx:FormItem>
+	</mx:Form>
+	<s:controlBarContent>
+		<mx:HBox width="100%" height="100%" horizontalAlign="center">
+			<s:Button id="bt_confirmar" label="Gravar" styleName="addButton" enabled="{cbmotivo.selectedIndex > 0 &amp;&amp; cbtipo.selectedIndex > 0 &amp;&amp; txa_historico.text.length > 0 ? true : false}"/>
+			<s:Button id="bt_fechar" label="Cancelar" styleName="clearButton"/>
+		</mx:HBox>
+	</s:controlBarContent>
+		
+</s:TitleWindow>

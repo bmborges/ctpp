@@ -1,0 +1,308 @@
+<?xml version="1.0" encoding="utf-8"?>
+<MDIWindow xmlns="flexmdi.containers.*"
+		   xmlns:mx="http://www.adobe.com/2006/mxml"
+		   xmlns:s="library://ns.adobe.com/flex/spark"
+		   xmlns:skins="skins.*"
+		   width="1022" height="514" creationComplete="init()" title="Cadastro Operador Aluno">
+	
+<mx:Script>
+	<![CDATA[
+		import classes.*;
+		
+		import mx.events.ListEvent;
+		
+		import flash.events.Event;
+		import flash.events.FocusEvent;
+		import flash.events.KeyboardEvent;
+		import flash.events.MouseEvent;
+		
+		import mx.collections.ArrayCollection;
+		import mx.controls.Alert;
+		import mx.controls.Text;
+		import mx.controls.dataGridClasses.DataGridColumn;
+		import mx.core.FlexGlobals;
+		import mx.events.IndexChangedEvent;
+		import mx.rpc.events.FaultEvent;
+		import mx.rpc.events.ResultEvent;
+		import mx.validators.EmailValidator;
+		import mx.validators.Validator;
+		
+		import service.ComboBoxService;
+		import service.adm.Adm_OperadorService;
+		import service.adm.Adm_OperendService;
+		import service.adm.Adm_OpertelService;
+		
+		import vo.adm.Adm_operadorVO;
+		import vo.adm.Adm_operendVO;
+		import vo.adm.Adm_opertelVO;
+		
+		[Bindable] private var ArrayEstado:ArrayCollection;
+		[Bindable] private var ArrayCargo:ArrayCollection;
+		[Bindable] private var ArrayTipoTel:ArrayCollection;
+		[Bindable] private var ArrayAtivo:ArrayCollection;
+		[Bindable] private var ArrayEmpresa:ArrayCollection;
+		private var util:Util = new Util();
+		private var retorno:UtilRetornoBanco;
+		
+		[Bindable] private var isValid:Boolean = false;
+		private var ro_operador:Adm_OperadorService = Adm_OperadorService.getInstance();
+		private var ro_combobox:ComboBoxService = ComboBoxService.getInstance();
+		private var adm_operadorVO:Adm_operadorVO;
+		
+		
+		private function addButtons():void{
+			ctrlbar.removeAllChildren();
+			
+			ctrlbar.addChildAt(ctrlbar.bt_pesquisar,0);
+//			ctrlbar.addChildAt(ctrlbar.bt_inserir,1);
+			ctrlbar.addChildAt(ctrlbar.bt_alterar,1);
+//			ctrlbar.addChildAt(ctrlbar.bt_excluir,3);
+			ctrlbar.addChildAt(ctrlbar.bt_limpar,2);
+			
+		}
+		private function init():void{
+			
+			dg_print.Pesquisar("adm_operador");
+			dg_print.datagrid.addEventListener(ListEvent.ITEM_CLICK,setcampos);
+			
+			this.width = FlexGlobals.topLevelApplication.mdiCanvas.width;
+			this.height = FlexGlobals.topLevelApplication.mdiCanvas.height;
+			
+			this.x = 0;
+			this.y = 0;
+			
+			addButtons();
+			
+			// cria combos
+			ro_combobox.Adm_Cargo(createcomboboxcargo,defaultFaultHandler);
+			ro_combobox.Adm_Ativo(createcomboboxativo,defaultFaultHandler);
+			//seta eventos
+			ctrlbar.bt_pesquisar.addEventListener(MouseEvent.CLICK,selecionar);
+			ctrlbar.bt_inserir.addEventListener(MouseEvent.CLICK,inserir);
+			ctrlbar.bt_alterar.addEventListener(MouseEvent.CLICK,alterar);
+			ctrlbar.bt_excluir.addEventListener(MouseEvent.CLICK,deletar);
+			ctrlbar.bt_limpar.addEventListener(MouseEvent.CLICK,limpar);
+		}
+		private function testesenha():Boolean{
+			var ssenha:String = txtsenha.text;
+			var sredigite:String = txtredigite.text;
+			if (ssenha == sredigite){
+				return true;
+			}else{
+				mensagem_oper.text = "A senha / redigite não confere digite novamente";
+				return false;
+			}
+		}
+		private function limparedigite(evt:KeyboardEvent):void{
+			if (evt.keyCode != 13 || evt.keyCode != 9){
+				txtredigite.text = null;	
+			}
+		}
+		private function accordioncomplete(event:IndexChangedEvent):void{
+			var currentIndex:int=event.newIndex;
+			if (currentIndex == 0){
+			}
+		}
+		
+		private function createcomboboxativo(event:ResultEvent):void{
+			ArrayAtivo = event.result as ArrayCollection;
+			cbativo.dataProvider = ArrayAtivo;
+		}
+		private function createcomboboxcargo(event:ResultEvent):void{
+			ArrayCargo = event.result as ArrayCollection;
+			cbcargo.dataProvider = ArrayCargo;
+		}
+		protected function lf_ativo(item:Object, column:DataGridColumn):String
+		{
+			var retorno:Object = util.selecionarCombobox(item.id_ativo,ArrayAtivo);
+			if(retorno == null){
+				return "";
+			}
+			return retorno.label;
+		}
+		
+		protected function lf_estado(item:Object, column:DataGridColumn):String{
+			var retorno:Object = util.selecionarCombobox(item.id_estado,ArrayEstado);
+			return retorno.label;
+		}
+		protected function lf_tipotel(item:Object, column:DataGridColumn):String{
+			var retorno:Object = util.selecionarCombobox(item.id_tipotel,ArrayTipoTel);
+			return retorno.label;
+		}
+		
+		private function selecionar(e:Event):void{
+			this.enabled = false;
+			if (accordion_operador.selectedIndex == 0){
+				popular_operador();
+				var where:Array = ["id_aluno is not null"];
+				ro_operador.select(adm_operadorVO,createDataGrid,defaultFaultHandler,where,null);
+			}
+		}
+		private function createDataGrid(e:ResultEvent):void{
+			this.enabled = true;
+			if (accordion_operador.selectedIndex == 0){
+				dg_print.datagrid.dataProvider = e.result;
+			}
+		}
+		
+		private function inserir(e:Event):void{
+			
+			if (accordion_operador.selectedIndex == 0){
+				isValid = util.validateForm(form_operadora);
+				isValid = util.validateForm(form_operadorb) && isValid;
+				if (!isValid){
+					mensagem_oper.text = UtilMensagens.PreenchaCampo;
+				} else {
+					this.enabled = false;
+					popular_operador();
+					ro_operador.inserir(adm_operadorVO,inserirResult,defaultFaultHandler);
+				}
+			}
+		}
+		private function inserirResult(e:ResultEvent):void{
+			this.enabled = true;
+			if (accordion_operador.selectedIndex == 0){
+				txtid.text = e.result.toString();
+			}
+			selecionar(e);
+			
+		}
+		private function alterar(e:Event):void{
+			if (accordion_operador.selectedIndex == 0){
+				var teste:Boolean = testesenha();
+				if (teste == true){
+					isValid = util.validateForm(form_operadora);
+					isValid = util.validateForm(form_operadorb) && isValid;
+					if (!isValid){
+						mensagem_oper.text = UtilMensagens.PreenchaCampo;
+					} else {
+						this.enabled = false;
+						popular_operador2();
+						ro_operador.atualizar2(adm_operadorVO,alterarResult,defaultFaultHandler);
+					}
+				}
+			}
+			
+		}
+		private function alterarResult(e:ResultEvent):void{
+			this.enabled = true;
+			if (accordion_operador.selectedIndex == 0){
+				dg_print.datagrid.dataProvider = e.result;
+			}
+		}
+		private function deletar(e:Event):void{
+			if (accordion_operador.selectedIndex == 0){
+				isValid = util.validateForm(form_operadora);
+				isValid = util.validateForm(form_operadorb) && isValid;
+				if (!isValid){
+					mensagem_oper.text = UtilMensagens.PreenchaCampo;
+				} else {
+					this.enabled = false;
+					popular_operador();
+					ro_operador.deletar(adm_operadorVO,deletarResult,defaultFaultHandler);
+				}
+			}
+		}
+		private function deletarResult(e:ResultEvent):void{
+			this.enabled = true;
+			if (accordion_operador.selectedIndex == 0){
+				dg_print.datagrid.dataProvider = e.result;
+			}
+			limpar(e);
+		}
+		private function popular_operador():void{
+			adm_operadorVO = new Adm_operadorVO();
+			adm_operadorVO.id_operador = txtid.text.length <= 0 ? null : parseInt(txtid.text);
+			adm_operadorVO.nickname = txtnickname.text.length <= 0 ? null : txtnickname.text;
+			adm_operadorVO.nmoperador = txtnome.text.length <= 0 ? null : txtnome.text.toUpperCase();
+			adm_operadorVO.id_ativo = cbativo.selectedItem ? cbativo.selectedItem.data : null;
+		}
+		private function popular_operador2():void{
+			adm_operadorVO = new Adm_operadorVO();
+			adm_operadorVO.id_operador = txtid.text.length <= 0 ? null : parseInt(txtid.text);
+			adm_operadorVO.senha = txtsenha.text.length > 0 ? txtsenha.text : null;
+			adm_operadorVO.id_ativo = cbativo.selectedItem ? cbativo.selectedItem.data : null;
+		}
+		
+		private function limpar(e:Event):void{
+			if (accordion_operador.selectedIndex == 0){
+				util.limpar_formulario(form_operadora);
+				util.limpar_formulario(form_operadorb);
+				dg_print.datagrid.dataProvider = null
+				mensagem_oper.text = "";
+			}
+		}
+		private function setcampos(e:Event):void{
+			if (accordion_operador.selectedIndex == 0){
+				cbcargo.selectedItem = util.selecionarCombobox(dg_print.datagrid.selectedItem.id_cargo, ArrayCargo);
+				txtnome.text = dg_print.datagrid.selectedItem.nmoperador;
+				txtredigite.text = dg_print.datagrid.selectedItem.senha;
+				txtsenha.text = dg_print.datagrid.selectedItem.senha;
+				txtnickname.text = dg_print.datagrid.selectedItem.nickname;
+				txtid.text = dg_print.datagrid.selectedItem.id_operador;
+				cbativo.selectedItem = util.selecionarCombobox(dg_print.datagrid.selectedItem.id_ativo,ArrayAtivo);
+				
+				
+			}
+			
+		}
+		private function defaultFaultHandler(e:FaultEvent):void{
+			this.enabled = true;
+			retorno = new UtilRetornoBanco;
+			retorno.RetornoBanco(e);
+			
+			if (accordion_operador.selectedIndex == 0){
+				mensagem_oper.text = "";
+			}
+			
+		}
+
+	]]>
+</mx:Script>
+	<mx:TabNavigator id="accordion_operador" width="100%" height="100%" change="accordioncomplete(event)" creationPolicy="all">
+    		<mx:Canvas id="c_operador" label="Operador" width="100%" height="100%">
+    		<mx:VBox width="100%" height="100%">
+				<mx:Label width="100%" id="mensagem_oper" text="" styleName="lblerro"/>
+				<mx:HBox width="100%">
+					<mx:Form id="form_operadora" width="50%" height="100%">
+						<mx:FormItem label="Id.:">
+							<skins:TextInput_Maiusculo id="txtid" width="82" editable="false"/>
+						</mx:FormItem>
+						<mx:FormItem label="Nome:" required="true">
+							<skins:TextInput_Maiusculo id="txtnome"/>
+						</mx:FormItem>
+						<mx:FormItem label="Nickname:" required="true">
+							<mx:TextInput id="txtnickname" maxChars="30" editable="false"/>
+						</mx:FormItem>
+						<mx:FormItem label="Senha:" required="true" >
+							<mx:TextInput id="txtsenha" displayAsPassword="true" maxChars="20" width="216" />
+						</mx:FormItem>
+						<mx:FormItem label="Redigite:" required="true">
+							<mx:TextInput id="txtredigite" displayAsPassword="true" maxChars="20" width="216" />
+						</mx:FormItem>
+					</mx:Form>
+					<mx:Form id="form_operadorb" width="50%" height="100%">
+						<mx:FormItem label="Cargo:" required="true">
+							<mx:ComboBox id="cbcargo"  selectedIndex="0" enabled="false"/>
+						</mx:FormItem>
+						<mx:FormItem label="Ativo:" required="true">
+							<mx:ComboBox id="cbativo" selectedIndex="0"/>
+						</mx:FormItem>
+					</mx:Form>
+				</mx:HBox>
+				<skins:DataGrid_PrintButton id="dg_print" width="100%" height="100%"/>
+				<!--<mx:DataGrid width="100%" height="100%" id="dg_operador" itemClick="setcampos(event)" focusEnabled="false">
+					<mx:columns>
+						<mx:DataGridColumn headerText="Id." width="60" dataField="id_operador"/>
+						<mx:DataGridColumn headerText="Nickname" width="300" dataField="nickname"/>
+						<mx:DataGridColumn headerText="Nome"  dataField="nmoperador"/>
+						<mx:DataGridColumn headerText="Ativo"  width="200" dataField="id_ativo" labelFunction="lf_ativo"/>
+						<mx:DataGridColumn headerText="Ultimo acesso" width="200" dataField="dt_acesso" labelFunction="labeldtformat_dtacesso"/>
+					</mx:columns>
+				</mx:DataGrid>-->
+			</mx:VBox>
+	</mx:Canvas>
+</mx:TabNavigator>
+<skins:CtrlBar_Buttons id="ctrlbar"/>	
+
+</MDIWindow>

@@ -1,0 +1,53 @@
+<?xml version="1.0" encoding="utf-8"?>
+<MDIWindow xmlns:fc="com.flexpernambuco.controls.*" resizable="false" 
+	xmlns="flexmdi.containers.*" xmlns:mx="http://www.adobe.com/2006/mxml" width="760" height="372" title="Impressão Carne" 
+	creationComplete="init()" xmlns:ns1="com.degrafa.*" layout="absolute" horizontalAlign="center">
+<mx:Script source="rptimpcarne.as"/>
+   		<mx:Canvas  width="100%" height="100%">
+    		<mx:VBox width="100%" height="100%">
+				<mx:Label width="100%" id="mensagemerro" styleName="lblerro"/>
+				<mx:HBox width="100%" horizontalAlign="center">
+					<mx:Label text="Cd. Contrato:" width="98" textAlign="right"/>
+					<mx:TextInput width="111" editable="true" id="txtid_contrato" />
+					<mx:Label text="Aluno:" width="80" textAlign="right"/>
+					<fc:MasterTextInput id="txtid_aluno" text="" width="128" editable="false"/>
+					<mx:Button id="b_aluno" styleName="btpesquisa" click="{openpesquisa()}"/>
+					<mx:TextInput  width="40%" editable="false" id="txt_nmaluno"/>
+				</mx:HBox>
+				<mx:HBox width="100%" height="100%">
+				<mx:DataGrid width="100%" height="100%" resizableColumns="false" id="dg_carne">
+					<mx:columns>
+						
+						<!--<mx:DataGridColumn headerText="Imp." width="50">
+							<mx:itemRenderer>
+								<mx:Component>
+									<mx:VBox horizontalAlign="center">
+										<mx:CheckBox id="chk_imprime" change="parentDocument.select_impcarne(data.checked)" click="data.checked=!data.checked" selected="{data.checked}"/>
+									</mx:VBox>
+								</mx:Component>
+							</mx:itemRenderer>
+						</mx:DataGridColumn>-->
+						<!--<mx:DataGridColumn headerText="Imp2." width="50" itemRenderer="TesteItemRenderer"/>-->
+						<mx:DataGridColumn headerText="Nome Turma" dataField="nmturma"/>
+						<mx:DataGridColumn headerText="Parcela" dataField="parcela"/>
+						<mx:DataGridColumn headerText="Cd. Parcela" dataField="id_duplicata"/>
+						<mx:DataGridColumn headerText="Nome Curso" dataField="nmcurso"/>
+						<mx:DataGridColumn headerText="Dt. Vencimento" dataField="dt_vencimento"/>
+						<mx:DataGridColumn headerText="Valor" dataField="saldo"/>
+					</mx:columns>
+				</mx:DataGrid>
+				</mx:HBox>
+				<mx:HBox width="100%" height="10%" horizontalAlign="left" bottom="0">
+					<mx:CheckBox label="Marcar / Desmarcar Todos" width="207" id="chk_selectall" click="{selectAllCheckboxes()}"/>
+				</mx:HBox>
+			</mx:VBox>
+</mx:Canvas>
+<mx:ControlBar  width="100%" horizontalAlign="center">
+	<mx:Button id="bt_pesquisar" label="Pesquisar" styleName="searchButton" click="selecionar()"/>
+	<mx:Button id="bt_limpar" label="Limpar" click="{limpar()}" styleName="clearButton"/>
+<mx:Button id="b_imprimir" label="Imprimir" click="{imprime()}" styleName="clearButton" x="558" y="289"/>
+</mx:ControlBar>
+<mx:Array id="validatorArray">
+	<mx:StringValidator id="valid_txtid_contrato" source="{txtid_contrato}" property="text" minLength="1" trigger="{bt_pesquisar}" requiredFieldError="Campo Obrigatório" />
+</mx:Array>
+</MDIWindow>

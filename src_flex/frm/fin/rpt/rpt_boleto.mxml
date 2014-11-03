@@ -1,0 +1,116 @@
+<?xml version="1.0" encoding="utf-8"?>
+<MDIWindow xmlns:fc="com.flexpernambuco.controls.*"
+		   xmlns="flexmdi.containers.*"
+		   xmlns:mx="http://www.adobe.com/2006/mxml"
+		   xmlns:skins="skins.*"
+		   width="600" height="278" creationComplete="init(event)" horizontalAlign="center"
+		   layout="absolute" resizable="false" title="Imprime Boleto">
+<mx:Script>
+	<![CDATA[
+		import classes.Util;
+		import classes.UtilMensagens;
+		
+		import com.flexpernambuco.controls.MasterTextInput;
+		
+		import frm.frm_pesquisa;
+		
+		import mx.controls.Alert;
+		import mx.events.FlexEvent;
+		import mx.managers.PopUpManager;
+		
+		import vo.SystemVO;
+
+		private var systemvo:SystemVO = SystemVO.getInstance();
+		[Bindable] private var isValid:Boolean = false;
+		private var util:Util = new Util();
+		private var pesquisatitlewindow:frm_pesquisa;
+			
+		protected function init(event:FlexEvent):void
+		{
+			bt_imprimir.addEventListener(MouseEvent.CLICK,imprime);
+			bt_limpar.addEventListener(MouseEvent.CLICK,limpar);
+		}
+		
+		protected function imprime(event:MouseEvent):void
+		{
+			isValid = util.validateForm(form);
+			
+			if (isValid){
+				var url:String = "http://" + systemvo.pathreport + "/ServletIreport/Rpt_Boleto";
+				var request:URLRequest = new URLRequest(url);
+				var variables:URLVariables = new URLVariables();
+				variables.p_idcontratoini = txtid_contratoini.text;
+				variables.p_idcontratofin = txtid_contratofin.text;
+				variables.p_dtinicial = txtdt_inicial.text;
+				variables.p_dtfinal = txtdt_final.text;	
+				variables.retorno = "PDF";
+				request.data = variables;
+				request.method = URLRequestMethod.POST;
+			
+				navigateToURL(request,"_blank");			
+			} else {
+				mensagem.text = UtilMensagens.PreenchaCampo;
+			}
+		}
+		
+		protected function limpar(event:MouseEvent):void
+		{
+			util.limpar_formulario(form);
+			mensagem.text = '';
+		}
+		// abre pop up pesquisa                
+		private function openpesquisa(tablename:String,title:String,c:MasterTextInput,r:MasterTextInput):void{
+			
+			
+			pesquisatitlewindow = PopUpManager.createPopUp(this,frm_pesquisa,true) as frm_pesquisa;
+			PopUpManager.centerPopUp(pesquisatitlewindow);
+			
+			pesquisatitlewindow.title = "Pesquisa " + title;
+			pesquisatitlewindow.tablename = tablename;
+			
+			
+			pesquisatitlewindow["list_data_grid"].addEventListener(MouseEvent.DOUBLE_CLICK,closePopUpWindow(tablename,c,r));
+			
+		}
+		
+		private function closePopUpWindow(tablename:String,c:MasterTextInput,r:MasterTextInput):Function {
+			
+			return function(evt:MouseEvent):void{
+				if (tablename == "adm_contrato"){
+					c.text = pesquisatitlewindow.list_data_grid.selectedItem.id_contrato;
+					r.text = pesquisatitlewindow.list_data_grid.selectedItem.nome;
+				}	
+				PopUpManager.removePopUp(pesquisatitlewindow);
+			}
+		}
+		
+	]]>
+</mx:Script>	
+   		<mx:Canvas  width="100%" height="100%">
+    		<mx:VBox width="100%" height="100%">
+				<mx:Label width="100%" id="mensagem" styleName="lblerro"/>
+				<mx:Form id="form" width="100%">
+						<mx:FormItem label="Contrato Ini:" required="true" direction="horizontal">
+							<fc:MasterTextInput id="txtid_contratoini"  width="90" />
+							<mx:Button id="bt" styleName="btpesquisa" click="{openpesquisa('adm_contrato','Contrato',txtid_contratoini,txtalunoini)}"/>
+							<fc:MasterTextInput id="txtalunoini"  width="140" />
+						</mx:FormItem>
+						<mx:FormItem label="Contrato Fin:" required="true" direction="horizontal">
+							<fc:MasterTextInput id="txtid_contratofin"  width="90" />
+							<mx:Button styleName="btpesquisa" click="{openpesquisa('adm_contrato','Contrato',txtid_contratofin,txtalunofin)}"/>
+							<fc:MasterTextInput id="txtalunofin"  width="140" />
+						</mx:FormItem>
+						<mx:FormItem label="Dt. Inicial:" required="true">
+							<skins:DateField_Data id="txtdt_inicial"/>
+						</mx:FormItem>
+						<mx:FormItem label="Dt. Final:" required="true">
+							<skins:DateField_Data id="txtdt_final"/>
+						</mx:FormItem>
+				</mx:Form>
+			</mx:VBox>
+</mx:Canvas>
+<mx:ControlBar  width="100%" horizontalAlign="center">
+	<mx:Button id="bt_imprimir" label="Imprimir" styleName="clearButton"/>
+	<mx:Button id="bt_limpar" label="Limpar" enabled="true" styleName="clearButton"/>
+</mx:ControlBar>
+</MDIWindow>

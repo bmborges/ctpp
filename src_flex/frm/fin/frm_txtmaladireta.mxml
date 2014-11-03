@@ -1,0 +1,354 @@
+<?xml version="1.0" encoding="utf-8"?>
+<MDIWindow xmlns="flexmdi.containers.*"
+		   xmlns:mx="http://www.adobe.com/2006/mxml"
+		   xmlns:s="library://ns.adobe.com/flex/spark"
+		   xmlns:skins="skins.*"
+		   width="846" height="514" creationComplete="init()"
+		   title="Cadastro Tipo / Texto Mala Direta">
+<mx:Script>
+	<![CDATA[
+		import classes.Util;
+		import classes.UtilMensagens;
+		import classes.UtilRetornoBanco;
+		
+		import mx.collections.ArrayCollection;
+		import mx.controls.Alert;
+		import mx.core.FlexGlobals;
+		import mx.events.CloseEvent;
+		import mx.events.IndexChangedEvent;
+		import mx.rpc.events.FaultEvent;
+		import mx.rpc.events.ResultEvent;
+		
+		import service.adm.Adm_AtivoService;
+		import service.adm.Adm_OperadorService;
+		import service.fin.Fin_TipoMalaDiretaService;
+		import service.fin.Fin_TxtMalaDiretaService;
+		
+		import vo.adm.SystemVO;
+		import vo.fin.Fin_TipoMalaDiretaVO;
+		import vo.fin.Fin_TxtMalaDiretaVO;
+		
+		private var util:Util = new Util();
+		private var retorno:UtilRetornoBanco;
+
+		[Bindable] private var ArrayOperador:ArrayCollection;
+		[Bindable] private var ArrayAtivo:ArrayCollection;
+		private var fin_tipomaladiretaVO:Fin_TipoMalaDiretaVO;
+		private var fin_txtmaladiretaVO:Fin_TxtMalaDiretaVO;
+		
+		private var systemvo:SystemVO = SystemVO.getInstance();
+		private var ro_tipomaladireta:Fin_TipoMalaDiretaService = Fin_TipoMalaDiretaService.getInstance();
+		private var ro_txtmaladireta:Fin_TxtMalaDiretaService = Fin_TxtMalaDiretaService.getInstance();
+		private var ro_ativo:Adm_AtivoService = Adm_AtivoService.getInstance();
+		private var ro_operador:Adm_OperadorService = Adm_OperadorService.getInstance();
+		
+		[Bindable] private var isValid:Boolean = false;
+		
+		private function init():void{
+			
+			
+			this.width = FlexGlobals.topLevelApplication.mdiCanvas.width;
+			this.height = FlexGlobals.topLevelApplication.mdiCanvas.height;
+			
+			this.x = 0;
+			this.y = 0;
+			
+			ctrlbar.addChildAt(ctrlbar.bt_pesquisar,0);
+			ctrlbar.addChildAt(ctrlbar.bt_inserir,1);
+			ctrlbar.addChildAt(ctrlbar.bt_alterar,2);
+			ctrlbar.addChildAt(ctrlbar.bt_excluir,3);
+			ctrlbar.addChildAt(ctrlbar.bt_limpar,4);
+			
+			ctrlbar.bt_pesquisar.addEventListener(MouseEvent.CLICK,selecionar);
+			ctrlbar.bt_inserir.addEventListener(MouseEvent.CLICK,inserir);
+			ctrlbar.bt_alterar.addEventListener(MouseEvent.CLICK,alterar);
+			ctrlbar.bt_excluir.addEventListener(MouseEvent.CLICK,deletar);
+			ctrlbar.bt_limpar.addEventListener(MouseEvent.CLICK,limpar);
+			
+			ro_ativo.ComboBox("nmativo","id_ativo",createcb_idativo,defaultFaultHandler);
+			ro_operador.ComboBox("nickname","id_operador",createarrayoperador,defaultFaultHandler);
+			
+		}
+		private function createcb_idativo(event:ResultEvent):void{
+			ArrayAtivo = event.result as ArrayCollection;
+			cb_idativo.dataProvider = event.result as ArrayCollection;
+		}
+		private function createarrayoperador(e:ResultEvent):void{
+			ArrayOperador = e.result as ArrayCollection;
+		}
+		protected function lf_operador(item:Object, column:DataGridColumn):String
+		{
+			var retorno:Object = util.selecionarCombobox(item.id_operador,ArrayOperador);
+			if (retorno == null){
+				return "";	
+			}
+			return retorno.label;
+		}
+		protected function lf_ativo(item:Object, column:DataGridColumn):String
+		{
+			var retorno:Object = util.selecionarCombobox(item.id_ativo,ArrayAtivo);
+			if (retorno == null){
+				return "";	
+			}
+			return retorno.label;
+		}
+		protected function lb_texto(item:Object, column:DataGridColumn):String
+		{
+			var texto:String = item.texto;
+			return texto.substr(0,80)+"...";
+		}
+		private function tbcomplete(event:IndexChangedEvent):void{
+			var currentIndex:int=event.newIndex;
+			if (currentIndex == 0){
+			}else if (currentIndex == 1){
+				util.limpar_formulario(form_txt);
+				util.limpar_formulario(form_txt1);
+				selecionar(event);
+			}
+		}
+		private function selecionar(e:Event):void{
+			this.enabled = false;
+			if (tbnav.selectedIndex == 0){
+				popular_tipo();
+				ro_tipomaladireta.select(fin_tipomaladiretaVO,createDataGrid,defaultFaultHandler);
+			} else if (tbnav.selectedIndex == 1){
+				popular_txt_pesquisa();
+				ro_txtmaladireta.select(fin_txtmaladiretaVO,createDataGrid,defaultFaultHandler);
+			}
+		}
+		private function createDataGrid(e:ResultEvent):void{
+			this.enabled = true;
+			if (tbnav.selectedIndex == 0){
+				dg_tipo.dataProvider = e.result;
+			} else if (tbnav.selectedIndex == 1){
+				dg_txt.dataProvider = e.result;					
+			}
+		}
+		
+		private function inserir(e:Event):void{
+			if (tbnav.selectedIndex == 0){
+				isValid = util.validateForm(form_tipo);
+				if (!isValid){
+					mensagem_tipo.text = UtilMensagens.PreenchaCampo;
+				} else {
+					this.enabled = false;
+					popular_tipo();
+					ro_tipomaladireta.inserir(fin_tipomaladiretaVO,inserirResult,defaultFaultHandler);
+				}
+			} else if (tbnav.selectedIndex == 1){
+				isValid = util.validateForm(form_txt);
+				isValid = util.validateForm(form_txt1) && isValid;
+				if (!isValid){
+					mensagem_txt.text = UtilMensagens.PreenchaCampo;
+				} else {
+					this.enabled = false;
+					popular_txt();
+					ro_txtmaladireta.inserir(fin_txtmaladiretaVO,inserirResult,defaultFaultHandler);
+				}
+			}
+		}
+		private function inserirResult(e:ResultEvent):void{
+			this.enabled = true;
+			if (tbnav.selectedIndex == 0){
+				txtid_tipomaladireta.text = e.result.toString();
+			} else if (tbnav.selectedIndex == 1){
+				txtid_txtmaladireta.text = e.result.toString();
+			}			
+			selecionar(e);
+		}
+		private function alterar(e:Event):void{
+			if (tbnav.selectedIndex == 0){
+				isValid = util.validateForm(form_tipo);
+				if (!isValid){
+					mensagem_tipo.text = UtilMensagens.PreenchaCampo;
+				} else {
+					this.enabled = false;
+					popular_tipo();
+					ro_tipomaladireta.atualizar(fin_tipomaladiretaVO,alterarResult,defaultFaultHandler);
+				}
+			} else if (tbnav.selectedIndex == 1){
+				isValid = util.validateForm(form_txt);
+				isValid = util.validateForm(form_txt1) && isValid;
+				if (!isValid){
+					mensagem_txt.text = UtilMensagens.PreenchaCampo;
+				} else {
+					this.enabled = false;
+					popular_txt();
+					ro_txtmaladireta.atualizar(fin_txtmaladiretaVO,alterarResult,defaultFaultHandler);
+				}
+			}
+		}
+		private function alterarResult(e:ResultEvent):void{
+			this.enabled = true;
+			if (tbnav.selectedIndex == 0){
+				dg_tipo.dataProvider = e.result;
+			} else if (tbnav.selectedIndex == 1){
+				dg_txt.dataProvider = e.result;
+				selecionar(e);
+			}
+		}
+		public function deletar(e:Event):void{
+			Alert.yesLabel = "Sim";
+			Alert.noLabel = "Não";
+			Alert.show('Confirmar ?','Deseja Realmente Deletar esse Registro',Alert.YES|Alert.NO,this,confirmDeletar);
+		}
+		private function confirmDeletar(e:CloseEvent):void{
+			if (e.detail == Alert.YES){
+				if (tbnav.selectedIndex == 0){
+					isValid = util.validateForm(form_tipo);
+					if (!isValid){
+						mensagem_tipo.text = UtilMensagens.PreenchaCampo;
+					} else {
+						this.enabled = false;
+						popular_tipo();
+						ro_tipomaladireta.deletar(fin_tipomaladiretaVO,deletarResult,defaultFaultHandler);
+					}
+				} else if (tbnav.selectedIndex == 1){
+					isValid = util.validateForm(form_txt);
+					isValid = util.validateForm(form_txt1) && isValid;
+					if (!isValid){
+						mensagem_txt.text = UtilMensagens.PreenchaCampo;
+					} else {
+						this.enabled = false;
+						popular_txt();
+						ro_txtmaladireta.deletar(fin_txtmaladiretaVO,deletarResult,defaultFaultHandler);
+					}
+				}
+			}	
+		}
+		private function deletarResult(e:ResultEvent):void{
+			this.enabled = true;
+			if (tbnav.selectedIndex == 0){
+				dg_tipo.dataProvider = e.result;
+			} else if (tbnav.selectedIndex == 1){
+				dg_txt.dataProvider = e.result;
+			}
+			limpar(e);
+		}
+		private function popular_tipo():void{
+			fin_tipomaladiretaVO = new Fin_TipoMalaDiretaVO;
+			
+			fin_tipomaladiretaVO.id_tipomaladireta = txtid_tipomaladireta.text.length > 0 ? txtid_tipomaladireta.text : null;
+			fin_tipomaladiretaVO.nmtipomaladireta = txtnmtipomaladireta.text.length > 0 ? txtnmtipomaladireta.text : null;
+			fin_tipomaladiretaVO.dif_dias = txtdif_dias.text.length > 0 ? txtdif_dias.text : null;
+			
+		}
+		private function popular_txt():void{
+			fin_txtmaladiretaVO = new Fin_TxtMalaDiretaVO;
+			
+			fin_txtmaladiretaVO.id_txtmaladireta = txtid_txtmaladireta.text.length > 0 ? txtid_txtmaladireta.text : null; 
+			fin_txtmaladiretaVO.id_tipomaladireta = txtid_tipomaladireta.text;
+			fin_txtmaladiretaVO.texto = txttexto.text.length > 0 ? txttexto.text : null;
+			fin_txtmaladiretaVO.id_operador = systemvo.id_operador;
+			fin_txtmaladiretaVO.id_ativo = cb_idativo.selectedItem.data;
+			
+		}
+		private function popular_txt_pesquisa():void{
+			fin_txtmaladiretaVO = new Fin_TxtMalaDiretaVO;
+
+			fin_txtmaladiretaVO.id_tipomaladireta = txtid_tipomaladireta.text;
+			
+		}
+		private function limpar(e:Event):void{
+			if (tbnav.selectedIndex == 0){
+				util.limpar_formulario(form_tipo);
+				dg_tipo.dataProvider = null
+				mensagem_tipo.text = null;
+				dg_txt.dataProvider = null;
+				mensagem_txt.text = null;
+			} else if (tbnav.selectedIndex == 1){
+				util.limpar_formulario(form_txt);
+				util.limpar_formulario(form_txt1);
+				dg_txt.dataProvider = null;
+				mensagem_txt.text = null;
+				selecionar(e);
+			}
+		}
+		private function setcampos(e:Event):void{
+			if (tbnav.selectedIndex == 0){
+				txtid_tipomaladireta.text = dg_tipo.selectedItem.id_tipomaladireta;
+				txtnmtipomaladireta.text = dg_tipo.selectedItem.nmtipomaladireta;
+				txtdif_dias.text = dg_tipo.selectedItem.dif_dias;
+			} else if (tbnav.selectedIndex == 1){
+				txtid_txtmaladireta.text = dg_txt.selectedItem.id_txtmaladireta;
+				txttexto.text = dg_txt.selectedItem.texto;
+				cb_idativo.selectedItem = util.selecionarCombobox(dg_txt.selectedItem.id_ativo,ArrayAtivo);
+			}
+		}
+		private function defaultFaultHandler(e:FaultEvent):void{
+			this.enabled = true;
+			retorno = new UtilRetornoBanco;
+			retorno.RetornoBanco(e);
+			
+			if (tbnav.selectedIndex == 0){
+				mensagem_tipo.text = "";
+			} else if (tbnav.selectedIndex == 1){
+				mensagem_txt.text = "";
+			}
+		}
+	]]>
+</mx:Script>
+	<mx:TabNavigator id="tbnav" width="100%" height="100%" change="tbcomplete(event)" creationPolicy="all">
+		<mx:Canvas id="c_tipo" label="Tipo Mala Direta" width="100%" height="100%">
+    		<mx:VBox width="100%" height="100%">
+				<mx:Label width="100%" id="mensagem_tipo" text="" styleName="lblerro"/>
+				<mx:HBox width="100%">
+					<mx:Form id="form_tipo" width="50%" height="100%">
+						<mx:FormItem label="Id.:">
+							<mx:TextInput id="txtid_tipomaladireta" width="82" editable="false"/>
+						</mx:FormItem>
+						<mx:FormItem label="Nome:" required="true">
+							<mx:TextInput id="txtnmtipomaladireta" maxWidth="160"/>
+						</mx:FormItem>
+						<mx:FormItem label="Intervalo Dias:" required="true">
+							<mx:TextInput id="txtdif_dias" maxWidth="160"/>
+						</mx:FormItem>
+					</mx:Form>
+				</mx:HBox>
+				<mx:DataGrid width="100%" height="100%" id="dg_tipo" itemClick="setcampos(event)" focusEnabled="false">
+					<mx:columns>
+						<mx:DataGridColumn headerText="Id." width="60" dataField="id_tipomaladireta"/>
+						<mx:DataGridColumn headerText="Nome" dataField="nmtipomaladireta"/>
+						<mx:DataGridColumn headerText="Intervalo Dias" width="100" dataField="dif_dias"/>
+					</mx:columns>
+				</mx:DataGrid>
+			</mx:VBox>
+		</mx:Canvas>
+		<mx:Canvas id="c_txt" label="Texto" width="100%" height="100%" enabled="{txtid_tipomaladireta.text.length > 0 ? true : false}">
+			<mx:VBox width="100%" height="100%">
+				<mx:Label width="100%" id="mensagem_txt" text="" styleName="lblerro"/>
+				<mx:HBox width="100%" height="100%">
+					<mx:Form id="form_txt" width="20%" height="100%">
+						<mx:FormItem label="Id.:">
+							<mx:TextInput id="txtid_txtmaladireta" width="82" editable="false"/>
+						</mx:FormItem>
+						<mx:FormItem label="Ativo:" direction="horizontal" required="true">
+							<mx:ComboBox id="cb_idativo" selectedIndex="0"/>
+						</mx:FormItem>
+					</mx:Form>
+					<mx:Form id="form_txt1" width="80%" height="100%">
+						<mx:FormItem label="Texto:" required="true"  width="100%" height="100%">
+							<mx:TextArea id="txttexto"  width="100%" height="100%"/>
+						</mx:FormItem>
+					</mx:Form>
+				</mx:HBox>
+				<mx:HBox width="100%" horizontalAlign="center">
+					<mx:Button id="nome_responsavel" label="nome_responsavel" click="{txttexto.text += '%nome_responsavel%'; txttexto.setFocus()}"/>
+					<mx:Button id="nome_aluno" label="nome_aluno" click="{txttexto.text += '%nome_aluno%'; txttexto.setFocus()}"/>
+					<mx:Button id="nr_contrato" label="nr_contrato" click="{txttexto.text += '%nr_contrato%'; txttexto.setFocus()}"/>
+					<mx:Button id="nome_curso" label="nome_curso" click="{txttexto.text += '%nome_curso%'; txttexto.setFocus()}"/>
+					<mx:Button id="info_parcela" label="info_parcela" click="{txttexto.text += '%info_parcela%'; txttexto.setFocus()}"/>
+				</mx:HBox>
+				<mx:DataGrid width="100%" height="40%" id="dg_txt" itemClick="setcampos(event)" focusEnabled="false">
+					<mx:columns>
+						<mx:DataGridColumn headerText="Id." width="60" dataField="id_txtmaladireta"/>
+						<mx:DataGridColumn headerText="Texto" dataField="texto" labelFunction="lb_texto"/>
+						<mx:DataGridColumn headerText="Ativo" width="60" dataField="id_ativo" labelFunction="lf_ativo"/>
+						<mx:DataGridColumn headerText="Operador" width="120" dataField="id_operador" labelFunction="lf_operador"/>
+					</mx:columns>
+				</mx:DataGrid>
+			</mx:VBox>
+		</mx:Canvas>
+	</mx:TabNavigator>
+<skins:CtrlBar_Buttons id="ctrlbar"/>
+</MDIWindow>

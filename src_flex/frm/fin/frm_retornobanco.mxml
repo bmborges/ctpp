@@ -1,0 +1,212 @@
+<?xml version="1.0" encoding="utf-8"?>
+<MDIWindow xmlns="flexmdi.containers.*" xmlns:mx="http://www.adobe.com/2006/mxml" 
+	width="794" height="392" title="Pesquisa Retorno Banco" creationComplete="init()" xmlns:skins="skins.*">
+
+	<mx:Script>
+		<![CDATA[
+			import classes.Util;
+			
+			import mx.core.FlexGlobals;
+			
+			import classes.UtilMensagens;
+			import classes.UtilRetornoBanco;
+			
+			import mx.collections.ArrayCollection;
+			import mx.controls.textClasses.TextRange;
+			import mx.events.IndexChangedEvent;
+			import mx.events.ListEvent;
+			import mx.rpc.events.FaultEvent;
+			import mx.rpc.events.ResultEvent;
+			
+			import service.fin.Fin_BancoService;
+			import service.fin.Fin_Descricao_Retorno240Service;
+			import service.fin.Fin_RetornoBancoService;
+			import service.fin.Fin_TipoRecService;
+			
+			import vo.fin.Fin_BancoVO;
+			import vo.fin.Fin_Descricao_Retorno240VO;
+			import vo.fin.Fin_RetornoBancoVO;
+			import vo.fin.Fin_TipoRecVO;
+			
+			[Bindable] private var ArrayBanco:ArrayCollection;
+			[Bindable] private var isValid:Boolean = false;
+			private var util:Util = new Util();
+			private var retorno:UtilRetornoBanco;
+			
+			private var ro_descricao240:Fin_Descricao_Retorno240Service = Fin_Descricao_Retorno240Service.getInstance();
+			private var ro_banco:Fin_BancoService = Fin_BancoService.getInstance();
+			private var ro_retornobanco:Fin_RetornoBancoService = Fin_RetornoBancoService.getInstance();
+			
+			private var fin_descricao240:Fin_Descricao_Retorno240VO;
+			private var fin_retornobancoVO:Fin_RetornoBancoVO;
+			
+			private function addButtons():void{
+				ctrlbar.removeAllChildren();
+				if (tabnav.selectedIndex == 0){
+					ctrlbar.addChildAt(ctrlbar.bt_pesquisar,0);
+					ctrlbar.addChildAt(ctrlbar.bt_limpar,1);
+				} else if (tabnav.selectedIndex == 1){
+					
+				}
+			}
+			private function init():void{
+				
+				this.width = FlexGlobals.topLevelApplication.mdiCanvas.width;
+				this.height = FlexGlobals.topLevelApplication.mdiCanvas.height;
+				
+				this.x = 0;
+				this.y = 0;
+				
+				addButtons();
+				
+				ctrlbar.bt_pesquisar.addEventListener(MouseEvent.CLICK,selecionar);
+				ctrlbar.bt_limpar.addEventListener(MouseEvent.CLICK,limpar);
+				
+				dg_retornobanco.addEventListener(ListEvent.ITEM_CLICK,setcampos);
+				
+				ro_banco.ComboBox("nmbanco","id_banco",ArrayBancoResult,defaultFaultHandler);
+				
+			}
+			private function descricao240(e:MouseEvent):void{
+				
+				var texto:String = txa_arquivo.text.substring(txa_arquivo.selectionBeginIndex,txa_arquivo.selectionEndIndex);
+				if (texto.length > 0 ){
+					fin_descricao240 = new Fin_Descricao_Retorno240VO();
+					fin_descricao240.texto = texto;
+					
+					ro_descricao240.Procedure(fin_descricao240,descricao240Result,defaultFaultHandler);
+				}
+			}
+			private function descricao240Result(e:ResultEvent):void{
+				txa_descricao.text = e.result[0]['retorno'];
+			}
+			private function tabnavigator_change(event:IndexChangedEvent):void{
+				var currentIndex:int=event.newIndex;
+				if (currentIndex == 0){
+					addButtons();
+				}else if (currentIndex == 1){
+					txa_arquivo.text = dg_retornobanco.selectedItem.retorno;
+					addButtons();
+				}
+			}
+			private function ArrayBancoResult(e:ResultEvent):void{
+				ArrayBanco = e.result as ArrayCollection;
+			}
+			private function create_DataGrid(e:ResultEvent):void{
+				this.enabled = true;
+				dg_retornobanco.dataProvider = e.result;
+			}
+			
+			private function selecionar(e:Event):void{
+				this.enabled = false;
+				popular();
+				ro_retornobanco.select(fin_retornobancoVO,create_DataGrid,defaultFaultHandler);
+			}
+			
+			private function inserir(e:Event):void{
+//				isValid = util.validateForm(form);
+//				if (!isValid){
+//					mensagem.text = UtilMensagens.PreenchaCampo;
+//				} else {
+//					this.enabled = false;
+//					popular();
+//					ro_retornobanco.inserir(fin_retornobancoVO,inserirResult,defaultFaultHandler);
+//				}
+			}
+			
+			private function inserirResult(e:ResultEvent):void{
+				this.enabled = true;
+//				txtid_tiporec.text = e.result.toString();
+				selecionar(e);
+			}
+			
+			private function alterar(e:Event):void{
+//				isValid = util.validateForm(form);
+//				if (!isValid){
+//					mensagem.text = UtilMensagens.PreenchaCampo;
+//				} else {
+//					this.enabled = false;
+//					popular();
+//					ro_retornobanco.atualizar(fin_retornobancoVO,alterarResult,defaultFaultHandler);
+//				}
+			}
+			private function alterarResult(e:ResultEvent):void{
+				this.enabled = true;
+				dg_retornobanco.dataProvider = e.result;
+			}
+			private function deletar(e:Event):void{
+//				isValid = util.validateForm(form);
+//				if (!isValid){
+//					mensagem.text = UtilMensagens.PreenchaCampo;
+//				} else {
+//					this.enabled = false;
+//					popular();
+//					ro_retornobanco.deletar(fin_retornobancoVO,deletarResult,defaultFaultHandler);
+//					limpar(e);	
+//				}
+			}
+			private function deletarResult(e:ResultEvent):void{
+				this.enabled = true;
+				dg_retornobanco.dataProvider = e.result;
+			}
+			private function lf_banco(item:Object,column:DataGridColumn):String{
+				var retorno:Object = util.selecionarCombobox(item.id_banco,ArrayBanco);
+				return retorno.label;
+			}
+			
+			private function limpar(e:Event):void{
+				mensagem.text = "";
+				txa_descricao.text = null;
+				util.limpar_formulario(form);
+				dg_retornobanco.dataProvider = null;
+			}
+			private function setcampos(e:Event):void{
+				tabnav.selectedIndex = 1;
+			}
+			
+			private function popular():void{
+				fin_retornobancoVO = new Fin_RetornoBancoVO();
+				fin_retornobancoVO.retorno = txtnossonumero.text.length <= 0 ? null : "%"+txtnossonumero.text+"%";
+				fin_retornobancoVO.id_retornobanco = txtid_retornobanco.text.length <= 0 ? null : txtid_retornobanco.text;
+			}
+			private function defaultFaultHandler(e:FaultEvent):void{
+				this.enabled = true;
+				retorno = new UtilRetornoBanco;
+				retorno.RetornoBanco(e);
+				mensagem.text = "";
+			}
+			
+		]]>
+	</mx:Script>
+	
+	<mx:Label width="100%" id="mensagem" text="" styleName="lblerro"/>
+	<mx:Form id="form" width="100%" paddingTop="0" paddingBottom="0">
+		<mx:FormItem label="Id:">
+			<skins:TextInput_Maiusculo id="txtid_retornobanco"/>
+		</mx:FormItem>
+		<mx:FormItem label="Pesquisar:">
+			<skins:TextInput_Maiusculo id="txtnossonumero"/>
+		</mx:FormItem>
+	</mx:Form>
+	<mx:TabNavigator id="tabnav" width="100%" height="100%" change="tabnavigator_change(event)">
+		<mx:Canvas label="Selecionar" width="100%" height="100%">
+			<mx:DataGrid height="100%" width="100%" id="dg_retornobanco" focusEnabled="true">
+				<mx:columns>
+					<mx:DataGridColumn width="60" headerText="Id." dataField="id_retornobanco"/>
+					<mx:DataGridColumn headerText="Banco" dataField="id_banco" labelFunction="lf_banco"/>
+					<mx:DataGridColumn headerText="Nome Arquivo" dataField="nmarquivo"/>
+				</mx:columns>
+			</mx:DataGrid>
+		</mx:Canvas>
+		<mx:Canvas label="Visualiza" width="100%" height="100%" enabled="{dg_retornobanco.selectedItem ? true : false}">
+			<mx:VBox width="100%" height="100%">
+				<mx:Label text="Selecione uma linha"/>
+				<mx:TextArea id="txa_arquivo" width="100%" height="100%" editable="false" 
+							 mouseUp="descricao240(event)" mouseDown="{txa_descricao.text = null}" paddingLeft="5" paddingRight="5"/>
+				<mx:Label text="Descrição Linha"/>
+				<mx:TextArea id="txa_descricao" width="100%" height="30%"/>
+			</mx:VBox>
+		</mx:Canvas>
+	</mx:TabNavigator>
+	<skins:CtrlBar_Buttons id="ctrlbar"/>
+</MDIWindow>

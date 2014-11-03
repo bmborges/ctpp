@@ -1,0 +1,155 @@
+<?xml version="1.0" encoding="utf-8"?>
+<MDIWindow xmlns="flexmdi.containers.*" xmlns:mx="http://www.adobe.com/2006/mxml" 
+		   width="782" height="476" title="Cadastro Cargo" creationComplete="init()"
+		   xmlns:s="library://ns.adobe.com/flex/spark" xmlns:skins="skins.*">
+	<mx:Script>
+		<![CDATA[
+			import classes.Util;
+			
+			import mx.events.ListEvent;
+			
+			import classes.UtilMensagens;
+			import classes.UtilRetornoBanco;
+			
+			import mx.core.FlexGlobals;
+			import mx.rpc.events.FaultEvent;
+			import mx.rpc.events.ResultEvent;
+			
+			import service.adm.Adm_CargoService;
+			
+			import vo.adm.Adm_cargoVO;
+			
+			private var ro_cargo:Adm_CargoService = Adm_CargoService.getInstance();
+			private var adm_cargoVO:Adm_cargoVO;
+			private var util:Util = new Util();
+			private var retorno:UtilRetornoBanco;
+			[Bindable] private var isValid:Boolean = false;
+			
+			private function init():void{
+				
+				this.width = FlexGlobals.topLevelApplication.mdiCanvas.width;
+				this.height = FlexGlobals.topLevelApplication.mdiCanvas.height;
+				
+				this.x = 0;
+				this.y = 0;
+				
+				dg_print.Pesquisar("adm_cargo");
+				dg_print.datagrid.addEventListener(ListEvent.ITEM_CLICK,setcampos);
+				
+				ctrlbar.addChildAt(ctrlbar.bt_pesquisar,0);
+				ctrlbar.addChildAt(ctrlbar.bt_inserir,1);
+				ctrlbar.addChildAt(ctrlbar.bt_alterar,2);
+				ctrlbar.addChildAt(ctrlbar.bt_excluir,3);
+				ctrlbar.addChildAt(ctrlbar.bt_limpar,4);
+				
+				ctrlbar.bt_pesquisar.addEventListener(MouseEvent.CLICK,selecionar);
+				ctrlbar.bt_inserir.addEventListener(MouseEvent.CLICK,inserir);
+				ctrlbar.bt_alterar.addEventListener(MouseEvent.CLICK,alterar);
+				ctrlbar.bt_excluir.addEventListener(MouseEvent.CLICK,deletar);
+				ctrlbar.bt_limpar.addEventListener(MouseEvent.CLICK,limpar);
+			}
+			private function create_DataGrid(event:ResultEvent):void {
+				this.enabled = true;
+				dg_print.datagrid.dataProvider = event.result;
+			}
+			private function selecionar(e:Event):void{
+				this.enabled = false;
+				popular();
+				ro_cargo.select(adm_cargoVO,create_DataGrid,defaultFaultHandler,null,null);
+			}
+			private function inserir(e:Event):void{
+				isValid = util.validateForm(form);
+				if (!isValid){
+					mensagem.text = UtilMensagens.PreenchaCampo;
+				} else {
+					this.enabled = false;
+					popular();
+					ro_cargo.inserir(adm_cargoVO,inserirResult);
+				}
+			}
+			
+			private function inserirResult(e:ResultEvent):void{
+				this.enabled = true;
+				txtid_cargo.text = e.result.toString();
+				selecionar(e);
+			}
+			
+			private function alterar(e:Event):void{
+				isValid = util.validateForm(form);
+				if (!isValid){
+					mensagem.text = UtilMensagens.PreenchaCampo;
+				} else {
+					this.enabled = false;
+					popular();
+					ro_cargo.atualizar(adm_cargoVO,alterarResult);
+				}
+			}
+			private function alterarResult(e:ResultEvent):void{
+				this.enabled = true;
+				dg_print.datagrid.dataProvider = e.result;
+			}
+			private function deletar(e:Event):void{
+				isValid = util.validateForm(form);
+				if (!isValid){
+					mensagem.text = UtilMensagens.PreenchaCampo;
+				} else {
+					this.enabled = false;
+					popular();
+					ro_cargo.deletar(adm_cargoVO,deletarResult);
+				}				
+			}
+			private function deletarResult(e:ResultEvent):void{
+				this.enabled = true;
+				dg_print.datagrid.dataProvider = e.result;
+				limpar(e);	
+			}
+			private function limpar(e:Event):void{
+				mensagem.text = "";
+				util.limpar_formulario(form);
+				dg_print.datagrid.dataProvider = null;
+			}
+			private function setcampos(e:Event):void{
+//				txtid_cargo.text = dg_cargo.selectedItem.id_cargo;
+//				txtnmcargo.text = dg_cargo.selectedItem.nmcargo;
+				txtid_cargo.text = dg_print.datagrid.selectedItem.id_cargo;
+				txtnmcargo.text = dg_print.datagrid.selectedItem.nmcargo;
+			}
+			
+			private function popular():void{
+				adm_cargoVO = new Adm_cargoVO;
+				adm_cargoVO.id_cargo = txtid_cargo.text.length <= 0 ? null : txtid_cargo.text;
+				adm_cargoVO.nmcargo = txtnmcargo.text.length <= 0 ? null : txtnmcargo.text.toUpperCase();
+			}
+			
+			private function defaultFaultHandler(e:FaultEvent):void{
+				this.enabled = true;
+				retorno = new UtilRetornoBanco;
+				retorno.RetornoBanco(e);
+				mensagem.text = "";
+				
+			}			
+		]]>
+	</mx:Script>
+	<mx:VBox width="100%" height="100%">
+		<mx:Label width="100%" id="mensagem" styleName="lblerro"/>
+		<mx:HBox width="100%">
+			<mx:Form id="form" width="50%" height="100%">
+				<mx:FormItem label="Id.:">
+					<mx:TextInput id="txtid_cargo" width="82" editable="false"/>
+				</mx:FormItem>
+				<mx:FormItem label="Cargo:" required="true">
+					<skins:TextInput_Maiusculo id="txtnmcargo" width="216"/>
+				</mx:FormItem>
+			</mx:Form>
+		</mx:HBox>
+		<skins:DataGrid_PrintButton id="dg_print" width="100%" height="100%" tabela="adm_cargo"/>
+		<!--<mx:DataGrid width="100%" height="100%" id="dg_cargo" itemClick="setcampos(event)" focusEnabled="false">
+			<mx:columns>
+				<mx:DataGridColumn headerText="Id." width="60" dataField="id_cargo"/>
+				<mx:DataGridColumn headerText="Cargo" dataField="nmcargo"/>
+			</mx:columns>
+		</mx:DataGrid>-->
+	</mx:VBox>
+	
+	<skins:CtrlBar_Buttons id="ctrlbar"/>
+</MDIWindow>

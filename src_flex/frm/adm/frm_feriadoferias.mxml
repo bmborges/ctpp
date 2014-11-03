@@ -1,0 +1,343 @@
+<?xml version="1.0" encoding="utf-8"?>
+<MDIWindow xmlns="flexmdi.containers.*"
+		   xmlns:mx="http://www.adobe.com/2006/mxml"
+		   width="726" height="472" creationComplete="init()"
+		   title="Cadastro Feriado / Férias" xmlns:skins="skins.*">
+<mx:Script>
+	<![CDATA[
+		import classes.Util;
+		import classes.UtilMensagens;
+		import classes.UtilRetornoBanco;
+		
+		import mx.core.FlexGlobals;
+		import mx.events.IndexChangedEvent;
+		import mx.rpc.events.FaultEvent;
+		import mx.rpc.events.ResultEvent;
+		
+		import service.adm.Adm_FeriadoService;
+		import service.adm.Adm_FeriasService;
+		
+		import vo.adm.Adm_FeriadoVO;
+		import vo.adm.Adm_FeriasVO;
+		
+		
+		private var util:Util = new Util();
+		[Bindable] private var isValid:Boolean = false;
+		private var retorno:UtilRetornoBanco;
+		
+		private var ro_feriado:Adm_FeriadoService = Adm_FeriadoService.getInstance();
+		private var ro_ferias:Adm_FeriasService = Adm_FeriasService.getInstance();
+		
+		private var adm_feriadoVO:Adm_FeriadoVO;
+		private var adm_feriasVO:Adm_FeriasVO;
+
+		private function addButtons():void{
+			ctrlbar.removeAllChildren();
+			
+			ctrlbar.addChildAt(ctrlbar.bt_pesquisar,0);
+			ctrlbar.addChildAt(ctrlbar.bt_inserir,1);
+			ctrlbar.addChildAt(ctrlbar.bt_alterar,2);
+			ctrlbar.addChildAt(ctrlbar.bt_excluir,3);
+			ctrlbar.addChildAt(ctrlbar.bt_limpar,4);
+			
+		}
+		private function init():void{
+			
+			this.width = FlexGlobals.topLevelApplication.mdiCanvas.width;
+			this.height = FlexGlobals.topLevelApplication.mdiCanvas.height;
+			
+			this.x = 0;
+			this.y = 0;
+			
+			addButtons();
+			
+			//seta eventos
+			ctrlbar.bt_pesquisar.addEventListener(MouseEvent.CLICK,selecionar);
+			ctrlbar.bt_inserir.addEventListener(MouseEvent.CLICK,inserir);
+			ctrlbar.bt_alterar.addEventListener(MouseEvent.CLICK,alterar);
+			ctrlbar.bt_excluir.addEventListener(MouseEvent.CLICK,deletar);
+			ctrlbar.bt_limpar.addEventListener(MouseEvent.CLICK,limpar);
+		}
+		private function accordioncomplete(e:IndexChangedEvent):void{
+			var currentIndex:int=e.newIndex;
+			if (currentIndex == 0){
+				util.limpar_formulario(form_feriado);
+			} else if (currentIndex == 1){
+				util.limpar_formulario(form_feriasa);
+				util.limpar_formulario(form_feriasb);
+			}
+		}
+		private function createDataGrid(e:ResultEvent):void{
+			this.enabled = true;
+			if (tn_feriadoferias.selectedIndex == 0){
+				dg_feriado.dataProvider = e.result;
+			} else if (tn_feriadoferias.selectedIndex == 1 ){
+				dg_ferias.dataProvider = e.result;
+			}
+		}
+		private function selecionar(e:Event):void{
+			this.enabled = false;
+			if (tn_feriadoferias.selectedIndex == 0){
+				popular_feriado();
+				ro_feriado.select(adm_feriadoVO,createDataGrid,defaultFaultHandler);
+			} else if (tn_feriadoferias.selectedIndex == 1){
+				var where:Array = ["id_turma is null"];
+				var order:Array = ["ano desc"];
+				popular_ferias()
+				ro_ferias.select(adm_feriasVO,createDataGrid,defaultFaultHandler,where,order);
+			}
+		}
+		private function inserir(e:Event):void{
+			if (tn_feriadoferias.selectedIndex == 0){
+				isValid = util.validateForm(form_feriado);
+				if (!isValid){
+					mensagem_feriado.text = UtilMensagens.PreenchaCampo;
+				} else {
+					this.enabled = false;
+					popular_feriado();
+					ro_feriado.inserir(adm_feriadoVO,inserirResult,defaultFaultHandler);
+				}
+			} else if (tn_feriadoferias.selectedIndex == 1){
+				isValid = util.validateForm(form_feriasa);
+				isValid = util.validateForm(form_feriasb) && isValid;
+				if (!isValid){
+					mensagem_ferias.text = UtilMensagens.PreenchaCampo;
+				} else {
+					this.enabled = false;
+					popular_ferias()
+					ro_ferias.inserir(adm_feriasVO,inserirResult,defaultFaultHandler);
+				}
+			}
+		}
+		private function inserirResult(e:ResultEvent):void{
+			this.enabled = true;
+			if (tn_feriadoferias.selectedIndex == 0){
+				txtid_feriado.text = e.result.toString();
+			} else if (tn_feriadoferias.selectedIndex == 1){
+				txtid_ferias.text = e.result.toString();
+			}
+			selecionar(e);
+		}
+		
+		private function alterar(e:Event):void{
+			if (tn_feriadoferias.selectedIndex == 0){
+				isValid = util.validateForm(form_feriado);
+				if (!isValid){
+					mensagem_feriado.text = UtilMensagens.PreenchaCampo;			
+				} else {
+					this.enabled = false;
+					popular_feriado();
+					ro_feriado.atualizar(adm_feriadoVO,alterarResult,defaultFaultHandler);
+				}
+			} else if (tn_feriadoferias.selectedIndex == 1){
+				isValid = util.validateForm(form_feriasa);
+				isValid = util.validateForm(form_feriasb) && isValid;
+				if (!isValid){
+					mensagem_ferias.text = UtilMensagens.PreenchaCampo;			
+				} else {
+					this.enabled = false;
+					popular_ferias();
+					ro_ferias.atualizar(adm_feriasVO,alterarResult,defaultFaultHandler);
+				}
+			}
+			
+			
+		}
+		private function alterarResult(e:ResultEvent):void{
+			this.enabled = true;
+			if (tn_feriadoferias.selectedIndex == 0){
+				dg_feriado.dataProvider = e.result;
+			} else if (tn_feriadoferias.selectedIndex == 1){
+				dg_ferias.dataProvider = e.result;
+			}
+		}
+		private function deletar(e:Event):void{
+			if (tn_feriadoferias.selectedIndex == 0){
+				isValid = util.validateForm(form_feriado);
+				if (!isValid){
+					mensagem_feriado.text = UtilMensagens.PreenchaCampo;			
+				} else {
+					this.enabled = false;
+					popular_feriado();
+					ro_feriado.deletar(adm_feriadoVO,deletarResult,defaultFaultHandler);
+				}
+			} else if (tn_feriadoferias.selectedIndex == 1){
+				isValid = util.validateForm(form_feriasa);
+				isValid = util.validateForm(form_feriasb) && isValid;
+				if (!isValid){
+					mensagem_ferias.text = UtilMensagens.PreenchaCampo;			
+				} else {
+					this.enabled = false;
+					popular_ferias()
+					ro_ferias.deletar(adm_feriasVO,deletarResult,defaultFaultHandler);
+				}
+			}
+		}
+		private function deletarResult(e:ResultEvent):void{
+			this.enabled = true;
+			if (tn_feriadoferias.selectedIndex == 0){
+				dg_feriado.dataProvider = e.result;
+			} else if (tn_feriadoferias.selectedIndex == 1){
+				dg_ferias.dataProvider = e.result;
+			}
+			limpar(e);
+			selecionar(e);
+		}
+		private function limpar(e:Event):void{
+			if (tn_feriadoferias.selectedIndex == 0){
+				util.limpar_formulario(form_feriado);
+				util.limpar_formulario(form_feriasa);
+				util.limpar_formulario(form_feriasb);
+				mensagem_feriado.text = "";
+				mensagem_ferias.text = "";
+				dg_feriado.dataProvider = null;
+				dg_ferias.dataProvider = null;
+			} else if (tn_feriadoferias.selectedIndex == 1){
+				util.limpar_formulario(form_feriasa);
+				util.limpar_formulario(form_feriasb);
+				mensagem_ferias.text = "";
+				dg_ferias.dataProvider = null;
+			}
+		}
+		
+		private function popular_ferias():void{
+			adm_feriasVO = new Adm_FeriasVO;
+			adm_feriasVO.ano = txtano.text.length <= 0 ? null : txtano.text;
+			adm_feriasVO.dt_final_fim = txtfinalano.selectedDate;
+			adm_feriasVO.dt_final_meio = txtfinalmeio.selectedDate;
+			adm_feriasVO.dt_inicio_fim = txtinicioano.selectedDate;
+			adm_feriasVO.dt_inicio_meio = txtiniciomeio.selectedDate;
+			adm_feriasVO.id_ferias = txtid_ferias.text.length <= 0 ? null : txtid_ferias.text;
+		}
+		private function popular_feriado():void{
+			adm_feriadoVO = new Adm_FeriadoVO;
+			adm_feriadoVO.dt_feriado = txtdtferiado.selectedDate;
+			adm_feriadoVO.id_feriado = txtid_feriado.text.length <= 0 ? null : txtid_feriado.text;
+			adm_feriadoVO.nmferiado = txtnmferiado.text.length <= 0 ? null : txtnmferiado.text.toUpperCase();
+		}
+		private function setcampos(e:Event):void{
+			if (tn_feriadoferias.selectedIndex == 0){
+				txtid_feriado.text = dg_feriado.selectedItem.id_feriado;
+				txtnmferiado.text = dg_feriado.selectedItem.nmferiado;
+				txtdtferiado.selectedDate = dg_feriado.selectedItem.dt_feriado;
+			}else if (tn_feriadoferias.selectedIndex == 1 ){
+				txtid_ferias.text = dg_ferias.selectedItem.id_ferias;
+				txtano.text = dg_ferias.selectedItem.ano;
+				txtfinalano.selectedDate = dg_ferias.selectedItem.dt_final_fim;
+				txtfinalmeio.selectedDate = dg_ferias.selectedItem.dt_final_meio;
+				txtinicioano.selectedDate = dg_ferias.selectedItem.dt_inicio_fim;
+				txtiniciomeio.selectedDate = dg_ferias.selectedItem.dt_inicio_meio;
+			}
+		}
+		private function defaultFaultHandler(e:FaultEvent):void{
+			this.enabled = true;
+			retorno = new UtilRetornoBanco;
+			retorno.RetornoBanco(e);
+			
+			if (tn_feriadoferias.selectedIndex == 0){
+				mensagem_feriado.text = "";
+			} else if (tn_feriadoferias.selectedIndex == 1){
+				mensagem_ferias.text = "";
+			}
+			
+		}
+		protected function lf_dtferiado(item:Object, column:DataGridColumn):String{
+			if (item.dt_feriado == null){
+				return "";
+			}
+			return util.formatData_DDMMYYYY(item.dt_feriado);
+		}
+		protected function lf_dt_final_fim(item:Object, column:DataGridColumn):String{
+			if (item.dt_final_fim == null){
+				return "";
+			}
+			return util.formatData_DDMMYYYY(item.dt_final_fim);
+		}
+		protected function lf_dt_inicio_fim(item:Object, column:DataGridColumn):String{
+			if (item.dt_inicio_fim == null){
+				return "";
+			}
+			return util.formatData_DDMMYYYY(item.dt_inicio_fim);
+		}
+		protected function lf_dt_inicio_meio(item:Object, column:DataGridColumn):String{
+			if (item.dt_inicio_meio == null){
+				return "";
+			}
+			return util.formatData_DDMMYYYY(item.dt_inicio_meio);
+		}
+		protected function lf_dt_final_meio(item:Object, column:DataGridColumn):String{
+			if (item.dt_final_meio == null){
+				return "";
+			}
+			return util.formatData_DDMMYYYY(item.dt_final_meio);
+		}
+	]]>
+</mx:Script>
+     <mx:TabNavigator id="tn_feriadoferias" width="100%" height="100%" change="accordioncomplete(event)" creationPolicy="all">
+    		<mx:Canvas label="Feriado(s)" width="100%" height="100%">
+				<mx:VBox width="100%" height="100%">
+					<mx:Label width="100%" id="mensagem_feriado" text="" styleName="lblerro"/>
+					<mx:HBox width="100%" height="30%">
+						<mx:Form id="form_feriado" width="50%" height="100%">
+							<mx:FormItem label="Id.:">
+								<mx:TextInput id="txtid_feriado" width="82" editable="false"/>
+							</mx:FormItem>
+							<mx:FormItem label="Descrição:" required="true">
+								<skins:TextInput_Maiusculo id="txtnmferiado" width="216"/>
+							</mx:FormItem>
+							<mx:FormItem label="Dt. Feriado:" required="true">
+								<skins:DateField_Data id="txtdtferiado"/>
+							</mx:FormItem>
+						</mx:Form>
+					</mx:HBox>
+					<mx:DataGrid width="100%" height="100%" id="dg_feriado" itemClick="setcampos(event)" focusEnabled="false">
+						<mx:columns>
+							<mx:DataGridColumn headerText="Id." width="60" dataField="id_feriado"/>
+							<mx:DataGridColumn headerText="Descrição" dataField="nmferiado"/>
+							<mx:DataGridColumn headerText="Dt. Feriado" dataField="dt_feriado" labelFunction="lf_dtferiado"/>
+						</mx:columns>
+					</mx:DataGrid>
+				</mx:VBox>
+	</mx:Canvas>
+	<mx:Canvas label="Ferias" width="100%" height="100%">
+		<mx:VBox width="100%" height="100%">
+			<mx:Label width="100%" id="mensagem_ferias" text="" styleName="lblerro"/>
+			<mx:HBox width="100%" height="40%">
+				<mx:Form id="form_feriasa" width="50%" height="100%">
+					<mx:FormItem label="Id.:" >
+						<mx:TextInput id="txtid_ferias" width="70" editable="false"/>
+					</mx:FormItem>
+					<mx:FormItem label="Ano:" required="true">
+						<skins:TextInput_Maiusculo id="txtano" width="70" editable="true"/>
+					</mx:FormItem>
+					<mx:FormItem label="Inicio Aulas:" required="true" toolTip="Data Início Aulas">
+						<skins:DateField_Data id="txtfinalano"/>
+					</mx:FormItem>
+					<mx:FormItem label="Termino Aulas:" required="true" toolTip="Data Término Aulas">
+						<skins:DateField_Data id="txtinicioano"/>
+					</mx:FormItem>
+				</mx:Form>
+				<mx:Form id="form_feriasb" width="50%" height="100%">
+					<mx:FormItem label="Dt. Início Ferias:" required="true" toolTip="Data Início Férias">
+						<skins:DateField_Data id="txtiniciomeio"/>
+					</mx:FormItem>
+					<mx:FormItem label="Dt. Final Ferias:" required="true" toolTip="Data Término Férias">
+						<skins:DateField_Data id="txtfinalmeio"/>
+					</mx:FormItem>
+				</mx:Form>
+			</mx:HBox>
+			<mx:DataGrid width="100%" height="100%" id="dg_ferias" itemClick="setcampos(event)" focusEnabled="false">
+				<mx:columns>
+					<mx:DataGridColumn headerText="Id." width="60" dataField="id_ferias"/>
+					<mx:DataGridColumn headerText="Ano" dataField="ano"/>
+					<mx:DataGridColumn headerText="Inicio Aulas" dataField="dt_final_fim" labelFunction="lf_dt_final_fim"/>
+					<mx:DataGridColumn headerText="Termino Aulas" dataField="dt_inicio_fim" labelFunction="lf_dt_inicio_fim"/>
+					<mx:DataGridColumn headerText="Dt. Início Férias" dataField="dt_inicio_meio" labelFunction="lf_dt_inicio_meio"/>
+					<mx:DataGridColumn headerText="Dt. Final Férias" dataField="dt_final_meio" labelFunction="lf_dt_final_meio"/>
+				</mx:columns>
+			</mx:DataGrid>
+		</mx:VBox>
+	</mx:Canvas>
+</mx:TabNavigator>
+<skins:CtrlBar_Buttons id="ctrlbar"/>
+</MDIWindow>

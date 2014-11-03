@@ -1,0 +1,199 @@
+<?xml version="1.0" encoding="utf-8"?>
+<MDIWindow resizable="false" 
+	xmlns="flexmdi.containers.*" xmlns:mx="http://www.adobe.com/2006/mxml" 
+	width="964" height="518" title="Diário" creationComplete="init()" 
+	layout="absolute" horizontalAlign="center" xmlns:skins="skins.*"
+	close="mdiwindow1_closeHandler(event)" xmlns:local="*" xmlns:s="library://ns.adobe.com/flex/spark">
+<mx:Script source="diario.as"/>
+	<states>
+		<mx:State name="nota"/>
+		<mx:State name="avaliacao">
+			<mx:RemoveChild target="{dg_diario}"/>
+			<mx:AddChild position="lastChild" relativeTo="{cnv_aluno}">
+				<mx:DataGrid width="100%" height="100%" id="dg_avaliacao" >
+					<mx:columns>
+						<mx:DataGridColumn headerText="Aluno" dataField="nome" editable="false"/>
+						<mx:DataGridColumn dataField="id_avaliacao" headerText="Avaliacao" editable="false" labelFunction="lf_avaliacao"/>
+						<mx:DataGridColumn headerText="Escolha" width="300">
+							<mx:itemRenderer>
+								<mx:Component>
+									<mx:HBox horizontalAlign="center" verticalAlign="middle">
+										<mx:ComboBox dataProvider="{parentDocument.ArrayAvaliacao}" id="cb_avaliacao" change="parentDocument.atualiza_avaliacao(data.id_diarionotas,cb_avaliacao); cb_avaliacao.selectedIndex = 0;" />
+									</mx:HBox>
+								</mx:Component>
+							</mx:itemRenderer>
+						</mx:DataGridColumn>
+					</mx:columns>
+				</mx:DataGrid>
+			</mx:AddChild>
+		</mx:State>
+	</states>
+<mx:Canvas  width="100%" height="100%">
+		<mx:VBox width="100%" height="100%">
+    			<mx:Label width="100%" id="mensagem" styleName="lblerro"/>
+			<mx:Form id="form_diario" width="100%" paddingTop="0" paddingBottom="0">
+				<mx:FormItem label="Diário" direction="horizontal" required="true" width="100%">
+					<skins:TextInput_Maiusculo id="txtid_diario" width="148" editable="false"/>
+					<mx:Spacer width="5"/>
+					<mx:Button id="btpesquisa" width="30" styleName="btpesquisa" click="{openpesquisa()}"/>
+					<mx:TextInput id="txt_nmturma" width="250" editable="false"
+								  enabled="true"/>
+					<mx:Spacer width="5"/>
+					<s:Group id="g_diariostatus">
+						<s:layout>
+							<s:HorizontalLayout/>
+						</s:layout>
+						<mx:Label text="Situação:"/>
+						<mx:ComboBox id="cb_diariostatus" selectedIndex="0" enabled="false"/>
+					</s:Group>
+				</mx:FormItem>
+			</mx:Form>
+			
+			<mx:Form id="form_professor" width="100%" paddingTop="0" paddingBottom="0">
+				<mx:FormItem label="Professor" direction="horizontal" required="false" width="100%">
+					<skins:TextInput_Maiusculo id="txt_nmoperador" width="246" editable="false"/>
+					<mx:Spacer width="5"/>
+					<mx:Label text="Matéria"/>
+					<mx:TextInput id="txt_nmmateria" width="237" editable="false"
+								  enabled="true"/>
+					<mx:Label text="Dt. Inicio:" textAlign="right" width="98"/>
+					<mx:DateField width="100" id="txt_dtinicio" formatString="DD/MM/YYYY" enabled="false"/>
+				</mx:FormItem>
+			</mx:Form>
+			<mx:TabNavigator width="100%" height="100%" id="tbnavigator" change="tabnav_changeHandler(event)" creationPolicy="all">
+				<mx:Canvas id="cnv_aluno" label="Alunos">
+					<mx:DataGrid  width="100%" height="100%" id="dg_diario" itemEditEnd="dg_diario_itemFocusOutHandler(event)"
+								  editable="true">
+						<mx:columns>
+							<mx:DataGridColumn headerText="Aluno" dataField="nome" editable="false"/>
+							<mx:DataGridColumn headerText="Nota 1" dataField="nota1" editable="true"/>
+							<mx:DataGridColumn headerText="Nota 2" dataField="nota2" editable="true"/>
+							<mx:DataGridColumn headerText="Atividades" dataField="atividades" editable="false"/>
+							<mx:DataGridColumn headerText="Nota Recup." dataField="nota_recup" editable="true"/>
+							<mx:DataGridColumn headerText="Nota Conselho" dataField="nota_cons" editable="true"/>
+							<mx:DataGridColumn headerText="Perc.Faltas" dataField="perc_faltas" editable="false"/>
+							<mx:DataGridColumn headerText="Média" dataField="media" editable="false" />
+							<local:StylizedDataGridColumn headerText="Situação" dataField="estilo" stylesFunction="changeStyles" labelFunction="situacao_labelFunction" editable="false"/>
+						</mx:columns>
+					</mx:DataGrid>
+				</mx:Canvas>
+				<mx:Canvas id="cnv_atividade" label="Atividades" enabled="{txtid_diario.text.length > 0 ? true : false}">
+					<mx:VBox width="100%" height="100%">
+						<mx:Form width="100%" id="form_atividades">
+							<mx:FormItem label="Data:" required="true" direction="horizontal">
+								<skins:DateField_Data id="txtdata"/>
+								<mx:TextInput id="txtid_atividade" visible="false"/>
+							</mx:FormItem>
+							<mx:FormItem label="Descrição:" required="true">
+								<skins:TextInput_Maiusculo id="txtdescricao" width="283"/>
+							</mx:FormItem>
+						</mx:Form>
+						<mx:DataGrid width="100%" height="100%" id="dg_atividades" editable="true" itemEditEnd="dg_atividades_itemFocusOutHandler(event)"
+									 headerRelease="dg_atividades_headerReleaseHandler(event)">
+							<mx:columns>
+								<mx:DataGridColumn headerText="Aluno" dataField="nome" editable="false"/>
+								<mx:DataGridColumn headerText="Atividade 1" dataField="atividade1" editable="true" visible="{qtde_ativ >=1 ? true : false}"/>
+								<mx:DataGridColumn headerText="Atividade 2" dataField="atividade2" editable="true" visible="{qtde_ativ >=2 ? true : false}"/>
+								<mx:DataGridColumn headerText="Atividade 3" dataField="atividade3" editable="true" visible="{qtde_ativ >=3 ? true : false}"/>
+								<mx:DataGridColumn headerText="Atividade 4" dataField="atividade4" editable="true" visible="{qtde_ativ >=4 ? true : false}"/>
+								<mx:DataGridColumn headerText="Atividade 5" dataField="atividade5" editable="true" visible="{qtde_ativ >=5 ? true : false}"/>
+								<mx:DataGridColumn headerText="Atividade 6" dataField="atividade6" editable="true" visible="{qtde_ativ >=6 ? true : false}"/>
+								<mx:DataGridColumn headerText="Atividade 7" dataField="atividade7" editable="true" visible="{qtde_ativ >=7 ? true : false}"/>
+								<mx:DataGridColumn headerText="Atividade 8" dataField="atividade8" editable="true" visible="{qtde_ativ >=8 ? true : false}"/>
+								<mx:DataGridColumn headerText="Atividade 9" dataField="atividade9" editable="true" visible="{qtde_ativ >=9 ? true : false}"/>
+								<mx:DataGridColumn headerText="Atividade 10" dataField="atividade10" editable="true" visible="{qtde_ativ >=10 ? true : false}"/>
+							</mx:columns>
+						</mx:DataGrid>
+					</mx:VBox>
+				</mx:Canvas>
+				<mx:Canvas id="cnv_conteudo" label="Conteúdo" enabled="{txtid_diario.text.length > 0 ? true : false}">
+					<mx:VBox width="100%" height="100%">
+						<mx:Form width="100%" id="form_conteudo">
+							<mx:FormItem label="Data:" required="true" direction="horizontal">
+								<skins:DateField_Data id="txtdtaula"/>
+								<mx:Spacer width="10"/>
+								<mx:Button label="Enviar Arquivo" id="bt_envarquivo" visible="{txtid_diariocont.text.length > 0 ? true : false}" click="open_imparquivo(event)"/>
+								<mx:TextInput id="txtid_diariocont" visible="false"/>
+							</mx:FormItem>
+							<mx:FormItem label="Conteúdo:" id="formi_conteudo" required="true" width="100%" height="100">
+								<mx:TextArea id="txtarea" width="90%" height="100%"/>
+							</mx:FormItem>
+						</mx:Form>
+					<mx:DataGrid width="100%" height="100%" id="dg_conteudo"  itemClick="setcampos(event)">
+						<mx:columns>
+							<mx:DataGridColumn dataField="data" headerText="Data" width="100" labelFunction="lf_datacont"/>
+							<mx:DataGridColumn dataField="nr_aula" headerText="Aula" width="50"/>
+							<mx:DataGridColumn dataField="descricao" headerText="Conteúdo"/>
+							<mx:DataGridColumn dataField="qtd_arq" headerText="Qtde.Arquivos" width="90"/>
+						</mx:columns>
+					</mx:DataGrid>
+					</mx:VBox>
+				</mx:Canvas>
+				<mx:Canvas id="cnv_faltas" label="Faltas" enabled="{txtid_diario.text.length > 0 ? true : false}">
+					<mx:VBox width="100%" height="100%">
+						<mx:Form width="100%" id="form_faltas">
+							<mx:FormItem label="Data:">
+								<mx:ComboBox id="cb_dtaula"/>
+							</mx:FormItem>
+							<mx:FormItem label="Aluno:">
+								<mx:ComboBox id="cb_aluno"/>
+							</mx:FormItem>
+						</mx:Form>
+						<mx:DataGrid width="100%" height="100%" id="dg_faltas" itemEditEnd="dg_faltas_itemFocusOutHandler(event)" editable="true">
+							<mx:columns>
+								<mx:DataGridColumn headerText="Presença" width="50" editable="false">
+									<mx:itemRenderer>
+										<mx:Component>
+											<mx:VBox horizontalAlign="center">
+												<mx:CheckBox id="chk_presenca"  
+															 change="parentDocument.atualiza_presenca(chk_presenca.selected)" click="data.checked=!data.checked" selected="{data.id_ativo == 1 ? true : false}"/>
+											</mx:VBox>
+										</mx:Component>
+									</mx:itemRenderer>
+								</mx:DataGridColumn>
+								<mx:DataGridColumn dataField="dt_aula" headerText="Dt. Aula" width="50" labelFunction="lf_datafalta" editable="false"/>
+								<mx:DataGridColumn dataField="nr_aula" headerText="Aula" width="40" editable="false"/>
+								<mx:DataGridColumn dataField="nome" headerText="Aluno" width="140" editable="false"/>
+								<mx:DataGridColumn dataField="justificativa" headerText="Justificativa" editable="true"/>
+							</mx:columns>
+						</mx:DataGrid>
+					</mx:VBox>
+				</mx:Canvas>
+				<mx:Canvas id="cnv_graficos" label="Gráficos" width="100%" height="100%" enabled="{txtid_diario.text.length > 0 ? true : false}">
+					<mx:TabNavigator width="100%" height="100%" id="tb_graficos" change="tb_graficosChange(event)">
+						<mx:Canvas label="Faltas" width="100%" height="100%">
+							<mx:HBox width="100%" height="100%">
+								<mx:ColumnChart id="graficofalta" height="100%" width="100%" showDataTips="true">
+									<mx:series>
+										<mx:ColumnSeries showDataEffect="{SeriesSlide}" displayName="Total Aulas" yField="tot_aulas" columnWidthRatio="0.6"/>
+										<mx:ColumnSeries showDataEffect="{SeriesSlide}" displayName="Total Faltas" yField="tot_faltas"/>
+									</mx:series>
+									<mx:horizontalAxis>
+										<mx:CategoryAxis categoryField="nome"/>
+									</mx:horizontalAxis>
+								</mx:ColumnChart>
+							</mx:HBox>
+						</mx:Canvas>
+						<mx:Canvas label="Notas" width="100%" height="100%" enabled="{txtid_diario.text.length > 0 ? true : false}">
+							<mx:HBox width="100%" height="100%">
+								<mx:ColumnChart id="graficonotas" height="100%" width="100%" showDataTips="true">
+									<mx:series>
+										<mx:ColumnSeries showDataEffect="{SeriesSlide}" displayName="Nota1" yField="nota1" columnWidthRatio="0.6"/>
+										<mx:ColumnSeries showDataEffect="{SeriesSlide}" displayName="Nota2" yField="nota2"/>
+										<mx:ColumnSeries showDataEffect="{SeriesSlide}" displayName="Atividades" yField="atividades"/>
+									</mx:series>
+									<mx:horizontalAxis>
+										<mx:CategoryAxis categoryField="nome"/>
+									</mx:horizontalAxis>
+								</mx:ColumnChart>
+							</mx:HBox>
+						</mx:Canvas>
+					</mx:TabNavigator>
+				</mx:Canvas>
+			</mx:TabNavigator>
+		</mx:VBox>
+</mx:Canvas>
+
+<skins:CtrlBar_Buttons id="ctrlbar"/>	
+<mx:SeriesSlide duration="1000" direction="up" id="SeriesSlide"/>
+</MDIWindow>

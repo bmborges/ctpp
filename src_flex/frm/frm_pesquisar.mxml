@@ -1,0 +1,508 @@
+<?xml version="1.0" encoding="utf-8"?>
+<s:TitleWindow xmlns:fx="http://ns.adobe.com/mxml/2009"
+			   xmlns:s="library://ns.adobe.com/flex/spark"
+			   xmlns:mx="library://ns.adobe.com/flex/mx"
+			   width="780" height="400" creationPolicy="all" currentState="com_pesquisa"
+			   close="titlewindow1_closeHandler(event)"
+			   creationComplete="titlewindow1_creationCompleteHandler(event)"
+			   title="Pesquisa {this.s_title}">
+	<s:states>
+		<s:State name="com_pesquisa"/>
+		<s:State name="sem_pesquisa" enterState="state1_enterStateHandler(event)"/>
+	</s:states>
+	<fx:Declarations>
+		<!-- Place non-visual elements (e.g., services, value objects) here -->
+	</fx:Declarations>
+	<fx:Script>
+		<![CDATA[
+			import classes.Util;
+			import classes.UtilNamesPesquisa;
+			import classes.UtilPermissaoPrograma;
+			import classes.UtilRetornoBanco;
+			
+			import flash.events.MouseEvent;
+			
+			import mx.collections.ArrayCollection;
+			import mx.containers.FormItem;
+			import mx.controls.Alert;
+			import mx.controls.ComboBox;
+			import mx.controls.TextInput;
+			import mx.controls.dataGridClasses.DataGridColumn;
+			import mx.core.Application;
+			import mx.events.CloseEvent;
+			import mx.events.FlexEvent;
+			import mx.managers.PopUpManager;
+			import mx.rpc.events.FaultEvent;
+			import mx.rpc.events.ResultEvent;
+			
+			import service.ComboBoxService;
+			import service.Frm_PesquisaService;
+			import service.adm.Adm_EstadoService;
+			import service.adm.Adm_OperadorService;
+			import service.alu.Alu_AlunoService;
+			import service.alu.Alu_RespService;
+			import service.bco.Bco_AlineaService;
+			import service.bco.Bco_BancoService;
+			import service.cdc.Cdc_CentroCustoService;
+			import service.crs.Crs_CursoService;
+			import service.crs.Crs_SalaService;
+			import service.crs.Crs_TurmaService;
+			import service.ctr.Ctr_StatusService;
+			import service.ctr.View_Ctr_Contrato_AlunoService;
+			import service.fpg.Fpg_CadFuncService;
+			import service.fpg.Fpg_FuncaoService;
+			import service.fpg.Fpg_HorarioService;
+			import service.fpg.Fpg_JustificativaService;
+			import service.pdg.Pdg_DiarioStatusService;
+			import service.pdg.View_Pdg_DiarioService;
+			
+			import skins.TextInput_Cnpj;
+			import skins.TextInput_Cpf;
+			
+			import vo.adm.Adm_operadorVO;
+			import vo.adm.SystemVO;
+			import vo.alu.Alu_AlunoVO;
+			import vo.alu.Alu_RespVO;
+			import vo.bco.Bco_AlineaVO;
+			import vo.bco.Bco_BancoVO;
+			import vo.cdc.Cdc_CentroCustoVO;
+			import vo.crs.Crs_CursoVO;
+			import vo.crs.Crs_SalaVO;
+			import vo.crs.Crs_TurmaVO;
+			import vo.fpg.Fpg_CadFuncVO;
+			import vo.fpg.Fpg_FuncaoVO;
+			import vo.fpg.Fpg_HorarioVO;
+			import vo.fpg.Fpg_JustificativaVO;
+			import vo.view.View_Ctr_Contrato_AlunoVO;
+			import vo.view.View_Pdg_DiarioVO;
+			
+			[Bindable] public var s_title:String;
+			[Bindable] public var tablename:String;
+			[Bindable] public var tela:String;
+			
+			private var txtnome:TextInput = new TextInput();
+			private var txtnome1:TextInput = new TextInput();
+			private var txtnome2:TextInput = new TextInput();
+			private var formitem:FormItem = new FormItem();
+			private var formitem_1:FormItem = new FormItem();
+			private var formitem_2:FormItem = new FormItem();
+			private var cb:ComboBox = new ComboBox();
+			private var txtcpf:TextInput_Cpf = new TextInput_Cpf();
+			private var txtcnpj:TextInput_Cnpj = new TextInput_Cnpj();
+			
+			
+			public var util:Util = new Util();
+			private var retorno:UtilRetornoBanco;
+			public var systemvo:SystemVO = SystemVO.getInstance();
+			private var remote:Frm_PesquisaService = Frm_PesquisaService.getInstance();
+			
+			private var ro_viewdiario:View_Pdg_DiarioService = View_Pdg_DiarioService.getInstance();
+			private var ro_centrocusto:Cdc_CentroCustoService = Cdc_CentroCustoService.getInstance();
+			private var ro_funcao:Fpg_FuncaoService = Fpg_FuncaoService.getInstance();
+			private var ro_operador:Adm_OperadorService = Adm_OperadorService.getInstance();
+			private var ro_turma:Crs_TurmaService = Crs_TurmaService.getInstance();
+			private var ro_curso:Crs_CursoService = Crs_CursoService.getInstance();
+			private var ro_resp:Alu_RespService = Alu_RespService.getInstance();
+			private var ro_aluno:Alu_AlunoService = Alu_AlunoService.getInstance();
+			private var ro_estado:Adm_EstadoService = Adm_EstadoService.getInstance();
+			private var ro_view_contratoaluno:View_Ctr_Contrato_AlunoService = View_Ctr_Contrato_AlunoService.getInstance();
+			private var ro_sala:Crs_SalaService = Crs_SalaService.getInstance();
+			private var ro_diariostatus:Pdg_DiarioStatusService = Pdg_DiarioStatusService.getInstance();
+			private var ro_cadfunc:Fpg_CadFuncService = Fpg_CadFuncService.getInstance();
+			private var ro_justificativa:Fpg_JustificativaService = Fpg_JustificativaService.getInstance();
+			private var ro_alinea:Bco_AlineaService = Bco_AlineaService.getInstance();
+			private var ro_banco:Bco_BancoService = Bco_BancoService.getInstance();
+			private var ro_horario:Fpg_HorarioService = Fpg_HorarioService.getInstance();
+			private var ro_ctrstatus:Ctr_StatusService = Ctr_StatusService.getInstance();
+			private var ro_bcobanco:Bco_BancoService = Bco_BancoService.getInstance();
+			
+			public var columns:Array = new Array();
+			private var ArrayEstado:ArrayCollection;
+			private var ArrayCurso:ArrayCollection;
+			private var ArrayCtrStatus:ArrayCollection;
+			
+			private function titlewindow1_creationCompleteHandler(event:FlexEvent):void{
+				var timer:Timer = new Timer(100,1);
+				timer.addEventListener(TimerEvent.TIMER,initForm);
+				timer.start()
+			}
+			private function initForm(e:Event):void{
+				if (currentState == "sem_pesquisa"){
+					return;
+				} else {
+					form.addChild(formitem);
+					formitem.addChild(txtnome);
+					txtnome.setFocus();
+					if(this.tablename == UtilNamesPesquisa.adm_cidade){
+						formitem.label = "Nome Cidade:";
+						
+						form.addChild(formitem_1);
+						formitem_1.addChild(cb);
+						formitem_1.label = "Estado:";
+						
+						ro_estado.ComboBox("nmestado","id_estado",cbResult,defaultFaultHandler);
+					} else if(this.tablename == UtilNamesPesquisa.alu_aluno){
+						formitem.label = "Nome Aluno:";
+						
+						form.addChild(formitem_1);
+						formitem_1.addChild(txtnome1);
+						formitem_1.label = "Nome Pai:";
+						
+						form1.addChild(formitem_2);
+						formitem_2.addChild(txtnome2);
+						formitem_2.label = "Nome Mãe:";
+						
+					} else if(this.tablename == UtilNamesPesquisa.pdg_diario){
+						if (util.localizaPermissao(UtilPermissaoPrograma.Diario_PesquisarTodosDiarios)){
+							
+							formitem.label = "Nome Prof.:";
+							
+							form.addChild(formitem_1);
+							formitem_1.addChild(txtnome1);
+							formitem_1.label = "Nome Turma:";
+							
+							form1.addChild(formitem_2);
+							formitem_2.addChild(cb);
+							formitem_2.label = "Status:";
+							
+							ro_diariostatus.ComboBox("nmstatus","id_status",cbResult,defaultFaultHandler);
+							
+						} else {
+							
+							formitem.label = "Nome Turma:";
+						}
+						
+					
+					} else if(this.tablename == UtilNamesPesquisa.crs_curso){
+						formitem.label = "Curso:";
+					} else if(this.tablename == UtilNamesPesquisa.crs_sala){
+						formitem.label = "Nome Sala:";						
+					} else if(this.tablename == UtilNamesPesquisa.alu_resp){
+						formitem.label = "Nome Resp.:";
+						
+						form.addChild(formitem_1);
+						formitem_1.addChild(txtcpf);
+						formitem_1.label = "C.P.F.";
+					} else if(this.tablename == UtilNamesPesquisa.crs_turma){
+						formitem.label = "Nome Turma:";
+						
+						form1.addChild(formitem_2);
+						formitem_2.addChild(cb);
+						formitem_2.label = "Curso:";
+						
+						ro_curso.ComboBox("nmcurso","id_curso",cbResult,defaultFaultHandler);
+						
+					} else if(this.tablename == UtilNamesPesquisa.cdc_centrocusto){
+						formitem.label = "Local:";
+					} else if(this.tablename == UtilNamesPesquisa.fpg_cadfunc){
+						formitem.label = "Nome Func.:";
+					} else if(this.tablename == UtilNamesPesquisa.fpg_justificativa){
+						formitem.label = "Descrição:";
+					} else if(this.tablename == UtilNamesPesquisa.bco_alinea){
+						formitem.label = "Nome Alinea:";
+					} else if(this.tablename == UtilNamesPesquisa.ctr_contrato){
+						formitem.label = "Nome Aluno:";
+						
+						form1.addChild(formitem_2);
+						formitem_2.addChild(cb);
+						formitem_2.label = "Status:";
+						
+						ro_ctrstatus.ComboBox("nmstatus","id_ctrstatus",cbResult,defaultFaultHandler);
+					} else if(this.tablename == UtilNamesPesquisa.fpg_horario){
+						formitem.label = "Nome Horário:";
+					} else if(this.tablename == "bco_banco"){
+						formitem.label = "Nome Banco:";
+					}
+					
+				}
+				
+			}
+			private function cbResult(e:ResultEvent):void{
+				cb.dataProvider = e.result as ArrayCollection;
+				if (this.tablename == UtilNamesPesquisa.ctr_contrato){
+					ArrayCtrStatus = e.result as ArrayCollection;
+				} else if (this.tablename == UtilNamesPesquisa.crs_turma){
+					ArrayCurso = e.result as ArrayCollection;
+				}
+			}
+
+
+			protected function lf_estado(item:Object, column:DataGridColumn):String{
+				var retorno:Object = util.selecionarCombobox(item.id_estado,ArrayEstado);
+				return retorno.label;
+			}
+			protected function lf_curso(item:Object, column:DataGridColumn):String{
+				var retorno:Object = util.selecionarCombobox(item.id_curso,ArrayCurso);
+				return retorno.label;
+			}
+			protected function lf_dtnascimento(item:Object, column:DataGridColumn):String
+			{
+				return util.formatData_DDMMYYYY(item.dt_nascimento);	
+			}
+			protected function lf_dt_inicial(item:Object, column:DataGridColumn):String
+			{
+				return util.formatData_DDMMYYYY(item.dt_inicial);	
+			}
+			
+			private function titleWindow_close(event:CloseEvent):void {
+				PopUpManager.removePopUp(this);
+			}
+			
+			public function createDatagrid(event:ResultEvent):void {
+				// datagrid turma
+				if (this.tablename == UtilNamesPesquisa.crs_turma){
+					columns.push(getColumn("id_turma", "Id. Turma",100));
+					columns.push(getColumn("nmturma", "Nome Turma",250));
+					columns.push(getColumn("dt_inicial", "Dt. Inicio",80));
+					columns.push(getColumn("id_curso", "Curso",0));
+					// datagrid resp - respfin  	
+				} else if (this.tablename == UtilNamesPesquisa.alu_responsavel || this.tablename == UtilNamesPesquisa.alu_respfin ){
+					columns.push(getColumn("id_resp", "Id. Resp.",100));
+					columns.push(getColumn("nome", "Nome",0));
+					columns.push(getColumn("cpf", "C.P.F",0));
+					columns.push(getColumn("rg", "R.G.",0));
+					columns.push(getColumn("sexo", "Sexo",0));
+					// datagrid aluno   		
+				} else if (this.tablename == UtilNamesPesquisa.alu_aluno){
+					columns.push(getColumn("id_aluno", "Id. Aluno",100));
+					columns.push(getColumn("nome", "Nome",250));
+					columns.push(getColumn("cpf", "C.P.F",0));
+					columns.push(getColumn("rg", "R.G.",0));
+					columns.push(getColumn("dt_nascimento", "Dt. Nascimento",0));
+//					columns.push(getColumn("sexo", "Sexo",0));	
+					// datagrid curso	
+				} else if (this.tablename == UtilNamesPesquisa.crs_curso){
+					columns.push(getColumn("id_curso", "Id. Curso",100));
+					columns.push(getColumn("nmcurso", "Nome Curso",0));
+					// datagrid sala	
+				} else if (this.tablename == UtilNamesPesquisa.crs_sala){
+					columns.push(getColumn("id_sala", "Id. Sala",100));
+					columns.push(getColumn("nmsala", "Nome Sala",0));
+					columns.push(getColumn("capacidade", "Capacidade",0));
+					columns.push(getColumn("qtde_micros", "Qtde Micros",0));
+					// datagrid curso	
+				} else if (this.tablename == UtilNamesPesquisa.ctr_contrato){
+					columns.push(getColumn("id_contrato", "Id. Contrato",100));
+					columns.push(getColumn("id_aluno", "Id. Aluno",100));
+					columns.push(getColumn("nome", "Nome",250));
+					columns.push(getColumn("nmcurso", "Curso",0));
+					columns.push(getColumn("nmstatus", "Status",0));	
+					// datagrid operador
+				} else if (this.tablename == UtilNamesPesquisa.adm_operador){
+					columns.push(getColumn("id_operador", "Id. Operador",100));
+					columns.push(getColumn("nmoperador", "Nome",0));
+				} else if (this.tablename == UtilNamesPesquisa.pdg_diario){
+					columns.push(getColumn("id_diario", "Id. Diario",100));
+					columns.push(getColumn("nmturma", "Nome Turma",0));
+					columns.push(getColumn("nmoperador", "Professor",0));
+					columns.push(getColumn("nmmateria", "Matéria",0));
+				} else if (this.tablename == UtilNamesPesquisa.contratoAcademico){
+					columns.push(getColumn("id_contrato", "Contrato",100));
+					columns.push(getColumn("id_aluno", "Id. Aluno",100));
+					columns.push(getColumn("nome", "Aluno",150));
+					columns.push(getColumn("nmturma", "Turma",150));
+				} else if (this.tablename == UtilNamesPesquisa.cdc_centrocusto){
+					columns.push(getColumn("id_centrocusto", "Id.",100));
+					columns.push(getColumn("nmcentrocusto", "Local",0));
+				} else if (this.tablename == UtilNamesPesquisa.fpg_funcao){
+					columns.push(getColumn("id_funcao", "Id.",100));
+					columns.push(getColumn("nmfuncao", "Função",0));
+				} else if (this.tablename == UtilNamesPesquisa.fpg_cadfunc){
+					columns.push(getColumn("id_parceiro", "Id.",100));
+					columns.push(getColumn("nmfuncionario", "Nome Funcionário",0));
+					columns.push(getColumn("pis", "PIS",0));
+				} else if (this.tablename == UtilNamesPesquisa.fpg_justificativa){
+					columns.push(getColumn("id_justificativa", "Id.",100));
+					columns.push(getColumn("descricao", "Descrição",0));
+					columns.push(getColumn("abono", "Abono",0));
+					columns.push(getColumn("assiduidade", "Assiduidade",0));
+				} else if (this.tablename == UtilNamesPesquisa.bco_alinea){
+					columns.push(getColumn("id_alinea", "Id.",100));
+					columns.push(getColumn("nmalinea", "alinea",0));
+				} else if (this.tablename == "bco_banco"){
+					columns.push(getColumn("cdbanco", "Id.",100));
+					columns.push(getColumn("nmbanco", "Banco",0));
+				} else if (this.tablename == UtilNamesPesquisa.fpg_horario){
+					columns.push(getColumn("id_horario", "Id.",100));
+					columns.push(getColumn("nmhorario", "Horário",0));
+				}
+				
+				
+				list_data_grid.dataProvider = event.result;
+				list_data_grid.columns = columns;
+				this.enabled = true;
+			}
+			
+			
+			private function getColumn(dataField:String, headerText:String, tamanho:int):DataGridColumn
+			{
+				var column:DataGridColumn = new DataGridColumn(dataField);
+				if(column.headerText == "id_estado"){
+					column.labelFunction = lf_estado;
+				}
+				if(column.headerText == "id_curso"){
+					column.labelFunction = lf_curso;
+				}
+				if(column.headerText == "dt_nascimento"){
+					column.labelFunction = lf_dtnascimento;
+				}
+				if(column.headerText == "dt_inicial"){
+					column.labelFunction = lf_dt_inicial;
+				}
+				column.headerText = headerText;
+				if (tamanho > 0){
+					column.width = tamanho;
+				}
+				
+				return column;
+			}
+			
+			public function limpar():void{
+				list_data_grid.dataProvider = null;
+				list_data_grid.columns = new Array();
+				columns = new Array();
+				txtnome.text = null;
+				util.limpar_formulario(form);
+				util.limpar_formulario(form1);
+			}
+			
+			public function selecionar():void{
+				this.enabled = false;
+				list_data_grid.columns = new Array();
+				columns = new Array();
+				if (this.tablename == UtilNamesPesquisa.alu_aluno){
+					var alu_alunoVO:Alu_AlunoVO = new Alu_AlunoVO;
+					alu_alunoVO.nome = "%"+txtnome.text+"%";
+					ro_aluno.select(alu_alunoVO,createDatagrid,defaultFaultHandler,null,null);
+				} else if (this.tablename == UtilNamesPesquisa.crs_turma){
+					var crs_turmaVO:Crs_TurmaVO = new Crs_TurmaVO;
+					crs_turmaVO.nmturma = txtnome.text.length > 0 ? "%"+txtnome.text+"%" : null;
+					crs_turmaVO.status = 1;
+					crs_turmaVO.id_curso = cb.selectedItem ? cb.selectedItem.data : null;
+					ro_turma.select(crs_turmaVO,createDatagrid,defaultFaultHandler,null,null);
+					
+				} else if (this.tablename == UtilNamesPesquisa.alu_responsavel || this.tablename == UtilNamesPesquisa.alu_respfin ){
+					var alu_respVO:Alu_RespVO = new Alu_RespVO;
+					alu_respVO.nome = "%"+txtnome.text+"%";
+					ro_resp.select(alu_respVO,createDatagrid,defaultFaultHandler);
+					
+				} else if (this.tablename == UtilNamesPesquisa.crs_curso){
+					var crs_curso:Crs_CursoVO = new Crs_CursoVO();
+					crs_curso.nmcurso = txtnome.text.length > 0 ? "%"+txtnome.text+"%" : null;
+					crs_curso.id_ativo = 1;
+					ro_curso.select(crs_curso,createDatagrid,defaultFaultHandler, null, null);
+				} else if (this.tablename == UtilNamesPesquisa.crs_sala){
+					
+					var crs_salaVO:Crs_SalaVO = new Crs_SalaVO;
+					crs_salaVO.nmsala = txtnome.text.length > 0 ? "%"+txtnome.text+"%" : null;
+					crs_salaVO.id_ativo = 1;
+					
+					ro_sala.select(crs_salaVO,createDatagrid,defaultFaultHandler);
+					
+				} else if (this.tablename == UtilNamesPesquisa.ctr_contrato){
+					var view_ctr_contrato_aluno:View_Ctr_Contrato_AlunoVO = new View_Ctr_Contrato_AlunoVO();
+					view_ctr_contrato_aluno.nome = txtnome.text.length > 0 ? "%"+txtnome.text+"%" : null;
+					
+					view_ctr_contrato_aluno.id_ctrstatus = cb.selectedItem ? cb.selectedItem.data : null;
+					
+//					cb.selectedItem = util.selecionarCombobox(2,ArrayCtrStatus);
+					ro_view_contratoaluno.select(view_ctr_contrato_aluno,createDatagrid,defaultFaultHandler,null,null);
+					
+				} else if (this.tablename == UtilNamesPesquisa.adm_operador){
+					var adm_operadorVO:Adm_operadorVO = new Adm_operadorVO;
+					adm_operadorVO.nmoperador = txtnome.text.length > 0 ? "%"+txtnome.text+"%" : null;
+					
+					ro_operador.select(adm_operadorVO,createDatagrid,defaultFaultHandler,null,null);
+				} else if (this.tablename == UtilNamesPesquisa.pdg_diario){
+						var view_pdgdiario:View_Pdg_DiarioVO = new View_Pdg_DiarioVO();
+					if (util.localizaPermissao(UtilPermissaoPrograma.Diario_PesquisarTodosDiarios)){
+						view_pdgdiario.id_status = cb.selectedIndex == 0 ? 1 : cb.selectedItem.data;
+						view_pdgdiario.nmoperador = txtnome.text.length > 0 ? "%"+txtnome.text+"%" : null;
+						view_pdgdiario.nmturma = txtnome1.text.length > 0 ? "%"+txtnome1.text+"%" : null;
+					} else {
+						view_pdgdiario.nmturma = txtnome.text.length > 0 ? "%"+txtnome.text+"%" : null;
+						view_pdgdiario.id_operador = systemvo.id_operador
+						view_pdgdiario.id_status =  1;	
+					}
+						ro_viewdiario.select(view_pdgdiario,createDatagrid,defaultFaultHandler);
+				} else if (this.tablename == UtilNamesPesquisa.contratoAcademico){
+					remote.select_contratoAcademico(int(systemvo.id_aluno),createDatagrid);
+				} else if (this.tablename == UtilNamesPesquisa.cdc_centrocusto){
+					
+					var cdc_centrocustoVO:Cdc_CentroCustoVO = new Cdc_CentroCustoVO();
+					cdc_centrocustoVO.nmcentrocusto = txtnome.text.length > 0 ? "%"+txtnome.text+"%" : null;
+					
+					ro_centrocusto.select(cdc_centrocustoVO,createDatagrid,defaultFaultHandler);
+				} else if (this.tablename == UtilNamesPesquisa.fpg_funcao){
+					
+					var fpg_funcaoVO:Fpg_FuncaoVO = new Fpg_FuncaoVO();
+					fpg_funcaoVO.nmfuncao = txtnome.text.length > 0 ? "%"+txtnome.text+"%" : null;
+					
+					ro_funcao.select(fpg_funcaoVO,createDatagrid,defaultFaultHandler);
+				} else if (this.tablename == UtilNamesPesquisa.fpg_cadfunc){
+					
+					var fpg_cadfuncVO:Fpg_CadFuncVO = new Fpg_CadFuncVO();
+					fpg_cadfuncVO.nmfuncionario = txtnome.text.length > 0 ? "%"+txtnome.text+"%" : null;
+					
+					ro_cadfunc.select(fpg_cadfuncVO,createDatagrid,defaultFaultHandler);
+				} else if (this.tablename == UtilNamesPesquisa.fpg_justificativa){
+					
+					var fpg_justificativaVO:Fpg_JustificativaVO = new Fpg_JustificativaVO();
+					fpg_justificativaVO.descricao = txtnome.text.length > 0 ? "%"+txtnome.text+"%" : null;
+					
+					ro_justificativa.select(fpg_justificativaVO,createDatagrid,defaultFaultHandler);
+				} else if (this.tablename == UtilNamesPesquisa.bco_alinea){
+					
+					var bco_alineaVO:Bco_AlineaVO = new Bco_AlineaVO;
+					bco_alineaVO.nmalinea = txtnome.text.length > 0 ? "%"+txtnome.text+"%" : null;
+					
+					ro_alinea.select(bco_alineaVO,createDatagrid,defaultFaultHandler);
+				} else if (this.tablename == "bco_banco"){
+					
+					var bco_bancoVO:Bco_BancoVO = new Bco_BancoVO;
+					bco_bancoVO.nmbanco = txtnome.text.length > 0 ? "%"+txtnome.text+"%" : null;
+					
+					ro_banco.select(bco_bancoVO,createDatagrid,defaultFaultHandler);
+				} else if (this.tablename == UtilNamesPesquisa.fpg_horario){
+					
+					var fpg_horarioVO:Fpg_HorarioVO = new Fpg_HorarioVO;
+					fpg_horarioVO.nmhorario = txtnome.text.length > 0 ? "%"+txtnome.text+"%" : null;
+
+					ro_horario.select(fpg_horarioVO,createDatagrid,defaultFaultHandler);
+				}
+				
+			}
+
+			protected function titlewindow1_closeHandler(event:CloseEvent):void
+			{
+				PopUpManager.removePopUp(this);
+			}
+			
+			protected function state1_enterStateHandler(event:FlexEvent):void
+			{
+				selecionar();
+			}
+			private function defaultFaultHandler(e:FaultEvent):void{
+				this.enabled = true;
+				retorno = new UtilRetornoBanco;
+				retorno.RetornoBanco(e);
+			}
+			
+			
+		]]>
+	</fx:Script>
+	<mx:VBox width="100%" height="100%" top="10">
+		<mx:HBox width="100%" includeIn="com_pesquisa">
+			<mx:Form id="form" width="100%" height="100%" paddingBottom="0" paddingTop="0"/>
+			<mx:Form id="form1" width="100%" height="100%" paddingBottom="0" paddingTop="0"/>
+		</mx:HBox>
+		<mx:DataGrid width="100%" height="100%" id="list_data_grid" doubleClickEnabled="true"/>
+	</mx:VBox>
+	<s:controlBarContent>
+		<mx:HBox id="ctr_bar" includeIn="com_pesquisa" width="100%" height="100%"
+				 horizontalAlign="center">
+			<s:Button label="Pesquisar" styleName="searchButton" click="selecionar()"/>
+			<s:Button label="Limpar" styleName="clearButton" click="limpar()"/>
+		</mx:HBox>
+	</s:controlBarContent>
+</s:TitleWindow>

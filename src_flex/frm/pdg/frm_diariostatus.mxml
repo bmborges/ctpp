@@ -1,0 +1,139 @@
+<?xml version="1.0" encoding="utf-8"?>
+<MDIWindow resizable="false" 
+	xmlns="flexmdi.containers.*" xmlns:mx="http://www.adobe.com/2006/mxml" 
+	width="686" height="369" title="Diário Status" creationComplete="init()" 
+	layout="absolute" horizontalAlign="center" xmlns:skins="skins.*"
+	xmlns:local="*">
+	<mx:Script>
+		<![CDATA[
+			import classes.Util;
+			import classes.UtilMensagens;
+			
+			import mx.collections.ArrayCollection;
+			import mx.rpc.events.ResultEvent;
+			
+			import service.pdg.Pdg_DiarioStatusService;
+			
+			import vo.pdg.Pdg_DiarioStatusVO;
+			
+			[Bindable] private var isValid:Boolean = false;
+			private var util:Util = new Util();
+			
+			private var ro_diariostatus:Pdg_DiarioStatusService = Pdg_DiarioStatusService.getInstance();
+			private var dados_diariostatus:Pdg_DiarioStatusVO;
+			
+			private function init():void{
+				
+				util.limpar_formulario(form);
+				
+				//seta eventos
+				bt_pesquisar.addEventListener(MouseEvent.CLICK,selecionar);
+				bt_inserir.addEventListener(MouseEvent.CLICK,inserir);
+				bt_alterar.addEventListener(MouseEvent.CLICK,alterar);
+				bt_deletar.addEventListener(MouseEvent.CLICK,deletar);
+				bt_limpar.addEventListener(MouseEvent.CLICK,limpar);
+			}
+			
+			private function create_DataGrid(e:ResultEvent):void{
+				this.enabled = true;
+				dg_diariostatus.dataProvider = e.result;
+			}
+			
+			private function selecionar(e:Event):void{
+				this.enabled = false;
+				popular();
+				ro_diariostatus.select(dados_diariostatus,create_DataGrid);
+			}
+			
+			private function inserir(e:Event):void{
+				isValid = util.validateForm(form);
+				if (!isValid){
+					mensagem.text = UtilMensagens.PreenchaCampo;
+				} else {
+					this.enabled = false;
+					popular();
+					ro_diariostatus.inserir(dados_diariostatus,inserirResult);
+				}
+			}
+			
+			private function inserirResult(e:ResultEvent):void{
+				this.enabled = true;
+				txt_id_status.text = e.result.toString();
+				selecionar(e);
+			}
+			
+			private function alterar(e:Event):void{
+				isValid = util.validateForm(form);
+				if (!isValid){
+					mensagem.text = UtilMensagens.PreenchaCampo;
+				} else {
+					this.enabled = false;
+					popular();
+					ro_diariostatus.atualizar(dados_diariostatus,alterarResult);
+				}
+			}
+			private function alterarResult(e:ResultEvent):void{
+				this.enabled = true;
+				dg_diariostatus.dataProvider = e.result;
+			}
+			private function deletar(e:Event):void{
+				isValid = util.validateForm(form);
+				if (!isValid){
+					mensagem.text = UtilMensagens.PreenchaCampo;
+				} else {
+					this.enabled = false;
+					popular();
+					ro_diariostatus.deletar(dados_diariostatus,deletarResult);
+					limpar(e);	
+				}
+			}
+			private function deletarResult(e:ResultEvent):void{
+				this.enabled = true;
+				dg_diariostatus.dataProvider = e.result;
+			}
+			
+			private function limpar(e:Event):void{
+				mensagem.text = "";
+				util.limpar_formulario(form);
+				dg_diariostatus.dataProvider = null;
+			}
+			private function setcampos(e:Event):void{
+				txt_id_status.text = dg_diariostatus.selectedItem.id_status;
+				txt_nmstatus.text = dg_diariostatus.selectedItem.nmstatus;
+			}
+			
+			private function popular():void{
+				dados_diariostatus = new Pdg_DiarioStatusVO();
+				dados_diariostatus.id_status = txt_id_status.text.length <= 0 ? null : txt_id_status.text;
+				dados_diariostatus.nmstatus = txt_nmstatus.text.length <= 0 ? null : txt_nmstatus.text.toUpperCase();
+			}
+			
+		]]>
+	</mx:Script>
+<mx:Canvas  width="100%" height="100%">
+		<mx:VBox width="100%" height="100%">
+    			<mx:Label width="100%" id="mensagem" styleName="lblerro"/>
+			<mx:Form id="form" width="100%" paddingTop="0" paddingBottom="0">
+				<mx:FormItem label="Id.:">
+					<mx:TextInput id="txt_id_status" width="77" editable="false"/>
+				</mx:FormItem>
+				<mx:FormItem label="Status:" required="true">
+					<skins:TextInput_Maiusculo id="txt_nmstatus" width="276"/>
+				</mx:FormItem>
+			</mx:Form>
+			<mx:DataGrid  width="100%" height="100%" id="dg_diariostatus" itemClick="setcampos(event)">
+				<mx:columns>
+					<mx:DataGridColumn headerText="Id." dataField="id_status" width="100"/>
+					<mx:DataGridColumn headerText="Status" dataField="nmstatus"/>
+				</mx:columns>
+			</mx:DataGrid>
+		</mx:VBox>
+</mx:Canvas>
+<mx:ControlBar width="100%" horizontalAlign="center" id="ctr_bar">
+	<mx:Button id="bt_pesquisar" label="Pesquisar" styleName="searchButton"/>
+	<mx:Button id="bt_inserir" label="Inserir" styleName="addButton"/>
+	<mx:Button id="bt_alterar" label="Alterar" styleName="editButton"/>
+	<mx:Button id="bt_deletar" label="Deletar" styleName="deleteButton"/>
+	<mx:Button id="bt_limpar" label="Limpar"  styleName="clearButton"/>
+</mx:ControlBar>
+</MDIWindow>

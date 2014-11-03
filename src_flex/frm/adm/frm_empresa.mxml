@@ -1,0 +1,511 @@
+<?xml version="1.0" encoding="utf-8"?>
+<MDIWindow xmlns="flexmdi.containers.*"
+		   xmlns:mx="http://www.adobe.com/2006/mxml"
+		   xmlns:skins="skins.*"
+		   width="996" height="490" creationComplete="init()" title="Cadastro Empresa">
+<mx:Script>
+	<![CDATA[
+		import classes.*;
+		
+		import flash.events.Event;
+		import flash.events.MouseEvent;
+		
+		import mx.collections.ArrayCollection;
+		import mx.core.FlexGlobals;
+		import mx.events.IndexChangedEvent;
+		import mx.rpc.events.FaultEvent;
+		import mx.rpc.events.ResultEvent;
+		import mx.validators.Validator;
+		
+		import service.ComboBoxService;
+		import service.adm.Adm_EmpRespService;
+		import service.adm.Adm_EmpresaService;
+		
+		import vo.adm.Adm_EmpresaVO;
+		import vo.adm.Adm_emprespVO;
+		
+		[Bindable] private var ArrayEstado:ArrayCollection;
+		[Bindable] private var ArrayCargo:ArrayCollection;
+		[Bindable] private var ArrayAtivo:ArrayCollection;
+		[Bindable] private var isValid:Boolean = false;
+		private var util:Util = new Util();
+		private var retorno:UtilRetornoBanco;
+		
+		private var ro_empresa:Adm_EmpresaService = Adm_EmpresaService.getInstance();
+		private var ro_empresp:Adm_EmpRespService = Adm_EmpRespService.getInstance();
+		private var ro_combobox:ComboBoxService = ComboBoxService.getInstance();
+		private var adm_empresaVO:Adm_EmpresaVO;
+		private var adm_emprespVO:Adm_emprespVO;
+		private var file:FileReference;
+		
+		private function init():void{
+			
+			this.width = FlexGlobals.topLevelApplication.mdiCanvas.width;
+			this.height = FlexGlobals.topLevelApplication.mdiCanvas.height;
+			
+			this.x = 0;
+			this.y = 0;
+			
+			initCampos();
+			
+			ro_combobox.Adm_Ativo(createcomboboxativo,defaultFaultHandler);
+			ro_combobox.Adm_Estado(createcomboboxestado,defaultFaultHandler);
+			
+			ctrlbar.bt_pesquisar.addEventListener(MouseEvent.CLICK,selecionar);
+			ctrlbar.bt_inserir.addEventListener(MouseEvent.CLICK,inserir);
+			ctrlbar.bt_alterar.addEventListener(MouseEvent.CLICK,alterar);
+			ctrlbar.bt_excluir.addEventListener(MouseEvent.CLICK,deletar);
+			ctrlbar.bt_limpar.addEventListener(MouseEvent.CLICK,limpar);
+			bt_impimg.addEventListener(MouseEvent.CLICK,importaImg);
+			
+		}
+		private function initCampos():void{
+			ctrlbar.removeAllChildren();
+			if (accordion.selectedIndex == 0){
+				ctrlbar.addChildAt(ctrlbar.bt_pesquisar,0);
+				ctrlbar.addChildAt(ctrlbar.bt_inserir,1);
+				ctrlbar.addChildAt(ctrlbar.bt_alterar,2);
+				ctrlbar.addChildAt(ctrlbar.bt_excluir,3);
+				ctrlbar.addChildAt(ctrlbar.bt_limpar,4);
+			} else if (accordion.selectedIndex == 1){
+				ctrlbar.addChildAt(ctrlbar.bt_pesquisar,0);
+				ctrlbar.addChildAt(ctrlbar.bt_inserir,1);
+				ctrlbar.addChildAt(ctrlbar.bt_alterar,2);
+				ctrlbar.addChildAt(ctrlbar.bt_excluir,3);
+				ctrlbar.addChildAt(ctrlbar.bt_limpar,4);
+			} else if (accordion.selectedIndex == 2){
+				ctrlbar.addChildAt(ctrlbar.bt_alterar,0);
+				ctrlbar.bt_alterar.label = "Gravar";
+				ctrlbar.addChildAt(ctrlbar.bt_excluir,1);
+			}
+		}
+		private function importaImg(e:Event):void{
+			this.enabled = false;
+			this.file = null;	
+			file = new FileReference();
+			
+			file.addEventListener(Event.SELECT, onSelect);
+			file.addEventListener(Event.CANCEL, onCancel);
+			
+			var tipos:FileFilter = new FileFilter("Arquivos (*.png)","*.png");
+			var tiposArray:Array = new Array(tipos);
+			this.file.browse(tiposArray);
+		}
+		
+		private function onSelect(event:Event):void {
+			this.file.addEventListener(Event.COMPLETE,onLoadComplete);
+			this.file.addEventListener(IOErrorEvent.IO_ERROR,onLoadError);
+			this.file.load();
+		}
+		private function onCancel(event:Event):void{
+			this.enabled = true;
+		}
+		private function onLoadComplete(event:Event):void{
+			this.enabled = true;
+			txtimg.text = this.file.name;
+			image1.data = this.file.data;
+			
+		}
+		private function onLoadError(event:IOErrorEvent):void {
+			mensagem_logo.text = "Erro ao ler o arquivo";
+		}
+		private function createDatagrid(event:ResultEvent):void {
+			this.enabled = true;
+			if (accordion.selectedIndex == 0){
+				dg_empresa.dataProvider = event.result;
+			} else if (accordion.selectedIndex == 1){
+				dg_empresp.dataProvider = event.result;				
+			} else if (accordion.selectedIndex == 2){
+				image1.data = event.result[0].img;
+			}
+		}
+		private function createcomboboxestado(event:ResultEvent):void{
+			ArrayEstado = event.result as ArrayCollection;
+			cbuf.dataProvider = ArrayEstado;
+		}
+		private function createcomboboxcargo(event:ResultEvent):void{
+			ArrayCargo = event.result as ArrayCollection;
+			cbcargo.dataProvider = ArrayCargo;
+		}
+		private function createcomboboxativo(event:ResultEvent):void{
+			ArrayAtivo = event.result as ArrayCollection;
+			cbativo.dataProvider = ArrayAtivo;
+		}
+		
+		private function selecionar(e:Event):void{
+			this.enabled = false;
+			if (accordion.selectedIndex == 0){
+				popular();
+				ro_empresa.select(adm_empresaVO,createDatagrid,defaultFaultHandler,null,null);
+			} else if (accordion.selectedIndex == 1){
+				adm_emprespVO = new Adm_emprespVO;
+				adm_emprespVO.id_empresa = parseInt(txtid_empresa.text);
+				ro_empresp.select(adm_emprespVO,createDatagrid,defaultFaultHandler);
+			} else if (accordion.selectedIndex == 2){
+				adm_empresaVO = new Adm_EmpresaVO;
+				adm_empresaVO.id_empresa = txtid_empresa.text;
+				ro_empresa.SelectImg(adm_empresaVO,createDatagrid,defaultFaultHandler);
+			}
+		}
+		
+		private function inserir(e:Event):void{
+			if (accordion.selectedIndex == 0){
+				isValid = util.validateForm(form_empresaa);
+				isValid = util.validateForm(form_empresab) && isValid;
+				isValid = util.validateForm(form_empresac) && isValid;
+				if (!isValid){
+					mensagem_empresa.text = UtilMensagens.PreenchaCampo;
+				} else {
+					this.enabled = false;
+					popular();
+					ro_empresa.inserir(adm_empresaVO,inserirResult,defaultFaultHandler);
+				}	
+			} else if (accordion.selectedIndex == 1){
+				isValid = util.validateForm(form_empresp);
+				if (!isValid){
+					mensagem_resp.text = UtilMensagens.PreenchaCampo;
+				} else {
+					this.enabled = false;
+					popular();
+					ro_empresp.inserir(adm_emprespVO,inserirResult,defaultFaultHandler);
+				}
+			}
+		}
+		private function inserirResult(e:ResultEvent):void{
+			if (accordion.selectedIndex == 0){
+				txtid_empresa.text = e.result.toString();
+			} else if (accordion.selectedIndex == 1){
+				txtid_empresp.text = e.result.toString();
+			}
+			selecionar(e);
+		}
+		private function alterar(e:Event):void{
+			if (accordion.selectedIndex == 0){
+				isValid = util.validateForm(form_empresaa);
+				isValid = util.validateForm(form_empresab) && isValid;
+				isValid = util.validateForm(form_empresac) && isValid;
+				if (!isValid){
+					mensagem_empresa.text = UtilMensagens.PreenchaCampo;
+				} else {
+					this.enabled = false;
+					popular();
+					ro_empresa.atualizar(adm_empresaVO,alterarResult,defaultFaultHandler);
+				}
+			} else if (accordion.selectedIndex == 1){
+				isValid = util.validateForm(form_empresp);
+				if (!isValid){
+					mensagem_resp.text = UtilMensagens.PreenchaCampo;
+				} else {
+					this.enabled = false;
+					popular();
+					ro_empresp.atualizar(adm_emprespVO,alterarResult,defaultFaultHandler);
+				}
+			} else if (accordion.selectedIndex == 2){
+				isValid = util.validateForm(form_logo);
+				if (!isValid){
+					mensagem_logo.text = UtilMensagens.PreenchaCampo;
+				} else {
+					this.enabled = false;
+					popular();
+					adm_empresaVO.logotipo = image1.data != null ? image1.data as ByteArray : null;
+					ro_empresa.atualizar(adm_empresaVO,alterarResult,defaultFaultHandler);
+				}
+			}
+		}
+		private function alterarResult(e:ResultEvent):void{
+			this.enabled = true;
+			if (accordion.selectedIndex == 0){
+				dg_empresa.dataProvider = e.result;
+			} else if (accordion.selectedIndex == 1){
+				dg_empresp.dataProvider = e.result;
+			} else if (accordion.selectedIndex == 2){
+				
+			}
+		}
+		private function deletar(e:Event):void{
+			if (accordion.selectedIndex == 0){
+				isValid = util.validateForm(form_empresaa);
+				isValid = util.validateForm(form_empresab) && isValid;
+				isValid = util.validateForm(form_empresac) && isValid;
+				if (!isValid){
+					mensagem_empresa.text = UtilMensagens.PreenchaCampo;
+				} else {
+					this.enabled = false;
+					popular();
+					ro_empresa.deletar(adm_empresaVO,deletarResult,defaultFaultHandler);
+				}
+			} else if (accordion.selectedIndex == 1){
+				isValid = util.validateForm(form_empresp);
+				if (!isValid){
+					mensagem_resp.text = UtilMensagens.PreenchaCampo;
+				} else {
+					this.enabled = false;
+					popular();
+					ro_empresp.deletar(adm_emprespVO,deletarResult,defaultFaultHandler);
+				}
+			} else if (accordion.selectedIndex == 2){
+					this.enabled = false;
+					popular();
+					adm_empresaVO.logotipo = null;
+					ro_empresa.atualizar(adm_empresaVO,deletarResult,defaultFaultHandler);
+			}
+			
+		}
+		private function deletarResult(e:ResultEvent):void{
+			this.enabled = true;
+			if (accordion.selectedIndex == 0){
+				dg_empresa.dataProvider = e.result;
+			} else if (accordion.selectedIndex == 1){
+				dg_empresp.dataProvider = e.result;
+			} else if (accordion.selectedIndex == 2){
+			}
+			limpar(e);	
+		}
+		private function popular():void{
+			if (accordion.selectedIndex == 0 || accordion.selectedIndex == 2){
+				adm_empresaVO = new Adm_EmpresaVO();
+				adm_empresaVO.id_empresa = txtid_empresa.text.length <= 0 ? null : txtid_empresa.text;
+				adm_empresaVO.nome = txtnome.text.length <= 0 ? null : txtnome.text.toUpperCase();
+				adm_empresaVO.cnpj = txtcnpj.text.length <= 0 ? null : txtcnpj.text.toUpperCase();
+				adm_empresaVO.inscr_estadual = txtinscr_estadual.text.length <= 0 ? null : txtinscr_estadual.text.toUpperCase();
+				adm_empresaVO.inscr_municipal = txtinscr_municipal.text.length <= 0 ? null : txtinscr_municipal.text.toUpperCase();
+				adm_empresaVO.endereco = txtendereco.text.length <= 0 ? null : txtendereco.text.toUpperCase();
+				adm_empresaVO.complemento = txtcomplemento.text.length <= 0 ? null : txtcomplemento.text.toUpperCase();
+				adm_empresaVO.numero = txtnumero.text.length <= 0 ? null : txtnumero.text.toUpperCase();
+				adm_empresaVO.bairro = txtbairro.text.length <= 0 ? null : txtbairro.text.toUpperCase();
+				adm_empresaVO.cidade = txtcidade.text.length <= 0 ? null : txtcidade.text.toUpperCase();
+				adm_empresaVO.email = txtemail.text.length <= 0 ? null : txtemail.text.toUpperCase();
+				adm_empresaVO.id_ativo = cbativo.selectedItem ? cbativo.selectedItem.data : null;
+				adm_empresaVO.website = txtwebsite.text.length <= 0 ? null : txtwebsite.text.toUpperCase();
+				adm_empresaVO.cep = txtcep.text.length <= 0 ? null : txtcep.text.toUpperCase();
+				adm_empresaVO.id_estado = cbuf.selectedItem ? cbuf.selectedItem.data : null;
+				adm_empresaVO.nmfantasia = txtnmfantasia.text.length <= 0 ? null : txtnmfantasia.text.toUpperCase();
+				adm_empresaVO.aut_funcionamento = txtaut_funcionamento.text.length <= 0 ? null : txtaut_funcionamento.text.toUpperCase();
+			} else if (accordion.selectedIndex == 1){
+				adm_emprespVO.id_cargo = cbcargo.selectedItem ? cbcargo.selectedItem.data : null;
+				adm_emprespVO.id_empresa = txtid_empresa.text.length <= 0 ? null : txtid_empresa.text;
+				adm_emprespVO.id_empresp = txtid_empresp.text.length <= 0 ? null : txtid_empresp.text;
+				adm_emprespVO.nmresponsavel = txtnmresponsavel.text.toUpperCase();
+			}
+		}
+		private function limpar(e:Event):void{
+			this.enabled = true;
+			if (accordion.selectedIndex == 0){
+				util.limpar_formulario(form_empresaa);
+				util.limpar_formulario(form_empresab);
+				util.limpar_formulario(form_empresac);
+				dg_empresa.dataProvider = null;
+				mensagem_empresa.text = '';
+			} else if (accordion.selectedIndex == 1){
+				util.limpar_formulario(form_empresp);
+				dg_empresp.dataProvider = null;
+				mensagem_resp.text = "";
+			} else if (accordion.selectedIndex == 2){
+				util.limpar_formulario(form_logo);
+				mensagem_logo.text = "";
+				image1.data = null
+			}
+		}
+		private function setcampos(e:Event):void{
+			if (accordion.selectedIndex == 0){
+				cbuf.selectedItem = util.selecionarCombobox(dg_empresa.selectedItem.id_estado,ArrayEstado);
+				cbativo.selectedItem = util.selecionarCombobox(dg_empresa.selectedItem.id_ativo,ArrayAtivo);;
+				txtwebsite.text = dg_empresa.selectedItem.website;
+				txtbairro.text = dg_empresa.selectedItem.bairro;
+				txtcomplemento.text = dg_empresa.selectedItem.complemento;
+				txtinscr_municipal.text = dg_empresa.selectedItem.inscr_municipal;
+				txtcnpj.text = dg_empresa.selectedItem.cnpj;
+				txtemail.text = dg_empresa.selectedItem.email;
+				txtcep.text = dg_empresa.selectedItem.cep;
+				txtcidade.text = dg_empresa.selectedItem.cidade;
+				txtnumero.text = dg_empresa.selectedItem.numero;
+				txtendereco.text = dg_empresa.selectedItem.endereco;
+				txtinscr_estadual.text = dg_empresa.selectedItem.inscr_estadual;
+				txtnome.text = dg_empresa.selectedItem.nome;
+				txtid_empresa.text = dg_empresa.selectedItem.id_empresa;
+				txtnmfantasia.text = dg_empresa.selectedItem.nmfantasia;
+				txtaut_funcionamento.text = dg_empresa.selectedItem.aut_funcionamento;
+			} else if (accordion.selectedIndex == 1){
+				cbcargo.selectedItem = util.selecionarCombobox(dg_empresp.selectedItem.id_cargo,ArrayCargo);
+				txtid_empresp.text = dg_empresp.selectedItem.id_empresp;
+				txtnmresponsavel.text = dg_empresp.selectedItem.nmresponsavel;
+			}
+		}
+		protected function lf_estado(item:Object, column:DataGridColumn):String{
+			var retorno:Object = util.selecionarCombobox(item.id_estado,ArrayEstado);
+			if (retorno == null){
+				return "";
+			}
+			return retorno.label;
+		}
+		protected function lf_cargo(item:Object, column:DataGridColumn):String{
+			var retorno:Object = util.selecionarCombobox(item.id_cargo,ArrayCargo);
+			if (retorno == null){
+				return "";
+			}
+			return retorno.label;
+		}
+		protected function lf_ativo(item:Object, column:DataGridColumn):String{
+			var retorno:Object = util.selecionarCombobox(item.id_ativo,ArrayAtivo);
+			if (retorno == null){
+				return "";
+			}
+			return retorno.label;
+		}
+		private function defaultFaultHandler(e:FaultEvent):void{
+			this.enabled = true;
+			retorno = new UtilRetornoBanco;
+			retorno.RetornoBanco(e);
+			mensagem_empresa.text = "";
+			mensagem_logo.text = "";
+			mensagem_resp.text = "";
+			
+		}
+		private function accordioncomplete(event:IndexChangedEvent):void{
+			initCampos();
+			var currentIndex:int=event.newIndex;
+			if (currentIndex == 0){
+				c_empresaresp.label = 'Empresa Responsável';
+			}else if (currentIndex == 1){
+				if (txtnome.text.length > 0){
+					c_empresaresp.label = 'Empresa Responsável - ' + c_empresa.label + ' ( ' + txtnome.text + ' )';
+				}
+				ro_combobox.Adm_Cargo(createcomboboxcargo,defaultFaultHandler);
+				util.limpar_formulario(form_empresp);
+				selecionar(event);
+			}else if (currentIndex == 2){
+				util.limpar_formulario(form_logo);
+				selecionar(event);
+			}
+		}
+	]]>
+</mx:Script>
+	
+	<mx:VBox width="100%" height="100%">
+		<mx:TabNavigator id="accordion" width="100%" height="100%" change="accordioncomplete(event)" creationPolicy="all">
+			<mx:Canvas id="c_empresa" label="Empresa" width="100%" height="100%">
+				<mx:VBox width="100%" height="100%">
+				<mx:Label width="100%" id="mensagem_empresa" text="" styleName="lblerro"/>
+					<mx:HBox width="100%" height="60%">
+						<!--<mx:Image width="100" height="100" buttonMode="true" source="@Embed('/assets/icons/imgfundo1.jpg')"/>-->
+						<mx:Form id="form_empresaa" width="50%" height="100%">
+							<mx:FormItem label="Id.:">
+								<skins:TextInput_Maiusculo id="txtid_empresa" editable="false"/>
+							</mx:FormItem>
+							<mx:FormItem label="Nome:" required="true">
+								<skins:TextInput_Maiusculo id="txtnome"/>
+							</mx:FormItem>				
+							<mx:FormItem label="Nome Fantasia:">
+								<skins:TextInput_Maiusculo id="txtnmfantasia"/>
+							</mx:FormItem>
+							<mx:FormItem label="Insc. Estadual:">
+								<skins:TextInput_Maiusculo id="txtinscr_estadual" restrict="0-9\-/"/>
+							</mx:FormItem>				
+							<mx:FormItem label="Insc. Municipal:">
+								<skins:TextInput_Maiusculo id="txtinscr_municipal" restrict="0-9\-/"/>
+							</mx:FormItem>
+							<mx:FormItem label="CNPJ:" required="true">
+								<skins:TextInput_Cnpj id="txtcnpj"/>
+							</mx:FormItem>
+						</mx:Form>
+					<mx:Form id="form_empresab" width="50%" height="100%">
+						<mx:FormItem label="Endereço:" required="true">
+							<skins:TextInput_Maiusculo id="txtendereco"/>
+						</mx:FormItem>
+						<mx:FormItem label="Número:" required="true">
+							<skins:TextInput_Maiusculo id="txtnumero"/>
+						</mx:FormItem>
+						<mx:FormItem label="Cidade:" required="true">
+							<skins:TextInput_Maiusculo id="txtcidade"/>
+						</mx:FormItem>
+						<mx:FormItem label="CEP:" required="true">
+							<skins:TextInput_Cep id="txtcep"/>
+						</mx:FormItem>
+						<mx:FormItem label="Complemento:">
+							<skins:TextInput_Maiusculo id="txtcomplemento"/>
+						</mx:FormItem>
+						<mx:FormItem label="Bairro:" required="true">
+							<skins:TextInput_Maiusculo id="txtbairro"/>
+						</mx:FormItem>
+						<mx:FormItem label="UF:" required="true">
+							<mx:ComboBox id="cbuf" selectedIndex="0" />
+						</mx:FormItem>
+					</mx:Form>
+					<mx:Form id="form_empresac" width="50%" height="100%">
+						<mx:FormItem label="Aut. Funcionamento:">
+							<skins:TextInput_Maiusculo id="txtaut_funcionamento"/>
+						</mx:FormItem>				
+						<mx:FormItem label="WebSite:">
+							<skins:TextInput_Maiusculo id="txtwebsite"/>
+						</mx:FormItem>
+						<mx:FormItem label="Email:">
+							<skins:TextInput_Maiusculo id="txtemail"/>
+						</mx:FormItem>
+						<mx:FormItem label="Ativo:" required="true">
+							<mx:ComboBox id="cbativo" selectedIndex="0"/>
+						</mx:FormItem>
+					</mx:Form>
+					</mx:HBox>
+					<mx:DataGrid height="100%" width="100%" id="dg_empresa" itemClick="setcampos(event)" focusEnabled="false">
+						<mx:columns>
+							<mx:DataGridColumn width="60" headerText="Id." dataField="id_empresa"/>
+							<mx:DataGridColumn headerText="Nome" dataField="nome"/>
+							<mx:DataGridColumn headerText="CNPJ" dataField="cnpj"/>
+							<mx:DataGridColumn headerText="Inscr. Estad." dataField="inscr_estadual"/>
+							<mx:DataGridColumn visible="false" headerText="Inscr. Munic." dataField="inscr_municipal"/>
+							<mx:DataGridColumn headerText="Endereço" dataField="endereco"/>
+							<mx:DataGridColumn visible="false" headerText="Complemento" dataField="complemento"/>
+							<mx:DataGridColumn headerText="Número" dataField="numero"/>
+							<mx:DataGridColumn headerText="Bairro" dataField="bairro"/>
+							<mx:DataGridColumn headerText="Cidade" dataField="cidade"/>
+							<mx:DataGridColumn width="60" headerText="UF" dataField="id_estado" labelFunction="lf_estado"/>
+							<mx:DataGridColumn visible="false" headerText="CEP" dataField="cep"/>
+							<mx:DataGridColumn visible="false" headerText="WebSite" dataField="website"/>
+							<mx:DataGridColumn visible="false" headerText="Email" dataField="email"/>
+							<mx:DataGridColumn width="60" headerText="Ativo" dataField="id_ativo" labelFunction="lf_ativo"/>
+						</mx:columns>
+					</mx:DataGrid>
+				</mx:VBox>
+			</mx:Canvas>
+			<mx:Canvas id="c_empresaresp" label="Empresa Responsável" width="100%" height="100%" enabled="{txtid_empresa.text.length > 0 ? true : false}">
+				<mx:VBox width="100%" height="100%">
+					<mx:Label width="100%" id="mensagem_resp" text="" styleName="lblerro"/>
+					<mx:HBox width="100%" height="60%">
+						<mx:Form id="form_empresp" width="50%" height="100%">
+							<mx:FormItem label="Id.:">
+								<skins:TextInput_Maiusculo id="txtid_empresp" editable="false"/>
+							</mx:FormItem>
+							<mx:FormItem label="Cargo:" required="true">
+								<mx:ComboBox id="cbcargo" selectedIndex="0" />
+							</mx:FormItem>
+							<mx:FormItem label="Nome Responsável:" required="true">
+								<skins:TextInput_Maiusculo id="txtnmresponsavel"/>
+							</mx:FormItem>
+						</mx:Form>
+					</mx:HBox>
+					<mx:DataGrid height="100%" width="100%" id="dg_empresp" itemClick="setcampos(event)" focusEnabled="false">
+						<mx:columns>
+							<mx:DataGridColumn width="60" headerText="Id." dataField="id_empresp"/>
+							<mx:DataGridColumn headerText="Cargo" dataField="id_cargo" labelFunction="lf_cargo"/>
+							<mx:DataGridColumn headerText="Nome Responsável" dataField="nmresponsavel"/>
+						</mx:columns>
+					</mx:DataGrid>
+				</mx:VBox>
+			</mx:Canvas>
+			<mx:Canvas id="c_empresalogo" label="Logomarca" width="100%" height="100%" enabled="{txtid_empresa.text.length > 0 ? true : false}">
+				<mx:VBox width="100%" height="100%" horizontalAlign="center">
+					<mx:Label width="100%" id="mensagem_logo" styleName="lblerro"/>
+						<mx:Form id="form_logo" width="100%" >
+							<mx:FormItem label="Arquivo:" direction="horizontal">
+								<skins:TextInput_Maiusculo id="txtimg"/>
+								<mx:Button label="Selecionar" id="bt_impimg"/>
+							</mx:FormItem>
+						</mx:Form>
+					<mx:Image id="image1" maxHeight="400" maxWidth="400"/>
+				</mx:VBox>
+			</mx:Canvas>
+		</mx:TabNavigator>
+	</mx:VBox>
+	<skins:CtrlBar_Buttons id="ctrlbar"/>
+
+</MDIWindow>

@@ -1,0 +1,94 @@
+<?xml version="1.0" encoding="utf-8"?>
+<MDIWindow xmlns="flexmdi.containers.*" xmlns:mx="http://www.adobe.com/2006/mxml" width="500" height="242" 
+	creationComplete="init()" title="Aluno / Documentação" xmlns:skins="skins.*">
+	<mx:Script>
+		<![CDATA[
+			import classes.Util;
+			import classes.UtilMensagens;
+			import classes.UtilNamesPesquisa;
+			import classes.UtilRetornoBanco;
+			
+			import mx.collections.ArrayCollection;
+			import mx.managers.PopUpManager;
+			import mx.rpc.events.FaultEvent;
+			import mx.rpc.events.ResultEvent;
+			
+			import service.ReportService;
+			import service.ctr.Ctr_StatusService;
+			
+			import vo.adm.SystemVO;
+			
+			[Bindable] private var isValid:Boolean = false;
+			[Bindable] private var reportUrl:String;
+			public var util:Util = new Util();
+			private var ro_ctrstatus:Ctr_StatusService = Ctr_StatusService.getInstance(); 
+			private var systemvo:SystemVO = SystemVO.getInstance();
+			private var retorno:UtilRetornoBanco;
+			public function init():void{
+				
+				ctrlbar.addChildAt(ctrlbar.bt_imprime,0);
+				ctrlbar.addChildAt(ctrlbar.bt_limpar,1);
+				
+				ctrlbar.bt_imprime.addEventListener(MouseEvent.CLICK,imprime);
+				ctrlbar.bt_limpar.addEventListener(MouseEvent.CLICK,limpar);
+				
+				ro_ctrstatus.ComboBox("nmstatus","id_ctrstatus",cbstatuscontrato,defaultFaultHandler);
+				
+			}
+			private function cbstatuscontrato(event:ResultEvent):void{
+				cb_idctrstatus.dataProvider = event.result as ArrayCollection;
+			}
+			
+			public function imprime(e:Event):void{
+				
+				isValid = util.validateForm(form);
+				if (!isValid){
+					mensagem.text = UtilMensagens.PreenchaCampo;
+				} else {
+					this.enabled = false;
+					mensagem.text = UtilMensagens.RelatorioGerando;
+					
+					var obj:Object = new Object();
+					obj.p_idturmaini = p_idturmaini.txt_id.text.length <= 0 ? 0 : p_idturmaini.txt_id.text;
+					obj.p_idturmafin = p_idturmafin.txt_id.text.length <= 0 ? 99999999 : p_idturmafin.txt_id.text;
+					obj.nmoperador = systemvo.nickname;
+					obj.p_idctrstatus = cb_idctrstatus.selectedItem ? cb_idctrstatus.selectedItem.data : null;
+					ro_ctrstatus.Report(obj,"PDF","Rpt_Documentacao","pdg",imprimeResult,defaultFaultHandler);
+				}
+			}
+			public function imprimeResult(e:ResultEvent):void{
+				this.enabled = true;
+				mensagem.text = UtilMensagens.RelatorioGerado;
+				util.abrepdf(e.result[0]['destinationUrl']);
+			}
+			private function defaultFaultHandler(e:FaultEvent):void{
+				this.enabled = true;
+				mensagem.text = "";
+				retorno = new UtilRetornoBanco;
+				retorno.RetornoBanco(e);
+			}
+			
+			private function limpar(e:Event):void{
+				util.limpar_formulario(form);
+				mensagem.text = '';
+			}
+		]]>
+	</mx:Script>
+	<mx:VBox width="100%" height="100%">
+	<mx:Label width="100%" id="mensagem" text="" styleName="lblerro"/>
+		<mx:HBox width="100%" height="10%">
+			<mx:Form id="form" width="100%" height="100%">
+				<mx:FormItem label="Turma Inicial:" required="true">
+					<skins:TextButtonText id="p_idturmaini" tabela="{UtilNamesPesquisa.crs_turma}" titulo="Turma"/>
+				</mx:FormItem>
+				<mx:FormItem label="Turma Final:" required="true">
+					<skins:TextButtonText id="p_idturmafin" tabela="{UtilNamesPesquisa.crs_turma}" titulo="Turma"/>
+				</mx:FormItem>
+				<mx:FormItem label="Situação:">
+					<mx:ComboBox id="cb_idctrstatus" selectedIndex="0"/>
+				</mx:FormItem>
+			</mx:Form>
+		</mx:HBox>
+	</mx:VBox>
+	<skins:CtrlBar_Buttons id="ctrlbar"/>		
+</MDIWindow>

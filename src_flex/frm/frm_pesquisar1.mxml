@@ -1,0 +1,386 @@
+<?xml version="1.0" encoding="utf-8"?>
+<s:TitleWindow xmlns:fx="http://ns.adobe.com/mxml/2009" 
+			   xmlns:s="library://ns.adobe.com/flex/spark" 
+			   xmlns:mx="library://ns.adobe.com/flex/mx" xmlns:skins="skins.*" 
+			   creationComplete="titlewindow1_creationCompleteHandler(event)"
+			   close="titlewindow1_closeHandler(event)"
+			   title="Pesquisa">
+	<fx:Declarations>
+		<!-- Place non-visual elements (e.g., services, value objects) here -->
+	</fx:Declarations>
+	<fx:Script>
+		<![CDATA[
+			import classes.Util;
+			
+			import service.ctr.Ctr_StatusService;
+			
+			import classes.UtilRetornoBanco;
+			
+			import mx.collections.ArrayCollection;
+			import mx.controls.Alert;
+			import mx.controls.dataGridClasses.DataGridColumn;
+			import mx.core.FlexGlobals;
+			import mx.events.CloseEvent;
+			import mx.events.FlexEvent;
+			import mx.formatters.DateFormatter;
+			import mx.managers.PopUpManager;
+			import mx.rpc.events.FaultEvent;
+			import mx.rpc.events.ResultEvent;
+			
+			import service.adm.Adm_AtivoService;
+			import service.adm.Adm_CargoService;
+			import service.adm.Adm_EmpresaService;
+			import service.adm.Adm_OperadorService;
+			import service.alu.Alu_AlunoService;
+			import service.crs.Crs_CursoService;
+			import service.crs.Crs_MateriaService;
+			import service.crs.Crs_ModuloService;
+			import service.crs.Crs_TurmaService;
+			import service.ctr.View_Ctr_Contrato_AlunoService;
+			import service.view.View_Field_TabelaService;
+			import service.view.View_Info_TabelaService;
+			
+			import vo.adm.Adm_AtivoVO;
+			import vo.adm.Adm_EmpresaVO;
+			import vo.adm.Adm_cargoVO;
+			import vo.adm.Adm_operadorVO;
+			import vo.alu.Alu_AlunoVO;
+			import vo.crs.Crs_CursoVO;
+			import vo.crs.Crs_MateriaVO;
+			import vo.crs.Crs_ModuloVO;
+			import vo.crs.Crs_TurmaVO;
+			import vo.ctr.Ctr_StatusVO;
+			import vo.view.View_Ctr_Contrato_AlunoVO;
+			import vo.view.View_Field_TabelaVO;
+			import vo.view.View_Info_TabelaVO;
+			import vo.view.View_Pdg_DiarioVO;
+
+			private var ArrayAtivo:ArrayCollection;
+			private var ArrayPa:ArrayCollection;
+			private var ArrayCargo:ArrayCollection;
+			private var ArrayOperador:ArrayCollection;
+			private var ArrayUnid:ArrayCollection;
+			private var ArrayProduto:ArrayCollection;
+			private var ro_viewtabela:View_Field_TabelaService = View_Field_TabelaService.getInstance();
+			private var view_tabelaVO:View_Field_TabelaVO;
+			private var retorno:UtilRetornoBanco;
+			private var util:Util = new Util();
+			public var tabela:String;
+			private var where:Array = ["1 = 1"];
+			public var whereparam:Array;
+			public var FiltroAvAtivo:Boolean = true;
+			
+			public var pesquisatitlewindow:frm_filtropesquisar;
+			
+			
+			public function Pesquisar(tabela:String):void{
+				this.tabela = tabela;
+				
+				var view_infotabelaVO:View_Info_TabelaVO = new View_Info_TabelaVO;
+				view_infotabelaVO.relname = tabela;
+				var ro_viewinfotabela:View_Info_TabelaService = View_Info_TabelaService.getInstance()				
+				
+				ro_viewinfotabela.select(view_infotabelaVO,infoTabelaResult,defaultFaultHandler,null,null);
+					
+					
+			}
+			private function infoTabelaResult(e:ResultEvent):void{
+				this.title = "Pesquisa " + e.result[0]['comentario'];
+
+				var view_tabelaVO:View_Field_TabelaVO = new View_Field_TabelaVO;
+				view_tabelaVO.relname = tabela;
+				
+				var where:Array = ["description is not null"]
+				ro_viewtabela.select(view_tabelaVO,cbResult,defaultFaultHandler,where,null);
+				
+			}
+			
+			
+			private function cbResult(e:ResultEvent):void{
+//				cbcampo.dataProvider = e.result as ArrayCollection;
+			
+				var ar:ArrayCollection = e.result as ArrayCollection;
+				var arcb:ArrayCollection = new ArrayCollection;;
+				
+				for (var j:int = 0; j < ar.length; j++) 
+				{
+					if (ar[j]['typname'] == 'varchar' || ar[j]['typname'] == 'text') {
+						var obj:Object = new Object;
+						obj.data = ar[j]['attname'];
+						obj.label = ar[j]['description'];
+						obj.attname = ar[j]['attname'];
+						
+						arcb.addItem(obj);
+					}
+				}
+				cbcampo.dataProvider = arcb;				
+				
+				var cols:Array = list_data_grid.columns;
+				
+				for (var i:int = 0; i < ar.length; i++) 
+				{
+					var dgc:DataGridColumn = new DataGridColumn;
+					dgc.headerText = ar[i]['description'];
+					dgc.dataField = ar[i]['attname'];
+					
+					if(ar[i]['description'].indexOf("Id.") >= 0){
+						dgc.width = 80;
+					}
+					
+					if (ar[i]['attname'] == "id_ativo"){
+						dgc.labelFunction = lf_ativo;
+					}
+					if (ar[i]['typname'] == "timestamp"){
+						dgc.labelFunction = lbfunction_dt;
+					}
+					
+					cols.push(dgc);
+				}
+				list_data_grid.columns = cols;
+				
+				
+			}
+			protected function lbfunction_dt(item:Object, column:DataGridColumn):String{
+				var df:DateFormatter = new DateFormatter();
+				df.formatString = "DD/MM/YYYY";
+				
+				return df.format(item[column.dataField]);
+			}
+			protected function lf_ativo(item:Object, column:DataGridColumn):String{
+				var retorno:Object = util.selecionarArray(item.id_ativo,"id_ativo",ArrayAtivo);
+				if (retorno == null){
+					return "";
+				}
+				return retorno.nmsimnao;
+			}
+			protected function lf_cargo(item:Object, column:DataGridColumn):String{
+				var retorno:Object = util.selecionarArray(item.id_cargo,"id_cargo",ArrayCargo);
+				if (retorno == null){
+					return "";
+				}
+				return retorno.nmcargo;
+			}
+			protected function lf_operador(item:Object, column:DataGridColumn):String{
+				var retorno:Object = util.selecionarArray(item.id_operador,"id_operador",ArrayOperador);
+				if (retorno == null){
+					return "";
+				}
+				return retorno.nickname;
+			}
+			protected function lf_dtacesso(item:Object, column:DataGridColumn):String{
+				return util.formatDataHora(item.dt_acesso);
+			}
+			
+			private function defaultFaultHandler(e:FaultEvent):void{
+				this.enabled = true;
+				retorno = new UtilRetornoBanco;
+				retorno.RetornoBanco(e);
+			}
+			
+			protected function titlewindow1_creationCompleteHandler(event:FlexEvent):void
+			{
+				if(!FiltroAvAtivo){
+					bt_filtroavancado.visible  = false;
+				}
+				
+				this.width = FlexGlobals.topLevelApplication.mdiCanvas.width - 200;
+				this.height = FlexGlobals.topLevelApplication.mdiCanvas.height - 100;
+				
+				ctrlbar.addChildAt(ctrlbar.bt_pesquisar,0);
+//				ctrlbar.addChildAt(ctrlbar.bt_limpar,1);
+				
+				ctrlbar.bt_pesquisar.addEventListener(MouseEvent.CLICK,selecionar);
+				ctrlbar.bt_limpar.addEventListener(MouseEvent.CLICK,limpar);
+				// TODO Auto-generated method stub
+				
+				txtpesquisa.setFocus();
+				
+			}
+			private function selectArrayAtivo():void{
+				this.enabled = false;
+				var adm_ativoVO:Adm_AtivoVO = new Adm_AtivoVO;
+				var ro_ativo:Adm_AtivoService = Adm_AtivoService.getInstance();
+				ro_ativo.select(adm_ativoVO,AtivoResult,defaultFaultHandler);
+				
+			}
+			private function selectArrayOperador():void{
+				this.enabled = false;
+				var adm_operadorVO:Adm_operadorVO = new Adm_operadorVO;
+				var ro_operador:Adm_OperadorService = Adm_OperadorService.getInstance();
+				ro_operador.select(adm_operadorVO,OperadorResult,defaultFaultHandler,null,null);
+				
+			}
+			private function selectArrayCargo():void{
+				this.enabled = false;
+				var adm_cargoVO:Adm_cargoVO = new Adm_cargoVO;
+				var ro_cargo:Adm_CargoService = Adm_CargoService.getInstance();
+				ro_cargo.select(adm_cargoVO,CargoResult,defaultFaultHandler,null,null);
+				
+			}
+			private function AtivoResult(e:ResultEvent):void{
+				this.enabled = true;
+				ArrayAtivo = e.result as ArrayCollection;
+			}
+			private function PaResult(e:ResultEvent):void{
+				this.enabled = true;
+				ArrayPa = e.result as ArrayCollection;
+			}
+			private function OperadorResult(e:ResultEvent):void{
+				this.enabled = true;
+				ArrayOperador = e.result as ArrayCollection;
+			}
+			private function CargoResult(e:ResultEvent):void{
+				this.enabled = true;
+				ArrayCargo = e.result as ArrayCollection;
+			}
+			private function selecionarResult(e:ResultEvent):void{
+				this.enabled = true;
+				list_data_grid.dataProvider = e.result;
+
+				where = [" 1 = 1"];
+			}
+			private function selecionar(e:Event):void{
+				this.enabled = false;
+//				selectArrayOperador();
+				selectArrayAtivo();
+//				selectArrayCargo();
+//				selectArrayPa();
+				
+				if (whereparam != null){
+					//where.push(whereparam);
+				}
+
+				if (txtpesquisa.text.length > 0){
+					where.push("lower(remove_acento("+cbcampo.selectedItem.attname + ")) ilike lower(remove_acento('%"+ txtpesquisa.text + "%'))");
+				} 
+				
+				if (tabela == "adm_operador"){
+					var adm_operadorVO:Adm_operadorVO = new Adm_operadorVO;
+					var ro_operador:Adm_OperadorService = Adm_OperadorService.getInstance();
+					
+					ro_operador.select(adm_operadorVO,selecionarResult,defaultFaultHandler,where,null);
+				} else if (tabela == "adm_empresa"){
+					
+					var adm_empresaVO:Adm_EmpresaVO = new Adm_EmpresaVO;
+					var ro_empresa:Adm_EmpresaService = Adm_EmpresaService.getInstance();
+					
+					where.push("id_ativo = 1");
+					
+					ro_empresa.select(adm_empresaVO,selecionarResult,defaultFaultHandler,where,null);
+					
+				} else if (tabela == "adm_cargo"){
+					
+					var adm_cargo:Adm_cargoVO = new Adm_cargoVO;
+					var ro_cargo:Adm_CargoService = Adm_CargoService.getInstance();
+					
+					ro_cargo.select(adm_cargo,selecionarResult,defaultFaultHandler,where,null);
+				} else if (tabela == "crs_modulo"){
+					
+					var crs_modulo:Crs_ModuloVO = new Crs_ModuloVO;
+					var ro_modulo:Crs_ModuloService = Crs_ModuloService.getInstance();
+					
+					ro_modulo.select(crs_modulo,selecionarResult,defaultFaultHandler,null,null);
+				} else if (tabela == "crs_materia"){
+						
+						var crs_materia:Crs_MateriaVO = new Crs_MateriaVO;
+						var ro_materia:Crs_MateriaService = Crs_MateriaService.getInstance();
+						
+						ro_materia.select(crs_materia,selecionarResult,defaultFaultHandler,where,null);
+				} else if (tabela == "crs_turma"){
+							
+						var crs_turma:Crs_TurmaVO = new Crs_TurmaVO;
+						var ro_turma:Crs_TurmaService = Crs_TurmaService.getInstance();
+							
+						ro_turma.select(crs_turma,selecionarResult,defaultFaultHandler,where,null);						
+				} else if (tabela == "alu_aluno"){
+					
+					var alu_aluno:Alu_AlunoVO = new Alu_AlunoVO;
+					var ro_aluno:Alu_AlunoService = Alu_AlunoService.getInstance();
+					
+					ro_aluno.select(alu_aluno,selecionarResult,defaultFaultHandler,where,null);	
+				} else if (tabela == "view_ctr_contrato_aluno"){						
+					var view_ctr_contrato_aluno:View_Ctr_Contrato_AlunoVO = new View_Ctr_Contrato_AlunoVO;
+					
+					var ro_alunocontrato:View_Ctr_Contrato_AlunoService = View_Ctr_Contrato_AlunoService.getInstance();
+					ro_alunocontrato.select(view_ctr_contrato_aluno,selecionarResult,defaultFaultHandler,where,null);
+				} else if (tabela == "ctr_status"){						
+					var ctr_status:Ctr_StatusVO = new Ctr_StatusVO;
+					
+					var ro_ctrstatus:Ctr_StatusService = Ctr_StatusService.getInstance();
+					ro_ctrstatus.select(ctr_status,selecionarResult,defaultFaultHandler,where,null);						
+				} else if (tabela == "crs_curso"){
+					
+					var crs_curso:Crs_CursoVO = new Crs_CursoVO;
+					var ro_curso:Crs_CursoService = Crs_CursoService.getInstance();
+					
+					ro_curso.select(crs_curso,selecionarResult,defaultFaultHandler,where,null);						
+					
+				}
+			}
+			private function limpar(e:Event):void{
+				util.limpar_formulario(form);
+				cbcampo.selectedIndex = 0;
+				list_data_grid.dataProvider = null;
+			}
+			
+			protected function titlewindow1_closeHandler(event:CloseEvent):void
+			{
+				// TODO Auto-generated method stub
+				PopUpManager.removePopUp(this);
+			}
+			
+			
+			
+			
+			private function openpesquisafiltro():void{
+				
+				where = ["1=1"];
+				txtpesquisa.text = "";
+				pesquisatitlewindow = PopUpManager.createPopUp(this,frm_filtropesquisar,true) as frm_filtropesquisar;
+				PopUpManager.centerPopUp(pesquisatitlewindow);
+				
+				var X:Number = pesquisatitlewindow.width / 2;
+				var Y:Number = pesquisatitlewindow.height / 2;
+				
+				var newX:Number = FlexGlobals.topLevelApplication.mdiCanvas.width / 2;
+				var newY:Number = FlexGlobals.topLevelApplication.mdiCanvas.height / 2;
+				
+				pesquisatitlewindow.x = newX - X;
+				pesquisatitlewindow.y = newY - Y;
+				
+				//				pesquisatitlewindow.title = "Pesquisa " + titulo;
+				
+				pesquisatitlewindow.Pesquisar(tabela);
+				
+				pesquisatitlewindow["bt_concluir"].addEventListener(MouseEvent.CLICK,closePopUpWindow());
+				
+			}
+			private function closePopUpWindow():Function {
+				return function(e:MouseEvent):void{
+					txtpesquisa.text = "";
+
+					where.push(pesquisatitlewindow.txa_filtro.text);
+					
+					selecionar(e);
+					PopUpManager.removePopUp(pesquisatitlewindow);
+				}
+			}
+			
+		]]>
+	</fx:Script>
+	<mx:VBox width="100%" height="100%" top="10" id="vbox_pesquisa">
+		<mx:Form id="form" width="100%" paddingBottom="0" paddingTop="0">
+			<mx:FormItem label="Campo:" required="true">
+				<mx:ComboBox id="cbcampo" selectedIndex="0"/>
+			</mx:FormItem>
+			<mx:FormItem label="Pesquisa:">
+				<skins:TextInput_Maiusculo id="txtpesquisa"/>
+			</mx:FormItem>
+		</mx:Form>
+		<mx:DataGrid width="100%" height="100%" maxHeight="{vbox_pesquisa.height}" maxWidth="{vbox_pesquisa.width}" id="list_data_grid" doubleClickEnabled="true"/>
+	</mx:VBox>
+	<s:controlBarContent>
+		<skins:CtrlBar_Buttons id="ctrlbar"/>
+		<mx:Button id="bt_filtroavancado" styleName="btpesquisa" label="Filtro Avançado" click="openpesquisafiltro()"/>
+	</s:controlBarContent>
+</s:TitleWindow>

@@ -1,0 +1,279 @@
+<?xml version="1.0" encoding="utf-8"?>
+<MDIWindow resizable="false" 
+	xmlns="flexmdi.containers.*" xmlns:mx="http://www.adobe.com/2006/mxml" 
+	width="686" height="369" title="Cadastro Documento" creationComplete="init()" 
+	layout="absolute" horizontalAlign="center" xmlns:skins="skins.*"
+	xmlns:local="*">
+	<mx:Script>
+		<![CDATA[
+			import classes.Util;
+			import classes.UtilMensagens;
+			import classes.UtilRetornoBanco;
+			
+			import mx.collections.ArrayCollection;
+			import mx.core.FlexGlobals;
+			import mx.rpc.events.FaultEvent;
+			import mx.rpc.events.ResultEvent;
+			
+			import service.ComboBoxService;
+			import service.ctr.Ctr_DocCursoService;
+			import service.ctr.Ctr_DocumentacaoService;
+			
+			import vo.ctr.Ctr_DocCursoVO;
+			import vo.ctr.Ctr_DocumentacaoVO;
+			
+			[Bindable] private var ArrayTipoCurso:ArrayCollection;
+			[Bindable] private var isValid:Boolean = false;
+			private var util:Util = new Util();
+			private var retorno:UtilRetornoBanco;
+			
+			private var ro_combobox:ComboBoxService = ComboBoxService.getInstance();
+			private var ro_documentacao:Ctr_DocumentacaoService = Ctr_DocumentacaoService.getInstance();
+			private var ro_doccurso:Ctr_DocCursoService = Ctr_DocCursoService.getInstance();
+			private var dados_documentacao:Ctr_DocumentacaoVO;
+			private var ctr_doccursoVO:Ctr_DocCursoVO;
+			
+			private function init():void{
+				
+				this.width = FlexGlobals.topLevelApplication.mdiCanvas.width;
+				this.height = FlexGlobals.topLevelApplication.mdiCanvas.height;
+				
+				this.x = 0;
+				this.y = 0;
+				
+				util.limpar_formulario(form_tipocurso);
+				util.limpar_formulario(form_documentacao);
+				
+				ctrlbar.bt_pesquisar.addEventListener(MouseEvent.CLICK,selecionar);
+				ctrlbar.bt_inserir.addEventListener(MouseEvent.CLICK,inserir);
+				ctrlbar.bt_alterar.addEventListener(MouseEvent.CLICK,alterar);
+				ctrlbar.bt_excluir.addEventListener(MouseEvent.CLICK,deletar);
+				ctrlbar.bt_limpar.addEventListener(MouseEvent.CLICK,limpar);
+				
+				
+				ctrlbar.addChildAt(ctrlbar.bt_pesquisar,0);
+				ctrlbar.addChildAt(ctrlbar.bt_inserir,1);
+				ctrlbar.addChildAt(ctrlbar.bt_alterar,2);
+				ctrlbar.addChildAt(ctrlbar.bt_excluir,3);
+				ctrlbar.addChildAt(ctrlbar.bt_limpar,4);
+			}
+			
+			private function createcbtipocurso(event:ResultEvent):void{
+				ArrayTipoCurso = event.result as ArrayCollection;
+				cb_tipocurso.dataProvider = ArrayTipoCurso;
+				cb_tipocurso.errorString = "";
+			}
+			protected function lf_tipocurso(item:Object, column:DataGridColumn):String{
+				var retorno:Object = util.selecionarCombobox(item.id_tipocurso,ArrayTipoCurso);
+				return retorno.label;
+			}
+			private function create_DataGrid(e:ResultEvent):void{
+				this.enabled = true;
+				if(tbnavigator.selectedIndex == 0){
+					dg_documentos.dataProvider = e.result;
+				} else if (tbnavigator.selectedIndex == 1){
+					dg_tipocurso.dataProvider = e.result;
+				}
+			}
+			
+			private function tbcomplete(e:Event):void{
+				if (tbnavigator.selectedIndex == 0){
+					ctrlbar.enabled = true;
+				}else if (tbnavigator.selectedIndex == 1){
+					isValid = util.validateForm(form_documentacao);
+					if (!isValid){
+						mensagem.text = UtilMensagens.PreenchaCampo;
+						ctrlbar.enabled = false;
+					} else {
+						ro_combobox.Crs_TipoCurso(createcbtipocurso,defaultFaultHandler);
+						util.limpar_formulario(form_tipocurso);
+						selecionar(e);
+					}
+				}
+			}
+			
+			private function selecionar(e:Event):void{
+				this.enabled = false;
+				if (tbnavigator.selectedIndex == 0){
+					popular_documentacao();
+					ro_documentacao.select(dados_documentacao,create_DataGrid,defaultFaultHandler);
+				} else if (tbnavigator.selectedIndex == 1){
+					popular_doccurso();
+					ro_doccurso.select(ctr_doccursoVO,create_DataGrid,defaultFaultHandler);
+				} 
+			}
+			
+			private function inserir(e:Event):void{
+				if (tbnavigator.selectedIndex == 0){
+					isValid = util.validateForm(form_documentacao);
+					if (!isValid){
+						mensagem.text = UtilMensagens.PreenchaCampo;
+					} else {
+						this.enabled = false;
+						popular_documentacao();
+						ro_documentacao.inserir(dados_documentacao,inserirResult,defaultFaultHandler);
+					}
+				} else if (tbnavigator.selectedIndex == 1){
+					isValid = util.validateForm(form_tipocurso);
+					if (!isValid){
+						mensagem.text = UtilMensagens.PreenchaCampo;
+					} else {
+						this.enabled = false;
+						popular_doccurso();
+						ro_doccurso.inserir(ctr_doccursoVO,inserirResult,defaultFaultHandler);
+					}
+				}
+			}
+			
+			private function inserirResult(e:ResultEvent):void{
+				this.enabled = true;
+				if (tbnavigator.selectedIndex == 0){
+					txt_id_documentacao.text = e.result.toString();
+				} else if (tbnavigator.selectedIndex == 1 ){
+				}
+				selecionar(e);
+			}
+			
+			private function alterar(e:Event):void{
+				if (tbnavigator.selectedIndex == 0){
+					isValid = util.validateForm(form_documentacao);
+					if (!isValid){
+						mensagem.text = UtilMensagens.PreenchaCampo;
+					} else {
+						this.enabled = false;
+						popular_documentacao();
+						ro_documentacao.atualizar(dados_documentacao,alterarResult,defaultFaultHandler);
+					}
+				} else if (tbnavigator.selectedIndex == 1){
+					isValid = util.validateForm(form_tipocurso);
+					if (!isValid){
+						mensagem.text = UtilMensagens.PreenchaCampo;
+					} else {
+						this.enabled = false;
+						popular_doccurso();
+						ro_doccurso.atualizar(ctr_doccursoVO,alterarResult,defaultFaultHandler);
+					}
+				}
+			}
+			private function alterarResult(e:ResultEvent):void{
+				this.enabled = true;
+				if (tbnavigator.selectedIndex == 0){
+					dg_documentos.dataProvider = e.result;
+				} else if (tbnavigator.selectedIndex == 1 ){
+					dg_tipocurso.dataProvider = e.result;
+				}
+			}
+			private function deletar(e:Event):void{
+				if (tbnavigator.selectedIndex == 0){
+					isValid = util.validateForm(form_documentacao);
+					if (!isValid){
+						mensagem.text = UtilMensagens.PreenchaCampo;
+					} else {
+						this.enabled = false;
+						popular_documentacao();
+						ro_documentacao.deletar(dados_documentacao,deletarResult,defaultFaultHandler);
+						limpar(e);	
+					}
+				} else if (tbnavigator.selectedIndex == 1){
+					isValid = util.validateForm(form_tipocurso);
+					if (!isValid){
+						mensagem.text = UtilMensagens.PreenchaCampo;
+					} else {
+						this.enabled = false;
+						popular_doccurso();
+						ro_doccurso.deletar(ctr_doccursoVO,deletarResult,defaultFaultHandler);
+					}
+				}
+			}
+			private function deletarResult(e:ResultEvent):void{
+				this.enabled = true;
+				if (tbnavigator.selectedIndex == 0){
+					dg_documentos.dataProvider = e.result;
+				} else if (tbnavigator.selectedIndex == 1 ){
+					dg_tipocurso.dataProvider = e.result;
+				}
+			}
+			
+			
+			private function limpar(e:Event):void{
+				mensagem.text = "";
+				if (tbnavigator.selectedIndex == 0){
+					util.limpar_formulario(form_documentacao);
+					dg_documentos.dataProvider = null;
+					
+					util.limpar_formulario(form_tipocurso);
+					dg_tipocurso.dataProvider = null;
+				} else if (tbnavigator.selectedIndex == 1){
+					util.limpar_formulario(form_tipocurso);
+					dg_tipocurso.dataProvider = null;
+				}
+			}
+			private function setcampos(e:Event):void{
+				if (tbnavigator.selectedIndex == 0){
+					txt_id_documentacao.text = dg_documentos.selectedItem.id_documentacao;
+					txt_nmdocumentacao.text = dg_documentos.selectedItem.nmdocumentacao;
+				} else if (tbnavigator.selectedIndex == 1){
+					cb_tipocurso.selectedItem = util.selecionarCombobox(dg_tipocurso.selectedItem.id_tipocurso,ArrayTipoCurso);
+				}
+			}
+			
+			private function popular_documentacao():void{
+				dados_documentacao = new Ctr_DocumentacaoVO();
+				dados_documentacao.id_documentacao = txt_id_documentacao.text.length <= 0 ? null : txt_id_documentacao.text;
+				dados_documentacao.nmdocumentacao = txt_nmdocumentacao.text.length <= 0 ? null : txt_nmdocumentacao.text;
+			}
+			private function popular_doccurso():void{
+				ctr_doccursoVO = new Ctr_DocCursoVO();
+				ctr_doccursoVO.id_doccurso = dg_tipocurso.selectedItem ? dg_tipocurso.selectedItem.id_doccurso : null;
+				ctr_doccursoVO.id_documentacao = txt_id_documentacao.text.length <= 0 ? null : txt_id_documentacao.text;
+				ctr_doccursoVO.id_tipocurso = cb_tipocurso.selectedItem ? cb_tipocurso.selectedItem.data : null; 
+			}
+			private function defaultFaultHandler(e:FaultEvent):void{
+				this.enabled = true;
+				retorno = new UtilRetornoBanco;
+				retorno.RetornoBanco(e);
+				mensagem.text = "";
+				
+			}
+			
+		]]>
+	</mx:Script>
+<mx:Canvas  width="100%" height="100%">
+		<mx:VBox width="100%" height="100%">
+    			<mx:Label width="100%" id="mensagem" styleName="lblerro"/>
+			<mx:Form id="form_documentacao" width="100%" paddingTop="0" paddingBottom="0">
+				<mx:FormItem label="Id.:">
+					<mx:TextInput id="txt_id_documentacao" width="77" editable="false"/>
+				</mx:FormItem>
+				<mx:FormItem label="Documento:" required="true">
+					<mx:TextInput id="txt_nmdocumentacao" width="276"/>
+				</mx:FormItem>
+			</mx:Form>
+			<mx:TabNavigator width="100%" height="100%" id="tbnavigator" creationPolicy="all" change="tbcomplete(event)">
+				<mx:Canvas id="cv_documentos" label="Documentos">
+					<mx:DataGrid  width="100%" height="100%" id="dg_documentos" itemClick="setcampos(event)">
+						<mx:columns>
+							<mx:DataGridColumn headerText="Id." dataField="id_documentacao" width="100"/>
+							<mx:DataGridColumn headerText="Documento" dataField="nmdocumentacao"/>
+						</mx:columns>
+					</mx:DataGrid>
+				</mx:Canvas>
+				<mx:Canvas id="cv_documentos_tipocurso" label="Documento / Curso" enabled="{txt_id_documentacao.text.length > 0 ? true : false}">
+					<mx:VBox width="100%" height="100%">
+						<mx:Form width="100%" id="form_tipocurso">
+							<mx:FormItem label="Tipo Curso:" required="true">
+								<mx:ComboBox id="cb_tipocurso" selectedIndex="0"/>
+							</mx:FormItem>
+						</mx:Form>
+						<mx:DataGrid width="100%" height="100%" id="dg_tipocurso" itemClick="setcampos(event)">
+							<mx:columns>
+								<mx:DataGridColumn headerText="Tipo Curso" dataField="id_tipocurso" labelFunction="lf_tipocurso"/>
+							</mx:columns>
+						</mx:DataGrid>
+					</mx:VBox>
+				</mx:Canvas>
+			</mx:TabNavigator>
+		</mx:VBox>
+</mx:Canvas>
+	<skins:CtrlBar_Buttons id="ctrlbar"/>
+</MDIWindow>

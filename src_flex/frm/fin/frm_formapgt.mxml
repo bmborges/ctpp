@@ -1,0 +1,172 @@
+<?xml version="1.0" encoding="utf-8"?>
+<MDIWindow xmlns="flexmdi.containers.*" xmlns:mx="http://www.adobe.com/2006/mxml" 
+	width="628" height="330" title="Cadastro Forma Pagamento" creationComplete="init()" xmlns:skins="skins.*">
+	<mx:Script>
+		<![CDATA[
+			import classes.Util;
+			
+			import mx.core.FlexGlobals;
+			
+			import classes.UtilMensagens;
+			import classes.UtilRetornoBanco;
+			
+			import mx.collections.ArrayCollection;
+			import mx.rpc.events.FaultEvent;
+			import mx.rpc.events.ResultEvent;
+			
+			import service.ComboBoxService;
+			import service.ctr.Ctr_DocCursoService;
+			import service.ctr.Ctr_DocumentacaoService;
+			import service.fin.Fin_FormaPgtService;
+			
+			import vo.fin.Fin_FormaPgtVO;
+			
+			[Bindable] private var ArrayProrrogar:ArrayCollection;
+			[Bindable] private var isValid:Boolean = false;
+			private var util:Util = new Util();
+			private var retorno:UtilRetornoBanco;
+			
+			private var ro_combobox:ComboBoxService = ComboBoxService.getInstance();
+			private var ro_formapgt:Fin_FormaPgtService = Fin_FormaPgtService.getInstance();
+			private var fin_formapgtVO:Fin_FormaPgtVO;
+			
+			private function init():void{
+				
+				this.width = FlexGlobals.topLevelApplication.mdiCanvas.width;
+				this.height = FlexGlobals.topLevelApplication.mdiCanvas.height;
+				
+				this.x = 0;
+				this.y = 0;				
+				
+				ro_combobox.Adm_SimNao(createcbprorrogar,defaultFaultHandler);
+				util.limpar_formulario(form_formapgt);
+				
+				ctrlbar.bt_pesquisar.addEventListener(MouseEvent.CLICK,selecionar);
+				ctrlbar.bt_inserir.addEventListener(MouseEvent.CLICK,inserir);
+				ctrlbar.bt_alterar.addEventListener(MouseEvent.CLICK,alterar);
+				ctrlbar.bt_excluir.addEventListener(MouseEvent.CLICK,deletar);
+				ctrlbar.bt_limpar.addEventListener(MouseEvent.CLICK,limpar);
+				
+				
+				ctrlbar.addChildAt(ctrlbar.bt_pesquisar,0);
+				ctrlbar.addChildAt(ctrlbar.bt_inserir,1);
+				ctrlbar.addChildAt(ctrlbar.bt_alterar,2);
+				ctrlbar.addChildAt(ctrlbar.bt_excluir,3);
+				ctrlbar.addChildAt(ctrlbar.bt_limpar,4);
+			}
+			protected function lf_prorrogar(item:Object, column:DataGridColumn):String{
+				var retorno:Object = util.selecionarCombobox(item.prorrogar,ArrayProrrogar);
+				return retorno.label;
+			}
+			private function createcbprorrogar(event:ResultEvent):void{
+				ArrayProrrogar = event.result as ArrayCollection;
+				cbprorrogar.dataProvider = ArrayProrrogar;
+			}
+			private function create_DataGrid(e:ResultEvent):void{
+				this.enabled = true;
+				dg_formapgt.dataProvider = e.result;
+			}
+			
+			private function selecionar(e:Event):void{
+				this.enabled = false;
+				popular();
+				ro_formapgt.select(fin_formapgtVO,create_DataGrid,defaultFaultHandler);
+			}
+			
+			private function inserir(e:Event):void{
+				isValid = util.validateForm(form_formapgt);
+				if (!isValid){
+					mensagem.text = UtilMensagens.PreenchaCampo;
+				} else {
+					this.enabled = false;
+					popular();
+					ro_formapgt.inserir(fin_formapgtVO,inserirResult,defaultFaultHandler);
+				}
+			}
+			
+			private function inserirResult(e:ResultEvent):void{
+				this.enabled = true;
+				txtid_formapgt.text = e.result.toString();
+				selecionar(e);
+			}
+			
+			private function alterar(e:Event):void{
+				isValid = util.validateForm(form_formapgt);
+				if (!isValid){
+					mensagem.text = UtilMensagens.PreenchaCampo;
+				} else {
+					this.enabled = false;
+					popular();
+					ro_formapgt.atualizar(fin_formapgtVO,alterarResult,defaultFaultHandler);
+				}
+			}
+			private function alterarResult(e:ResultEvent):void{
+				this.enabled = true;
+				dg_formapgt.dataProvider = e.result;
+			}
+			private function deletar(e:Event):void{
+				isValid = util.validateForm(form_formapgt);
+				if (!isValid){
+					mensagem.text = UtilMensagens.PreenchaCampo;
+				} else {
+					this.enabled = false;
+					popular();
+					ro_formapgt.deletar(fin_formapgtVO,deletarResult,defaultFaultHandler);
+					limpar(e);	
+				}
+			}
+			private function deletarResult(e:ResultEvent):void{
+				this.enabled = true;
+				dg_formapgt.dataProvider = e.result;
+			}
+			
+			
+			private function limpar(e:Event):void{
+				mensagem.text = "";
+				util.limpar_formulario(form_formapgt);
+				dg_formapgt.dataProvider = null;
+			}
+			private function setcampos(e:Event):void{
+				txtid_formapgt.text = dg_formapgt.selectedItem.id_formapgt;
+				txtnmformapgt.text = dg_formapgt.selectedItem.nmformapgt;
+				cbprorrogar.selectedItem = util.selecionarCombobox(dg_formapgt.selectedItem.prorrogar,ArrayProrrogar);
+			}
+			
+			private function popular():void{
+				fin_formapgtVO = new Fin_FormaPgtVO();
+				fin_formapgtVO.id_formapgt = txtid_formapgt.text.length <= 0 ? null : txtid_formapgt.text;
+				fin_formapgtVO.nmformapgt = txtnmformapgt.text.length <= 0 ? null : txtnmformapgt.text;
+				fin_formapgtVO.prorrogar = cbprorrogar.selectedItem ? cbprorrogar.selectedItem.data : null;
+			}
+			private function defaultFaultHandler(e:FaultEvent):void{
+				this.enabled = true;
+				retorno = new UtilRetornoBanco;
+				retorno.RetornoBanco(e);
+				mensagem.text = "";
+				
+			}
+		]]>
+	</mx:Script>
+	<mx:Label width="100%" id="mensagem" text="" styleName="lblerro"/>
+	<mx:HBox width="100%">
+		<mx:Form id="form_formapgt" width="50%" height="100%">
+				<mx:FormItem label="Id.:">
+				<mx:TextInput id="txtid_formapgt" editable="false"/>
+				</mx:FormItem>
+				<mx:FormItem label="Descrição:" required="true">
+					<skins:TextInput_Maiusculo id="txtnmformapgt"/>
+				</mx:FormItem>				
+				<mx:FormItem label="Prorrogar:" required="true">
+					<mx:ComboBox id="cbprorrogar" selectedIndex="0"/>
+				</mx:FormItem>
+		</mx:Form>
+	</mx:HBox>
+	<mx:DataGrid height="100%" width="100%" id="dg_formapgt" itemClick="setcampos(event)" focusEnabled="true">
+		<mx:columns>
+			<mx:DataGridColumn width="60" headerText="Id." dataField="id_formapgt"/>
+			<mx:DataGridColumn headerText="Descrição" dataField="nmformapgt"/>
+			<mx:DataGridColumn headerText="Prorrogar" dataField="prorrogar" labelFunction="lf_prorrogar"/>
+		</mx:columns>
+	</mx:DataGrid>
+	<skins:CtrlBar_Buttons id="ctrlbar"/>
+</MDIWindow>

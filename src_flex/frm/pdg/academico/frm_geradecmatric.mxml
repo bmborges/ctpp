@@ -1,0 +1,173 @@
+<?xml version="1.0" encoding="utf-8"?>
+<MDIWindow xmlns="flexmdi.containers.*" xmlns:mx="http://www.adobe.com/2006/mxml" 
+	width="686" height="369" title="Gera Declaração de Matricula" creationComplete="init()" 
+	layout="absolute" horizontalAlign="center" xmlns:skins="skins.*" resizable="false"
+	xmlns:local="*">
+	<mx:Script>
+		<![CDATA[
+			import classes.Util;
+			import classes.UtilMensagens;
+			import classes.UtilNamesPesquisa;
+			import classes.UtilRetornoBanco;
+			
+			import frm.frm_pesquisar;
+			
+			import mx.collections.ArrayCollection;
+			import mx.core.FlexGlobals;
+			import mx.managers.PopUpManager;
+			import mx.rpc.events.FaultEvent;
+			import mx.rpc.events.ResultEvent;
+			
+			import service.ReportService;
+			import service.pdg.Pdg_DecMatricService;
+			
+			import vo.adm.SystemVO;
+			import vo.pdg.Pdg_DecMatricVO;
+			
+			[Bindable] private var isValid:Boolean = false;
+			private var util:Util = new Util();
+			private var systemVO:SystemVO = SystemVO.getInstance();
+			private var ro_decmatric:Pdg_DecMatricService = Pdg_DecMatricService.getInstance();
+			
+			private var pesquisatitlewindow:frm_pesquisar;
+			private var pdg_decmatricVO:Pdg_DecMatricVO;
+			private var retorno:UtilRetornoBanco;
+			
+			private function init():void{
+				
+				util.limpar_formulario(form);
+				
+				bt_gerarnovo.addEventListener(MouseEvent.CLICK,Gerar);
+			}
+			
+			private function create_DataGrid(e:ResultEvent):void{
+				this.enabled = true;
+				dg_declaracao.dataProvider = e.result;
+			}
+			
+			private function selecionar(e:Event):void{
+				this.enabled = false;
+				pdg_decmatricVO = new Pdg_DecMatricVO;
+				pdg_decmatricVO.id_contrato = parseInt(txtid_contrato.text);
+				
+				ro_decmatric.select(pdg_decmatricVO,create_DataGrid,defaultFaultHandler);
+				
+			}
+			private function Gerar(e:Event):void{
+				isValid = util.validateForm(form);
+				if (!isValid){
+					mensagem.text = UtilMensagens.PreenchaCampo;
+				} else {
+					this.enabled = false;
+					pdg_decmatricVO = new Pdg_DecMatricVO;
+					pdg_decmatricVO.id_contrato = parseInt(txtid_contrato.text);
+					pdg_decmatricVO.id_operador = systemVO.id_operador;
+					
+					ro_decmatric.gera_decmatric(pdg_decmatricVO,selecionar,defaultFaultHandler);
+				}
+			}
+			
+			private function openpesquisa(tablename:String,c:TextInput,r:TextInput):void{
+				
+				pesquisatitlewindow = PopUpManager.createPopUp(this,frm_pesquisar,true) as frm_pesquisar;
+				PopUpManager.centerPopUp(pesquisatitlewindow);
+				
+				var X:Number = pesquisatitlewindow.width / 2;
+				var Y:Number = pesquisatitlewindow.height / 2;
+				
+				var newX:Number = FlexGlobals.topLevelApplication.mdiCanvas.width / 2;
+				var newY:Number = FlexGlobals.topLevelApplication.mdiCanvas.height / 2;
+				
+				pesquisatitlewindow.x = newX - X;
+				pesquisatitlewindow.y = newY - Y;
+				
+				pesquisatitlewindow["list_data_grid"].addEventListener(MouseEvent.DOUBLE_CLICK,closePopUpWindow(tablename,c,r));
+				
+				pesquisatitlewindow.title = "Selecionar um Contrato";
+				pesquisatitlewindow.tablename = tablename;
+				pesquisatitlewindow.currentState = "sem_pesquisa";
+				
+				
+			}
+			
+			private function closePopUpWindow(tablename:String,c:TextInput,r:TextInput):Function {
+				return function(evt:MouseEvent):void{
+					c.text = pesquisatitlewindow.list_data_grid.selectedItem.id_contrato;
+					r.text = pesquisatitlewindow.list_data_grid.selectedItem.nome;
+					txtnmturma.text = pesquisatitlewindow.list_data_grid.selectedItem.nmturma;
+					PopUpManager.removePopUp(pesquisatitlewindow);
+					selecionar(evt);
+				}
+			}
+			
+			public function ImprimeDeclaracao(id_decmatric:int):void{
+				mensagem.text = UtilMensagens.RelatorioGerando;
+				this.enabled = false;
+				
+				var obj:Object = new Object();
+				obj.id_decmatric = id_decmatric;
+				obj.nmoperador = systemVO.nickname;
+				ro_decmatric.Report(obj,"PDF","Rpt_DecMatric","pdg",ImprimeDeclaracaoResult,defaultFaultHandler);
+				
+//				ro_duplicata.ReportBoleto(data,"PDF",ImprimeDeclaracaoResult);	
+			}
+			public function ImprimeDeclaracaoResult(e:ResultEvent):void{
+				this.enabled = true;
+				mensagem.text = UtilMensagens.RelatorioGerado;
+				util.abrepdf(e.result[0]['destinationUrl']);
+			}
+			
+			protected function labeldtformat_dt_sistema(item:Object, column:DataGridColumn):String
+			{
+				return util.formatDataHora(item.dt_sistema);
+			}
+			protected function labeldtformat_dt_vencto(item:Object, column:DataGridColumn):String
+			{
+				return util.formatDataHora(item.dt_vencto);
+			}
+			
+			
+			
+			private function defaultFaultHandler(e:FaultEvent):void{
+				this.enabled = true;
+				mensagem.text = "";
+				retorno = new UtilRetornoBanco;
+				retorno.RetornoBanco(e);
+			}
+			
+		]]>
+	</mx:Script>
+<mx:Canvas  width="100%" height="100%">
+		<mx:VBox width="100%" height="100%">
+    			<mx:Label width="100%" id="mensagem" styleName="lblerro"/>
+			<mx:Form id="form" width="100%" paddingTop="0" paddingBottom="0">
+				<mx:FormItem label="Cd. Contrato:" direction="horizontal" width="100%" required="true">
+					<mx:TextInput width="111" enabled="false" id="txtid_contrato" />
+					<mx:Button id="b_aluno" width="30" styleName="btpesquisa" click="{openpesquisa(UtilNamesPesquisa.contratoAcademico,txtid_contrato,txt_nmaluno)}"/>
+					<mx:TextInput  width="40%" enabled="false" id="txt_nmaluno"/>
+				</mx:FormItem>
+				<mx:FormItem label="Turma:" direction="horizontal" width="100%">
+					<mx:TextInput width="300" enabled="false" id="txtnmturma" />
+				</mx:FormItem>
+			</mx:Form>
+			<mx:DataGrid  width="100%" height="100%" id="dg_declaracao">
+				<mx:columns>
+					<mx:DataGridColumn headerText="Imp." width="50"  >
+						<mx:itemRenderer>
+							<mx:Component>
+								<mx:VBox horizontalAlign="center">
+									<mx:Image buttonMode="true" source="@Embed('/assets/icons/small-printer.png')" click="parentDocument.ImprimeDeclaracao(data.id_decmatric)" />
+								</mx:VBox>
+							</mx:Component>
+						</mx:itemRenderer>
+					</mx:DataGridColumn>
+					<mx:DataGridColumn headerText="Dt. Geração" dataField="dt_sistema" labelFunction="labeldtformat_dt_sistema"/>
+					<mx:DataGridColumn headerText="Dt. Vencimento" dataField="dt_vencto" labelFunction="labeldtformat_dt_vencto"/>
+				</mx:columns>
+			</mx:DataGrid>
+		</mx:VBox>
+</mx:Canvas>
+	<mx:ControlBar width="100%" horizontalAlign="center" id="ctr_bar">
+		<mx:Button id="bt_gerarnovo" label="Gerar Novo" styleName="searchButton"/>
+	</mx:ControlBar>
+</MDIWindow>

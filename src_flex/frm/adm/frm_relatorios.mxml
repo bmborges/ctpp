@@ -1,0 +1,141 @@
+<?xml version="1.0" encoding="utf-8"?>
+<MDIWindow xmlns="flexmdi.containers.*" xmlns:mx="http://www.adobe.com/2006/mxml" width="534" height="398" 
+	creationComplete="init()" title="Relatórios Gerenciais" xmlns:skins="skins.*">
+<mx:Script>
+	<![CDATA[
+		import classes.*;
+		
+		import flash.events.Event;
+		import flash.events.MouseEvent;
+		
+		import frm.adm.rpt.rpt_telarelatorio;
+		import frm.frm_pesquisar;
+		
+		import mx.collections.*;
+		import mx.controls.Alert;
+		import mx.core.FlexGlobals;
+		import mx.events.FlexEvent;
+		import mx.events.ListEvent;
+		import mx.managers.PopUpManager;
+		import mx.rpc.events.FaultEvent;
+		import mx.rpc.events.ResultEvent;
+		import mx.validators.Validator;
+		
+		import service.adm.Adm_PermissaoService;
+		import service.procedure.Adm_PermissaoAutoService;
+		import service.procedure.Tree_Permissao_RelatorioService;
+		
+		import vo.adm.Adm_operadorVO;
+		import vo.adm.SystemVO;
+		import vo.procedure.Adm_PermissaoAutoVO;
+		import vo.procedure.Tree_Permissao_RelatorioVO;
+		
+		[Bindable] private var permissaoXML:XML;
+		[Bindable] private var isValid:Boolean = false;
+		
+		private var util:Util = new Util();
+		
+		private var tree_relatorioVO:Tree_Permissao_RelatorioVO;
+		private var ro_tree_relatorio:Tree_Permissao_RelatorioService = Tree_Permissao_RelatorioService.getInstance();
+		private var retorno:UtilRetornoBanco;
+		private var systemvo:SystemVO = SystemVO.getInstance();
+		private var window:rpt_telarelatorio;
+		
+		private function init():void{
+			
+			this.width = FlexGlobals.topLevelApplication.mdiCanvas.width;
+			this.height = FlexGlobals.topLevelApplication.mdiCanvas.height;
+			
+			this.x = 0;
+			this.y = 0;
+			
+			tree_relatorioVO = new Tree_Permissao_RelatorioVO;
+			tree_relatorioVO.$1 = systemvo.id_operador;
+			
+			ro_tree_relatorio.Procedure(tree_relatorioVO,resulttree,defaultFaultHandler);
+		}
+		public function resulttree(event:ResultEvent):void{
+			permissaoXML = new XML(event.result[0]['retorno'].toString());
+		}
+		private function limpar(e:Event):void{
+			mensagem.text = null;
+		}
+		private function handleChkClick(event:Event):void{
+			var xId:int = event.currentTarget.selectedItem.@pId;
+			var xchecked:int = event.currentTarget.selectedItem.@checked;
+			if (xchecked == 0){
+//				p_id = xId;
+//				p_idoperador = int(txtid_admoperador.txt_id.text);
+//				p_operacao = 0;
+				permissaoXML.descendants().(@pId== xId).@checked = "1";
+			} else {
+//				p_id = xId;
+//				p_idoperador = int(txtid_admoperador.txt_id.text);
+//				p_operacao = 1;
+				permissaoXML.descendants().(@pId== xId).@checked = "0";
+			}
+			//Alert.show(p_id+ " "+p_idoperador+" "+p_operacao);
+//			ro_permissao.adm_permissao(p_id,p_idoperador,p_operacao,PermissaoResult);
+			//	gateway_statement.adm_permissao();
+		}
+		private function PermissaoResult(e:ResultEvent):void{
+		}
+		
+		private function tree_itemDoubleClick(event:Event):void {
+			var xId:int = event.currentTarget.selectedItem.@pId;
+			var xName:String = event.currentTarget.selectedItem.@pName;
+			if (xId > 0) {
+				window = new rpt_telarelatorio;
+				
+				PopUpManager.addPopUp(window,this,true);
+//				PopUpManager.centerPopUp(window);
+				
+				window.title = xName;
+				window.selecionar(xId);
+				
+			}
+			
+		}
+		private function windowComplete(e:Event):void{
+			var X:Number = window.width / 2;
+			var Y:Number = window.height / 2;
+			
+			var newX:Number = FlexGlobals.topLevelApplication.mdiCanvas.width / 2;
+			var newY:Number = FlexGlobals.topLevelApplication.mdiCanvas.height / 2;
+			
+			window.x = newX - X;
+			window.y = newY - Y;
+		}
+		private function defaultFaultHandler(e:FaultEvent):void{
+			this.enabled = true;
+			mensagem.text = "";
+			retorno = new UtilRetornoBanco;
+			retorno.RetornoBanco(e);
+		}
+		private function myDataTipFunction(item:Object):String {
+			return item.@pDescricao;
+		}
+
+	]]>
+</mx:Script>	
+	<mx:Canvas width="100%" height="100%">
+	<mx:VBox width="100%" height="100%">
+	<mx:Label width="100%" id="mensagem" text="" styleName="lblerro"/>
+    <mx:HBox width="100%" height="100%">
+    	<mx:Tree id="trPermissions" dataProvider="{permissaoXML}"
+			itemDoubleClick="tree_itemDoubleClick(event);"
+			doubleClickEnabled="true"
+			showRoot="false"
+			labelField="@pName"
+		 	dataTipField="@pId"
+			borderStyle="none"
+			verticalScrollPolicy="auto"
+			width="100%" height="100%"
+			showDataTips="true" dataTipFunction="myDataTipFunction"
+			/>
+		
+    </mx:HBox>
+    </mx:VBox>
+	</mx:Canvas>
+
+</MDIWindow>

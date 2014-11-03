@@ -1,0 +1,132 @@
+<?xml version="1.0" encoding="utf-8"?>
+<mx:TitleWindow xmlns:df="com." xmlns:fc="com.flexpernambuco.controls.*" xmlns:mx="http://www.adobe.com/2006/mxml" 
+	layout="absolute" width="342" height="200" title="Login - CTPP" creationComplete="init()" 
+	horizontalAlign="center" verticalAlign="middle" creationPolicy="all">
+<mx:Script>
+	<![CDATA[
+		import classes.Util;
+		
+		import flash.sampler.NewObjectSample;
+		
+		import mx.collections.*;
+		import mx.controls.Alert;
+		import mx.core.FlexGlobals;
+		import mx.events.FlexEvent;
+		import mx.managers.PopUpManager;
+		import mx.rpc.events.ResultEvent;
+		
+		import service.SystemService;
+		
+		import vo.adm.Adm_operadorVO;
+		import vo.adm.Adm_permissaoVO;
+		import vo.adm.SystemVO;
+		
+		public var util:Util = new Util();
+		public var r_systemservice:SystemService = SystemService.getInstance();
+		public var systemVO:SystemVO = SystemVO.getInstance();
+		public var adm_permissaoVO:Adm_permissaoVO = Adm_permissaoVO.getInstance();
+
+		
+		
+		[Bindable]
+		private var retornoArray:ArrayCollection;
+		
+		public function logar():void{
+			if (username.length > 0 && password.length > 0){
+				r_systemservice.authlogin(username.text,password.text,dologin);
+			}else{
+				mensagemerro.text = "Os campos usuário e senha devem ser preenchidos!";
+				username.setFocus();
+			}   
+			
+		}
+		public function dologin(event:ResultEvent):void{
+			systemVO.id_operador = event.result[0]['id_operador'];
+			systemVO.id_cargo = event.result[0]['id_cargo'];
+			systemVO.id_aluno = event.result[0]['id_aluno'];
+			systemVO.nickname = event.result[0]['nickname'];
+			systemVO.nmoperador = event.result[0]['nmoperador'];
+			
+			if(systemVO.id_operador > 0){
+				PopUpManager.removePopUp(this);
+				createmenu();
+			}else{
+				mensagemerro.text = "Erro ao efetuar login";
+				username.setFocus();
+				
+				password.text = "";
+				
+			}  
+		}
+		public function init():void{
+			username.setFocus();
+			this.addEventListener(KeyboardEvent.KEY_DOWN,validaEnter);
+		}
+		public function validaEnter(e:KeyboardEvent):void{
+			
+			var char:int = e.keyCode;
+			if(username.text.length > 0 && char == 13){
+				password.setFocus()
+			}
+			if (password.text.length > 0 && char == 13){
+				logar();
+			}
+		}
+		
+		public function createmenu():void{
+			r_systemservice.monta_menu(int(systemVO.id_operador),Result_menu);
+		}
+		
+		public function Result_menu(event:ResultEvent):void{
+			FlexGlobals.topLevelApplication.menuXML = new XMLList(event.result.toString());
+			
+			r_systemservice.select_permissao(int(systemVO.id_operador),selectPermissaoResult);
+		}
+		public function selectPermissaoResult(event:ResultEvent):void{
+			
+			FlexGlobals.topLevelApplication.permissao = event.result as ArrayCollection;
+			FlexGlobals.topLevelApplication.panelmensagens.visible = true;
+			
+			if (systemVO.id_aluno > 0) {
+				FlexGlobals.topLevelApplication.panelacademico.visible = true;		
+			}	
+//			FlexGlobals.topLevelApplication.timer_verificasession.start();
+			FlexGlobals.topLevelApplication.panelmensagens.timer.start();
+			FlexGlobals.topLevelApplication.panelmensagens.ConsultaMsg(event);
+		}
+	]]>
+</mx:Script>
+<mx:HBox width="100%">
+	<mx:Label width="100%" id="mensagemerro" text="" styleName="lblerro"/>	
+</mx:HBox>
+<mx:HBox width="100%" height="106" y="18">
+	<mx:VBox horizontalAlign="center" verticalAlign="middle" width="114" height="100%">
+		<mx:Image x="26" y="10" width="99" height="78" source="assets/icons/logo_login.jpg"/>	
+	</mx:VBox>
+		<mx:Grid width="192" height="100%">
+			<mx:GridRow width="100%" height="100%">
+				<mx:GridItem width="100%" height="100%" horizontalAlign="center" verticalAlign="bottom">
+				<mx:Label text="Usuário:"/>
+				</mx:GridItem>
+				<mx:GridItem width="100%" height="100%" horizontalAlign="center" verticalAlign="bottom">
+				<mx:TextInput x="245" y="10" id="username" width="125"/>
+				</mx:GridItem>
+			</mx:GridRow>
+			<mx:GridRow width="100%" height="100%">
+				<mx:GridItem width="100%" height="100%" horizontalAlign="center" verticalAlign="top">
+				<mx:Label text="Senha:"/>
+				</mx:GridItem>
+				<mx:GridItem width="100%" height="100%" horizontalAlign="center" verticalAlign="top">
+				<mx:TextInput x="245" y="38" id="password" width="125" displayAsPassword="true"/>
+				</mx:GridItem>
+			</mx:GridRow>
+		</mx:Grid>
+</mx:HBox>
+ <mx:StringValidator source="{username}" required="true" property="text" requiredFieldError="Esse campo é Obrigatório"/>
+ <mx:StringValidator source="{password}" required="true" property="text" requiredFieldError="Esse campo é Obrigatório"/>
+
+<mx:ControlBar width="100%" horizontalAlign="center">
+	<mx:Button x="219" y="68" label="Entrar" id="entrar" click="logar()"/>	
+</mx:ControlBar>
+
+</mx:TitleWindow>

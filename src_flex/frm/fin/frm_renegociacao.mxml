@@ -1,0 +1,745 @@
+<?xml version="1.0" encoding="utf-8"?>
+<MDIWindow resizable="false" 
+	xmlns="flexmdi.containers.*" xmlns:mx="http://www.adobe.com/2006/mxml" width="986" height="450" title="Renegociação" 
+	creationComplete="init()" layout="absolute" horizontalAlign="center" xmlns:skins="skins.*" creationPolicy="all">
+	<mx:Script>
+		<![CDATA[
+			import classes.*;
+			
+			import flash.events.Event;
+			import flash.events.MouseEvent;
+			import flash.net.URLRequest;
+			import flash.net.URLRequestMethod;
+			import flash.net.URLVariables;
+			import flash.net.navigateToURL;
+			
+			import flexmdi.events.MDIWindowEvent;
+			
+			import frm.fin.frm_geraboleto;
+			
+			import mx.collections.ArrayCollection;
+			import mx.controls.Alert;
+			import mx.controls.Button;
+			import mx.core.Application;
+			import mx.core.FlexGlobals;
+			import mx.events.CloseEvent;
+			import mx.events.IndexChangedEvent;
+			import mx.events.ListEvent;
+			import mx.managers.PopUpManager;
+			import mx.rpc.events.FaultEvent;
+			import mx.rpc.events.ResultEvent;
+			
+			import service.ReportService;
+			import service.adm.Adm_AtivoService;
+			import service.adm.Adm_OperadorService;
+			import service.crs.Crs_ModuloService;
+			import service.fin.Fin_DuplicataService;
+			import service.fin.Fin_Duplicata_TmpService;
+			import service.fin.Fin_FormaPgtService;
+			import service.fin.Fin_RenegociacaoService;
+			import service.fin.Fin_TabValoresService;
+			import service.fin.Fin_TipoRecService;
+			import service.fin.View_Contrato_DuplicataService;
+			import service.procedure.Fin_AjusteDup_RecebimentoService;
+			import service.procedure.Fin_Ajuste_OrdemDupService;
+			import service.procedure.Fin_Gera_Confissao_DividaService;
+			import service.view.View_Ctr_DuplicataService;
+			import service.view.View_Ctr_DuplicataTmpService;
+			
+			import vo.adm.Adm_operadorVO;
+			import vo.adm.SystemVO;
+			import vo.fin.Fin_DuplicataVO;
+			import vo.fin.Fin_Duplicata_TmpVO;
+			import vo.fin.Fin_RenegociacaoVO;
+			import vo.fin.View_Contrato_DuplicataVO;
+			import vo.procedure.Fin_AjusteDup_RecebimentoVO;
+			import vo.procedure.Fin_Ajuste_OrdemDupVO;
+			import vo.procedure.Fin_Gera_Confissao_DividaVO;
+			import vo.view.View_Ctr_DuplicataTmpVO;
+			import vo.view.View_Ctr_DuplicataVO;
+			
+			[Bindable] private var isValid:Boolean = false;
+			[Bindable] private var vscroll:Number = 0;
+			[Bindable] private var ArrayTipoRec:ArrayCollection;
+			[Bindable] private var ArrayTipoPag:ArrayCollection;
+			[Bindable] private var ArrayModulo:ArrayCollection;
+			[Bindable] private var ArrayTabValores:ArrayCollection;
+			[Bindable] private var ArrayOperador:ArrayCollection;
+
+			
+			private var view_ctrduplicataVO:View_Ctr_DuplicataVO;
+			private var view_ctrduplicatatmpVO:View_Ctr_DuplicataTmpVO;
+			private var fin_duplicataVO:Fin_DuplicataVO;
+			private var fin_duplicatatmpVO:Fin_Duplicata_TmpVO
+			private var fin_ajustedupVO:Fin_AjusteDup_RecebimentoVO;
+			private var fin_geraconfissaodividaVO:Fin_Gera_Confissao_DividaVO;
+			private var fin_ajusteordemVO:Fin_Ajuste_OrdemDupVO;
+			private var fin_renegociacaoVO:Fin_RenegociacaoVO;
+			private var adm_operadorVO:Adm_operadorVO;
+			
+
+			private var ro_operador:Adm_OperadorService = Adm_OperadorService.getInstance();
+			private var ro_finajusteordem:Fin_Ajuste_OrdemDupService = Fin_Ajuste_OrdemDupService.getInstance();
+			private var ro_geraconfissaodivida:Fin_Gera_Confissao_DividaService = Fin_Gera_Confissao_DividaService.getInstance();
+			private var ro_duplicata:Fin_DuplicataService = Fin_DuplicataService.getInstance();
+			private var ro_ajustedup:Fin_AjusteDup_RecebimentoService = Fin_AjusteDup_RecebimentoService.getInstance();
+			private var ro_viewctrduplicata:View_Ctr_DuplicataService = View_Ctr_DuplicataService.getInstance();
+			private var ro_viewctrduplicatatmp:View_Ctr_DuplicataTmpService = View_Ctr_DuplicataTmpService.getInstance();
+			private var ro_tiporec:Fin_TipoRecService = Fin_TipoRecService.getInstance();
+			private var ro_formapgt:Fin_FormaPgtService = Fin_FormaPgtService.getInstance();
+			private var ro_modulo:Crs_ModuloService = Crs_ModuloService.getInstance();
+			private var ro_tabvalores:Fin_TabValoresService = Fin_TabValoresService.getInstance();
+			private var ro_duplicatatmp:Fin_Duplicata_TmpService = Fin_Duplicata_TmpService.getInstance();
+			private var ro_renegociacao:Fin_RenegociacaoService = Fin_RenegociacaoService.getInstance();
+			private var ro_ativo:Adm_AtivoService = Adm_AtivoService.getInstance();
+
+			private var systemvo:SystemVO = SystemVO.getInstance();
+			private var util:Util = new Util();
+			private var retorno:UtilRetornoBanco;
+			
+
+			
+			protected function lf_operador(item:Object, column:DataGridColumn):String
+			{
+				var retorno:Object = util.selecionarCombobox(item.id_operador,ArrayOperador);
+				if (retorno == null){
+					return "";	
+				}
+				return retorno.label;
+			}
+			
+			protected function lb_dtsistema(item:Object, column:DataGridColumn):String
+			{
+				return util.formatData_DDMMYYYY(item.dt_sistema);	
+			}
+			private function createarrayModulo(e:ResultEvent):void{
+				ArrayModulo = e.result as ArrayCollection;
+				cbmodulo.dataProvider = ArrayModulo;
+			}
+			private function createcomboxtiporec(event:ResultEvent):void{
+				ArrayTipoRec = event.result as ArrayCollection;
+				cbtiporec.dataProvider = ArrayTipoRec;
+			}
+			private function createcomboxformapgt(event:ResultEvent):void{
+				ArrayTipoPag = event.result as ArrayCollection;
+				cbtipopag.dataProvider = ArrayTipoPag;
+			}
+			private function createcomboxSimNao(event:ResultEvent):void{
+				cbdeclaracao.dataProvider = event.result as ArrayCollection;
+			}
+			private function createArrayTabValores(e:ResultEvent):void{
+				ArrayTabValores = e.result as ArrayCollection;
+				cbdiapag.dataProvider = ArrayTabValores;
+			}
+			private function Createcbcolaborador(e:ResultEvent):void{
+				ArrayOperador = e.result as ArrayCollection;
+			}
+			private function addButtons():void{
+				ctrlbar.removeAllChildren();
+					
+				if (tabnav0.selectedIndex == 1){
+				} else {
+					if(tabnav.selectedIndex == 1){
+						ctrlbar.addChildAt(ctrlbar.bt_inserir,0);
+						ctrlbar.addChildAt(ctrlbar.bt_alterar,1);
+						ctrlbar.addChildAt(ctrlbar.bt_excluir,2);
+						ctrlbar.addChildAt(ctrlbar.bt_limpar,3);
+					} else if(tabnav.selectedIndex == 2){
+						ctrlbar.addChildAt(ctrlbar.bt_executar,0);
+						ctrlbar.bt_executar.label = "Concluir";
+					} else {
+						ctrlbar.addChildAt(ctrlbar.bt_pesquisar,0);
+						ctrlbar.addChildAt(ctrlbar.bt_limpar,1);
+					}
+				}
+			}
+
+			private function initButtons():void{
+				
+				ctrlbar.bt_pesquisar.addEventListener(MouseEvent.CLICK,selecionar);
+				ctrlbar.bt_inserir.addEventListener(MouseEvent.CLICK,inserir);
+				ctrlbar.bt_alterar.addEventListener(MouseEvent.CLICK,alterar);
+				ctrlbar.bt_excluir.addEventListener(MouseEvent.CLICK,excluir);
+				ctrlbar.bt_limpar.addEventListener(MouseEvent.CLICK,limpar);
+				ctrlbar.bt_executar.addEventListener(MouseEvent.CLICK,executar);
+				
+			}
+			private function tabnav0_change(event:IndexChangedEvent):void{
+				var currentIndex:int=event.newIndex;
+				if (currentIndex == 0){
+					tabnav.selectedIndex = 0;
+					addButtons();
+				}else if (currentIndex == 1){
+					addButtons();
+					fin_renegociacaoVO = new Fin_RenegociacaoVO;
+					fin_renegociacaoVO.id_contrato = txtid_contrato.txt_id.text;
+					
+					ro_renegociacao.select(fin_renegociacaoVO,createDatagrid2,defaultFaultHandler);
+				}
+			}
+			private function tabnav_change(event:IndexChangedEvent):void{
+				var currentIndex:int=event.newIndex;
+				if (currentIndex == 0){
+					selecionar(event);
+					addButtons();
+				} else if (currentIndex == 1){
+					selecionar(event);
+					addButtons();
+				} else if (currentIndex == 2){
+					mensagem_txt.text = '';
+					selecionar(event);
+					addButtons();
+				}
+			}
+			private function init():void{
+				addButtons();
+				initButtons();
+				
+				
+				this.width = FlexGlobals.topLevelApplication.mdiCanvas.width;
+				this.height = FlexGlobals.topLevelApplication.mdiCanvas.height;
+				
+				this.x = 0;
+				this.y = 0;
+				
+				ro_operador.Adm_OperadorSemAluno(Createcbcolaborador,defaultFaultHandler);
+				ro_ativo.ComboBoxSimNao(createcomboxSimNao,defaultFaultHandler);
+				
+				cbdeclaracao.addEventListener(ListEvent.CHANGE,cbDeclaracaoChange);
+				
+			}
+			private function cbDeclaracaoChange(e:Event):void{
+				if (cbdeclaracao.selectedItem.data == 1 ){
+					this.enabled = false;
+					fi_declaracaotexto.label = "Declaração:";
+					txttexto.editable = false;
+					
+					fin_geraconfissaodividaVO = new Fin_Gera_Confissao_DividaVO;
+					fin_geraconfissaodividaVO.id_contrato = txtid_contrato.txt_id.text;
+					fin_geraconfissaodividaVO.id_operador = systemvo.id_operador;
+					fin_geraconfissaodividaVO.operacao = 0;
+					
+					ro_geraconfissaodivida.Procedure(fin_geraconfissaodividaVO,ro_geraconfissaodividaResult,defaultFaultHandler);
+					
+				} else {
+					this.enabled = false;
+					fi_declaracaotexto.label = "Motivo";
+					txttexto.text = "";
+					txttexto.editable = true;
+					this.enabled = true;
+				}
+			}
+			private function createDatagrid(e:ResultEvent):void {
+				this.enabled = true;
+				var dg:ArrayCollection;
+				var total:Number = 0;
+				var i:int;
+				if (tabnav.selectedIndex == 0){
+					dg_duplicata.dataProvider = e.result;
+					dg_duplicata.verticalScrollPosition = vscroll;
+					
+					dg = dg_duplicata.dataProvider as ArrayCollection;
+					for (i = 0; i < dg.length; i++) 
+					{
+						if (int(dg[i]['renegociar']) == 1){
+							total += Number(dg[i]['subtotal']);
+						}
+					}
+					
+					tot_abertos.text = "Total: " + total.toString();
+					
+				} else if (tabnav.selectedIndex == 1){
+					dg_renegociacao.dataProvider = e.result;
+					dg_renegociacao.verticalScrollPosition = vscroll;
+					
+					dg = dg_renegociacao.dataProvider as ArrayCollection;
+					for (i = 0; i < dg.length; i++) 
+					{
+						total += Number(dg[i]['subtotal']);
+					}
+					
+					tot_reneg.text = "Total: " + total.toString();
+					
+				}
+			}
+			private function createDatagrid2(e:ResultEvent):void {
+				this.enabled = true;
+				if (tabnav0.selectedIndex == 0){
+				} else if (tabnav0.selectedIndex == 1){
+					dg_reneg_realizadas.dataProvider = e.result;
+				}
+			}
+			public function select_imp(data:int):void{
+				mensagem_jafeitas.text = UtilMensagens.RelatorioGerando;
+				this.enabled = false;
+				
+				var obj:Object = new Object();
+				obj.p_idrenegociacao = data;
+				obj.p_idcontrato = "0";
+				ro_duplicata.Report(obj,"PDF","Rpt_Renegociacao","fin",imprimeResult,defaultFaultHandler);
+				
+				mensagem_jafeitas.text = UtilMensagens.RelatorioGerado;
+			}
+			public function imprime():void{
+				mensagem_txt.text = UtilMensagens.RelatorioGerando;
+				this.enabled = false;
+				
+				var obj:Object = new Object();
+				obj.p_idrenegociacao = "0";
+				obj.p_idcontrato = txtid_contrato.txt_id.text;
+				ro_duplicata.Report(obj,"PDF","Rpt_Renegociacao","fin",imprimeResult,defaultFaultHandler);
+				
+				mensagem_txt.text = UtilMensagens.RelatorioGerado;
+			}
+			public function imprimeResult(e:ResultEvent):void{
+				this.enabled = true;
+				util.abrepdf(e.result[0]['destinationUrl']);
+			}
+			private function defaultFaultHandler(e:FaultEvent):void{
+				this.enabled = true;
+				mensagem.text = "";
+				retorno = new UtilRetornoBanco;
+				retorno.RetornoBanco(e);
+			}
+			private function limpar(e:Event):void{
+				
+				if(tabnav.selectedIndex == 0){
+					util.limpar_formulario(form);
+					dg_duplicata.dataProvider = null;
+					chk_selectall.selected = false;
+					mensagem.text = '';
+					tot_abertos.text = '';
+					
+					
+				} else if(tabnav.selectedIndex == 1){
+					vscroll = 0;
+					util.limpar_formulario(form_financeiroa);
+					util.limpar_formulario(form_financeirob);
+					mensagem_reneg.text = '';
+					chk_selectall2.selected = false;
+					selecionar(e);
+					
+				}
+			}
+			private function executar(e:Event):void{
+				isValid = util.validateForm(form_txt);
+				if (!isValid) {
+					mensagem.text = UtilMensagens.PreenchaCampo;
+				} else {
+				
+					this.enabled = false;
+					fin_geraconfissaodividaVO = new Fin_Gera_Confissao_DividaVO;
+					fin_geraconfissaodividaVO.id_contrato = txtid_contrato.txt_id.text;
+					fin_geraconfissaodividaVO.id_operador = systemvo.id_operador;
+					fin_geraconfissaodividaVO.operacao = 1;
+					fin_geraconfissaodividaVO.$3 = cbdeclaracao.selectedItem.data == 1 ? null : txttexto.text;
+					
+					ro_geraconfissaodivida.Procedure(fin_geraconfissaodividaVO,ro_geraconfissaodividaResult,defaultFaultHandler);
+				
+					if (cbdeclaracao.selectedItem.data == 1) {
+						imprime();
+					} else {
+						mensagem_txt.text = UtilMensagens.OperacaoRealizadaSucesso;
+					}
+				}
+			}
+			
+			private function selecionar(e:Event):void{
+				if (tabnav.selectedIndex == 0){
+					isValid = util.validateForm(form);
+					if (!isValid) {
+						mensagem.text = UtilMensagens.PreenchaCampo;
+					} else {
+						ro_tiporec.ComboBox("nmtiporec","id_tiporec",createcomboxtiporec,defaultFaultHandler);
+						ro_formapgt.ComboBox("nmformapgt","id_formapgt",createcomboxformapgt,defaultFaultHandler);
+						ro_modulo.ModuloContrato(txtid_contrato.txt_id.text,createarrayModulo,defaultFaultHandler);
+						ro_tabvalores.DiaPagamentoCurso(txtid_contrato.txt_id.text,createArrayTabValores,defaultFaultHandler);
+						
+						vscroll = dg_duplicata.verticalScrollPosition;
+						
+						mensagem.text = "";
+//						chk_selectall.selected = false;
+						this.enabled = false;
+						fin_ajustedupVO = new Fin_AjusteDup_RecebimentoVO;
+						fin_ajustedupVO.id_contrato = txtid_contrato.txt_id.text;
+						
+						ro_ajustedup.Procedure(fin_ajustedupVO,ro_ajustedupResult,defaultFaultHandler);
+					}
+				} else if (tabnav.selectedIndex == 1){
+					vscroll = dg_renegociacao.verticalScrollPosition;
+					this.enabled = false;
+					
+					view_ctrduplicatatmpVO = new View_Ctr_DuplicataTmpVO;
+					view_ctrduplicatatmpVO.id_contrato = txtid_contrato.txt_id.text;
+					
+					var where:Array = ["id_situacao = 0"];
+					
+					ro_viewctrduplicatatmp.select(view_ctrduplicatatmpVO, where,createDatagrid,defaultFaultHandler);
+					
+				} else if (tabnav.selectedIndex == 2){
+					this.enabled = false;
+					fin_geraconfissaodividaVO = new Fin_Gera_Confissao_DividaVO;
+					fin_geraconfissaodividaVO.id_contrato = txtid_contrato.txt_id.text;
+					fin_geraconfissaodividaVO.id_operador = systemvo.id_operador;
+					fin_geraconfissaodividaVO.operacao = 0;
+					
+					ro_geraconfissaodivida.Procedure(fin_geraconfissaodividaVO,ro_geraconfissaodividaResult,defaultFaultHandler);
+				}
+			}
+			private function ro_ajustedupResult(e:Event):void{
+				view_ctrduplicataVO = new View_Ctr_DuplicataVO;
+				view_ctrduplicataVO.id_contrato = txtid_contrato.txt_id.text;
+				
+				var where:Array = ["saldo > 0"];
+				
+				ro_viewctrduplicata.select(view_ctrduplicataVO, where,createDatagrid,defaultFaultHandler);
+			}
+			private function ro_geraconfissaodividaResult(e:ResultEvent):void{
+				this.enabled = true;
+				txttexto.text = e.result[0]['retorno'];
+			}
+			private function inserir(e:Event):void{
+				if(tabnav.selectedIndex == 1){
+					isValid = util.validateForm(form_financeiroa);
+					isValid =  util.validateForm(form_financeirob) && isValid;
+					if (!isValid){
+						mensagem_reneg.text = UtilMensagens.PreenchaCampo;			
+					} else {
+						
+						var parcelas:int = 1;
+						if (int(txtparcelas.text) > 0) {
+							parcelas = int(txtparcelas.text);
+						}
+						var i:int = 0;
+						var saldo:Number = Number(txtvalor.text);
+						do {
+							popular();
+							ro_duplicatatmp.inserir(fin_duplicatatmpVO,null,defaultFaultHandler);
+							i++;
+						} while ( i < parcelas);
+						util.limpar_formulario(form_financeiroa);
+						util.limpar_formulario(form_financeirob);
+						chk_selectall2.selected = false;
+						executaAjusteOrdemDup();
+
+					}
+				
+				}
+				
+			}
+			private function setcampos(e:Event):void{
+				if (tabnav.selectedIndex == 0){
+					
+				} else if (tabnav.selectedIndex == 1){
+					cbtiporec.selectedItem = util.selecionarCombobox(dg_renegociacao.selectedItem.id_tiporec,ArrayTipoRec);
+					cbtipopag.selectedItem = util.selecionarCombobox(dg_renegociacao.selectedItem.id_formapgt,ArrayTipoPag);
+					cbmodulo.selectedItem = util.selecionarCombobox(dg_renegociacao.selectedItem.id_modulo,ArrayModulo);
+					cbdiapag.selectedItem = util.selecionarCombobox(dg_renegociacao.selectedItem.id_tabvalores,ArrayTabValores);
+					txtvalor.text = dg_renegociacao.selectedItem.valor;
+					txtdtvencimento.selectedDate = dg_renegociacao.selectedItem.dt_vencimento;
+				}
+			}			
+			public function executaAjusteOrdemDup():void{
+				fin_ajusteordemVO = new Fin_Ajuste_OrdemDupVO();
+				fin_ajusteordemVO.id_contrato = txtid_contrato.txt_id.text;
+				fin_ajusteordemVO.operacao = 1;
+				ro_finajusteordem.Procedure(fin_ajusteordemVO,selecionar,defaultFaultHandler);
+			}
+			private function alterar(e:Event):void{
+				if(tabnav.selectedIndex == 1){
+					isValid = util.validateForm(form_financeiroa);
+					isValid =  util.validateForm(form_financeirob) && isValid;
+					if (!isValid){
+						mensagem_reneg.text = UtilMensagens.PreenchaCampo;			
+					} else {
+						popular();
+						ro_duplicatatmp.atualizar(fin_duplicatatmpVO,null,defaultFaultHandler);
+						util.limpar_formulario(form_financeiroa);
+						util.limpar_formulario(form_financeirob);
+						executaAjusteOrdemDup();
+						selecionar(e);
+					}
+					
+				}
+			}
+			private function excluir(e:Event):void{
+				if(tabnav.selectedIndex == 1){
+					if (chk_selectall2.selected == true){
+						this.enabled = false
+						var dg:ArrayCollection = dg_renegociacao.dataProvider as ArrayCollection;
+						for (var i:int = 0; i < dg.length; i++) 
+						{
+							
+							fin_duplicatatmpVO = new Fin_Duplicata_TmpVO;
+							fin_duplicatatmpVO.id_duplicatatmp = dg[i]['id_duplicatatmp'];
+							ro_duplicatatmp.deletar(fin_duplicatatmpVO,null,defaultFaultHandler);
+						}
+						this.enabled = true;
+						chk_selectall2.selected = false;
+						selecionar(e);
+						
+					} else {
+						isValid = util.validateForm(form_financeiroa);
+						isValid =  util.validateForm(form_financeirob) && isValid;
+						if (!isValid){
+							mensagem_reneg.text = UtilMensagens.PreenchaCampo;			
+						} else {
+							this.enabled = false;
+							popular();
+							ro_duplicatatmp.deletar(fin_duplicatatmpVO,null,defaultFaultHandler);
+							util.limpar_formulario(form_financeiroa);
+							util.limpar_formulario(form_financeirob);
+							executaAjusteOrdemDup();
+							selecionar(e);
+						}
+					}
+					
+				}
+			}
+			// selecionar / desmarca checkbox
+			private function selectAllCheckboxes():void{
+				if (chk_selectall.selected == true){
+					select_all();
+				}else{
+					unselect_all();
+				}
+			}
+			public function atualiza_renegociar(data:Boolean):void{
+				vscroll = dg_duplicata.verticalScrollPosition;
+				var sql:String = "";
+				var where:String = "";
+				if (data != false){
+					sql = "renegociar = 1";
+				} else {
+					sql = "renegociar = 0";					
+				}
+				where = "id_duplicata = " + dg_duplicata.selectedItem.id_duplicata;
+				ro_duplicata.SqlAtualizar(sql,where,selecionar,defaultFaultHandler);
+				
+			}
+			
+			public function select_all():void{
+				var sql:String = "";
+				var where:String = "";
+				sql = "renegociar = 1";
+				where = "id_contrato = " + txtid_contrato.txt_id.text;
+				ro_duplicata.SqlAtualizar(sql,where,selecionar,defaultFaultHandler);
+			}
+			public function unselect_all():void{
+				var sql:String = "";
+				var where:String = "";
+				sql = "renegociar = 0";
+				where = "id_contrato = " + txtid_contrato.txt_id.text;
+				ro_duplicata.SqlAtualizar(sql,where,selecionar,defaultFaultHandler);
+			}
+			
+			
+			private function selectAllCheckboxes2():void{
+				if (chk_selectall2.selected == true){
+					select_all2();
+				}else{
+					unselect_all2();
+				}
+			}
+			public function atualiza_renegociar2(data:Boolean):void{
+				vscroll = dg_renegociacao.verticalScrollPosition;
+				var sql:String = "";
+				var where:String = "";
+				if (data != false){
+					sql = "selec = 1";
+				} else {
+					sql = "selec = 0";					
+				}
+				where = "id_duplicatatmp = " + dg_renegociacao.selectedItem.id_duplicatatmp;
+				ro_duplicatatmp.SqlAtualizar(sql,where,selecionar,defaultFaultHandler);
+				
+			}
+			
+			public function select_all2():void{
+				var sql:String = "";
+				var where:String = "";
+				sql = "selec = 1";
+				where = "id_contrato = " + txtid_contrato.txt_id.text;
+				
+				ro_duplicatatmp.SqlAtualizar(sql,where,selecionar,defaultFaultHandler);
+			}
+			public function unselect_all2():void{
+				var sql:String = "";
+				var where:String = "";
+				sql = "selec = 0";
+				where = "id_contrato = " + txtid_contrato.txt_id.text;
+				ro_duplicatatmp.SqlAtualizar(sql,where,selecionar,defaultFaultHandler);
+			}
+
+			
+			
+			protected function lf_dtvencimento(item:Object, column:DataGridColumn):String
+			{
+				return util.formatData_DDMMYYYY(item.dt_vencimento);
+			}
+			protected function lf_dtvencimento2(item:Object, column:DataGridColumn):String
+			{
+				return util.formatData_DDMMYYYY(item.dt_vencimento);
+			}
+			private function popular():void{
+				if (tabnav.selectedIndex == 0){
+				} else if (tabnav.selectedIndex == 1){
+					fin_duplicatatmpVO = new Fin_Duplicata_TmpVO;
+
+					fin_duplicatatmpVO.id_contrato = txtid_contrato.txt_id.text;
+					fin_duplicatatmpVO.valor = txtvalor.text;
+					fin_duplicatatmpVO.saldo = txtvalor.text;
+					fin_duplicatatmpVO.id_tiporec = cbtiporec.selectedIndex > 0 ? cbtiporec.selectedItem.data : null;
+					fin_duplicatatmpVO.id_formapgt = cbtipopag.selectedIndex > 0 ? cbtipopag.selectedItem.data : null;
+					fin_duplicatatmpVO.id_tabvalores = cbdiapag.selectedIndex > 0 ? cbdiapag.selectedItem.data : null ;
+					fin_duplicatatmpVO.dt_vencimento = txtdtvencimento.selectedDate ? txtdtvencimento.selectedDate : null;
+					fin_duplicatatmpVO.id_modulo = cbmodulo.selectedIndex > 0 ? cbmodulo.selectedItem.data : null;
+					fin_duplicatatmpVO.subtotal = txtvalor.text;
+					fin_duplicatatmpVO.id_situacao = 0;
+					fin_duplicatatmpVO.id_operador = systemvo.id_operador;
+					fin_duplicatatmpVO.id_duplicatatmp = dg_renegociacao.selectedItem ? dg_renegociacao.selectedItem.id_duplicatatmp : null;
+				} 
+			}			
+			
+		]]>
+	</mx:Script>
+<mx:VBox width="100%" height="100%">
+<mx:Label width="100%" id="mensagem" styleName="lblerro"/>
+<mx:Form id="form" width="100%">
+	<mx:FormItem label="Cd. Contrato:" width="100%" required="true">
+		<skins:TextButtonText id="txtid_contrato" tabela="{UtilNamesPesquisa.ctr_contrato}" titulo="Contrato"/>
+	</mx:FormItem>
+</mx:Form>
+<mx:TabNavigator id="tabnav0" width="100%" height="100%" change="tabnav0_change(event)" >
+<mx:Canvas  width="100%" height="100%" label="Renegociar">	
+	<mx:TabNavigator id="tabnav" width="100%" height="100%" change="tabnav_change(event)">
+   		<mx:Canvas  width="100%" height="100%" label="Consulta">
+			<mx:VBox width="100%" height="100%">
+					<mx:DataGrid width="100%" height="100%" id="dg_duplicata">
+						<mx:columns>
+							<mx:DataGridColumn headerText="Marcar" width="50">
+								<mx:itemRenderer>
+									<mx:Component>
+										<mx:VBox horizontalAlign="center">
+											<mx:CheckBox id="chk_marcar"  change="parentDocument.atualiza_renegociar(chk_marcar.selected)" click="data.checked=!data.checked" selected="{data.renegociar == 1 ? true : false}"/>
+										</mx:VBox>
+									</mx:Component>
+								</mx:itemRenderer>
+							</mx:DataGridColumn>
+							<mx:DataGridColumn headerText="Modulo" dataField="nmmodulo" width="80"/>
+							<mx:DataGridColumn headerText="Número" dataField="parcela" width="60"/>
+							<mx:DataGridColumn width="150" dataField="nmtiporec" headerText="Tipo Rec."/>
+							<mx:DataGridColumn width="150" dataField="nmformapgt" headerText="Tipo Pag."/>
+							<mx:DataGridColumn width="100" dataField="dt_vencimento" headerText="Dt. Venc." labelFunction="lf_dtvencimento"/>
+							<mx:DataGridColumn width="100" dataField="valor" headerText="Valor"/>
+							<mx:DataGridColumn width="100" dataField="desconto" headerText="Vr. Desc"/>
+							<mx:DataGridColumn width="100" dataField="subtotal" headerText="Vr. Saldo"/>
+						</mx:columns>
+					</mx:DataGrid>
+				<mx:HBox width="100%" height="10%" horizontalAlign="left" bottom="0">
+					<mx:CheckBox label="Marcar / Desmarcar Todos" width="207" id="chk_selectall" click="{selectAllCheckboxes()}" enabled="{txtid_contrato.txt_id.text.length > 0 ? true : false}"/>
+					<mx:Spacer width="100%"/>
+					<mx:Label id="tot_abertos" width="100%" color="#FF0000"  textAlign="right"/>
+				</mx:HBox>
+			</mx:VBox>
+</mx:Canvas>
+<mx:Canvas  width="100%" height="100%" label="Renegociação"  enabled="{txtid_contrato.txt_id.text.length > 0 ? true : false}">
+	<mx:VBox width="100%" height="100%">
+	<mx:Label width="100%" id="mensagem_reneg" text="" styleName="lblerro"/>
+	<mx:HBox width="100%" height="100%">
+	<mx:Form id="form_financeiroa" width="100%" height="100%" paddingTop="3">
+		<mx:FormItem id="fi_tiporecebimento" label="Tipo Receb.:" required="true">
+			<mx:ComboBox id="cbtiporec" prompt="Selecione..." selectedIndex="0"/>
+		</mx:FormItem>
+		<mx:FormItem id="fi_tipopagamento" label="Forma Pag.:" required="true">
+			<mx:ComboBox id="cbtipopag" prompt="Selecione..." selectedIndex="0"/>
+		</mx:FormItem>
+		<mx:FormItem id="fi_diapagamento" label="Dia Pag.:">
+			<mx:ComboBox id="cbdiapag" prompt="Selecione..." selectedIndex="0"/>
+		</mx:FormItem>
+		<mx:FormItem id="fi_modulo" label="Modulo.:">
+			<mx:ComboBox id="cbmodulo" prompt="Selecione..." selectedIndex="0"/>
+		</mx:FormItem>
+	</mx:Form>
+	<mx:Form id="form_financeirob" width="100%" height="100%" paddingTop="3">
+		<mx:FormItem id="fi_valor" label="Valor:" required="true">
+			<skins:TextInput_Maiusculo id="txtvalor" restrict="0-9." />
+		</mx:FormItem>
+		<mx:FormItem id="fi_parcelas" label="Parcelas:">
+			<skins:TextInput_Maiusculo id="txtparcelas" restrict="0-9"/>
+		</mx:FormItem>
+		<mx:FormItem id="fi_dtvenc" label="Dt. Venc.:" required="true">
+			<skins:DateField_Data id="txtdtvencimento"/>
+		</mx:FormItem>
+	</mx:Form>	
+	</mx:HBox>
+	<mx:DataGrid width="100%" height="100%" id="dg_renegociacao" itemClick="setcampos(event)">
+		<mx:columns>
+			<mx:DataGridColumn headerText="Marcar" width="50">
+				<mx:itemRenderer>
+					<mx:Component>
+						<mx:VBox horizontalAlign="center">
+							<mx:CheckBox id="chk_marcar2"  enabled="false" change="parentDocument.atualiza_renegociar2(chk_marcar2.selected)" click="data.checked=!data.checked" selected="{data.selec == 1 ? true : false}"/>
+						</mx:VBox>
+					</mx:Component>
+				</mx:itemRenderer>
+			</mx:DataGridColumn>
+			<mx:DataGridColumn headerText="Modulo" dataField="nmmodulo" width="80"/>
+			<mx:DataGridColumn headerText="Número" dataField="parcela" width="60"/>
+			<mx:DataGridColumn width="150" dataField="nmtiporec" headerText="Tipo Rec."/>
+			<mx:DataGridColumn width="150" dataField="nmformapgt" headerText="Tipo Pag."/>
+			<mx:DataGridColumn width="100" dataField="dt_vencimento" headerText="Dt. Venc." labelFunction="lf_dtvencimento2"/>
+			<mx:DataGridColumn width="100" dataField="valor" headerText="Valor"/>
+			<mx:DataGridColumn width="100" dataField="desconto" headerText="Vr. Desc"/>
+			<mx:DataGridColumn width="100" dataField="subtotal" headerText="Vr. Saldo"/>
+		</mx:columns>
+	</mx:DataGrid>
+		<mx:HBox width="100%" height="10%" horizontalAlign="left" bottom="0">
+			<mx:CheckBox label="Marcar / Desmarcar Todos" width="207" id="chk_selectall2" click="{selectAllCheckboxes2()}"/>
+			<mx:Spacer width="100%"/>
+			<mx:Label id="tot_reneg" width="100%" color="#FF0000"  textAlign="right"/>
+		</mx:HBox>
+	</mx:VBox>
+</mx:Canvas>
+<mx:Canvas  width="100%" height="100%" label="Imprime Documento"  enabled="{txtid_contrato.txt_id.text.length > 0 ? true : false}">
+	<mx:VBox width="100%" height="100%">
+		<mx:Label width="100%" id="mensagem_txt" text="" styleName="lblerro"/>
+		<mx:HBox width="100%" height="100%">
+			<mx:Form id="form_txt" width="100%" height="100%">
+				<mx:FormItem  label="Com Declaração:" required="true">
+					<mx:ComboBox id="cbdeclaracao" selectedIndex="0"/>
+				</mx:FormItem>
+				<mx:FormItem id="fi_declaracaotexto" label="Declaração:" required="true"  width="100%" height="100%">
+					<mx:TextArea id="txttexto"  width="100%" height="100%" editable="false"/>
+				</mx:FormItem>
+			</mx:Form>
+		</mx:HBox>
+	</mx:VBox>		
+</mx:Canvas>
+	
+</mx:TabNavigator>	
+</mx:Canvas>	
+<mx:Canvas  width="100%" height="100%" label="Renegociação(ões) ja Realizada(s) " enabled="{txtid_contrato.txt_id.text.length > 0 ? true : false}">
+<mx:VBox width="100%" height="100%">
+	<mx:Label width="100%" id="mensagem_jafeitas" text="" styleName="lblerro"/>
+	<mx:DataGrid width="100%" height="100%" id="dg_reneg_realizadas">
+		<mx:columns>
+			<mx:DataGridColumn headerText="Imp." width="50"  >
+				<mx:itemRenderer>
+					<mx:Component>
+						<mx:VBox horizontalAlign="center">
+							<mx:Image buttonMode="true" source="@Embed('/assets/icons/small-printer.png')" click="parentDocument.select_imp(data.id_renegociacao)" />
+						</mx:VBox>
+					</mx:Component>
+				</mx:itemRenderer>
+			</mx:DataGridColumn>
+			<mx:DataGridColumn headerText="Data Renegociação" dataField="dt_sistema" width="100" labelFunction="lb_dtsistema"/>
+			<mx:DataGridColumn width="100" headerText="Operador" dataField="id_operador" labelFunction="lf_operador"/>
+		</mx:columns>
+	</mx:DataGrid>
+</mx:VBox>
+</mx:Canvas>	
+</mx:TabNavigator>	
+</mx:VBox>
+<skins:CtrlBar_Buttons id="ctrlbar"/>	
+</MDIWindow>

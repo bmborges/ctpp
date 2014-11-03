@@ -1,0 +1,157 @@
+<?xml version="1.0" encoding="utf-8"?>
+<mx:Panel xmlns:fx="http://ns.adobe.com/mxml/2009"
+		  xmlns:mx="library://ns.adobe.com/flex/mx"
+		  xmlns:skins="skins.*"
+		  xmlns:s="library://ns.adobe.com/flex/spark"
+		  creationComplete="panel1_creationCompleteHandler(event)"
+		  creationPolicy="all" layout="absolute" title="Painel Acadêmico">
+	
+	<fx:Script>
+		<![CDATA[
+			import classes.Util;
+			import classes.UtilMensagens;
+			import classes.UtilRetornoBanco;
+			
+			import frm.adm.frm_lermensagem;
+			
+			import mx.core.FlexGlobals;
+			import mx.events.FlexEvent;
+			import mx.events.IndexChangedEvent;
+			import mx.managers.PopUpManager;
+			import mx.rpc.events.FaultEvent;
+			import mx.rpc.events.ResultEvent;
+			
+			import service.adm.Adm_MensagemService;
+			
+			import vo.adm.Adm_MensagemVO;
+			import vo.adm.SystemVO;
+			
+			private var systemvo:SystemVO = SystemVO.getInstance();
+			private var adm_mensagemVO:Adm_MensagemVO;
+			private var ro_mensagem:Adm_MensagemService = Adm_MensagemService.getInstance();
+			private var retorno:UtilRetornoBanco;
+			public var timer:Timer;
+			[Bindable] private var isValid:Boolean = false;
+			private var util:Util = new Util();
+			
+			protected function panel1_creationCompleteHandler(event:FlexEvent):void
+			{
+//				ctrlbar.bt_pesquisar.addEventListener(MouseEvent.CLICK,selecionar);
+//				ctrlbar.bt_limpar.addEventListener(MouseEvent.CLICK,limpar);
+				
+				var tempo:Number = 1000 * 60 * 2;
+				var repeticoes:Number = Math.random();
+				timer = new Timer(tempo,repeticoes);
+				timer.addEventListener(TimerEvent.TIMER, ConsultaMsg);
+				
+			}
+			public function ConsultaMsg(e:Event):void{
+					this.enabled = false;
+					mensagem.text = "Pesquisando Mensagem(ns)";
+					adm_mensagemVO = new Adm_MensagemVO;
+					adm_mensagemVO.id_operador = systemvo.id_operador ? systemvo.id_operador : null;
+					adm_mensagemVO.id_situacao = 1;
+//					ro_mensagem.select(adm_mensagemVO,null,null,createDataGridNova,defaultFaultHandler);
+			}
+			private function tbcomplete(e:IndexChangedEvent):void{
+				var currentIndex:int=e.newIndex;
+				if (currentIndex == 0){
+					ctrlbar.removeAllChildren();
+				} else if (currentIndex == 1){
+					ctrlbar.removeAllChildren();
+					ctrlbar.addChildAt(ctrlbar.bt_pesquisar,0);
+					ctrlbar.addChildAt(ctrlbar.bt_limpar,1);
+				} 
+			}
+			private function createDataGridNova(e:ResultEvent):void{
+				this.enabled = true;
+				mensagem.text = null;
+//				dg_novas.dataProvider = e.result;
+			}
+			private function createDataGridLida(e:ResultEvent):void{
+				this.enabled = true;
+				mensagem.text = null;
+//				dg_lidas.dataProvider = e.result;
+			}
+//			private function selecionar(e:Event):void{
+//				if (tb_navigator.selectedIndex == 0){
+//				} else if (tb_navigator.selectedIndex == 1){
+//					isValid = util.validateForm(form_lidasa);
+//					isValid = util.validateForm(form_lidasb) && isValid;
+//					if (!isValid){
+//						mensagem.text = UtilMensagens.PreenchaCampo;
+//					} else {
+//						this.enabled = false;
+//						mensagem.text = "Pesquisando Mensagem(ns)";
+//						adm_mensagemVO = new Adm_MensagemVO();
+//						adm_mensagemVO.id_operador  = systemvo.id_operador ? systemvo.id_operador : null;
+//						adm_mensagemVO.id_situacao = 2;
+//						
+//						
+//						var where:Object = new Object();
+//						
+//						where[0][0] = "id_operador";
+//						where[0][1] = "=";
+//						where[0][2] = systemvo.id_operador;
+//						
+//						where[1][0] = "dt_mensagem";
+//						where[1][1] = ">=";
+//						where[1][2] = "'"+txtdtinicial.selectedDate+"'";
+//
+//						where[2][0] = "dt_mensagem";
+//						where[2][1] = "<=";
+//						where[2][2] = "'"+txtdtfinal.selectedDate+"'";
+//						
+//						ro_mensagem.select(adm_mensagemVO,where,null,createDataGridLida,defaultFaultHandler);
+//						
+//					}
+//				}
+//			}
+//			private function limpar(e:Event):void{
+//				mensagem.text = null;
+//				if (tb_navigator.selectedIndex == 0){
+//				} else if (tb_navigator.selectedIndex == 1){
+//					dg_lidas.dataProvider = null;
+//					txtdtfinal.selectedDate = null;
+//					txtdtinicial.selectedDate = null;
+//				}
+//			}
+//			private function defaultFaultHandler(e:FaultEvent):void{
+//				this.enabled = true;
+//				retorno = new UtilRetornoBanco;
+//				retorno.RetornoBanco(e);
+//				mensagem.text = "";
+//			}
+//			public function ver_conteudo(data:Object,tipo:int):void{
+//					var lermensagem:frm_lermensagem;
+//					
+//					lermensagem = PopUpManager.createPopUp(this,frm_lermensagem,true) as frm_lermensagem;
+//					PopUpManager.centerPopUp(lermensagem);
+//					
+//					
+//					var X:Number = lermensagem.width / 2;
+//					var Y:Number = lermensagem.height / 2;
+//					
+//					var newX:Number = FlexGlobals.topLevelApplication.mdiCanvas.width / 2;
+//					var newY:Number = FlexGlobals.topLevelApplication.mdiCanvas.height / 2;
+//					
+//					lermensagem.x = newX - X;
+//					lermensagem.y = newY - Y;
+//					
+//					lermensagem.dados = data;
+//					lermensagem.id_situacao = tipo;
+//			}
+			
+		]]>
+	</fx:Script>
+	<mx:VBox width="100%" height="100%">
+		<mx:Label width="100%" id="mensagem" text="" styleName="lblerro"/>
+		<mx:ViewStack id="viewstack1" width="200" height="200">
+			<s:NavigatorContent width="100%" height="100%" label="View 1">
+			</s:NavigatorContent>
+			<s:NavigatorContent width="100%" height="100%" label="a">
+			</s:NavigatorContent>
+		</mx:ViewStack>
+	</mx:VBox>
+	<skins:CtrlBar_Buttons id="ctrlbar"/>	
+</mx:Panel>

@@ -1,0 +1,149 @@
+<?xml version="1.0" encoding="utf-8"?>
+<MDIWindow xmlns="flexmdi.containers.*"
+		   xmlns:mx="http://www.adobe.com/2006/mxml"
+		   xmlns:classes="classes.*"
+		   width="782" height="476" creationComplete="init()" title="Cadastro Responsavel" xmlns:skins="skins.*">
+<mx:Script source="frmresp.as" />
+<mx:Accordion id="accordion_resp" width="100%" height="100%" change="accordioncomplete(event)" creationPolicy="all">
+    		<mx:Canvas id="c_responsavel" label="Responsavel" width="100%" height="100%">
+    		<mx:VBox width="100%" height="100%">
+				<mx:Label width="100%" id="mensagem_resp" text="" styleName="lblerro"/>	
+				<mx:HBox width="100%" height="30%">
+					<mx:Form id="form_r1" width="50%" height="100%">
+						<mx:FormItem label="Id.:">
+							<skins:TextInput_Maiusculo id="txtid" width="82" editable="false"/>
+						</mx:FormItem>
+						<mx:FormItem label="Nome:" required="true">
+							<skins:TextInput_Maiusculo id="txtnome" maxChars="30" width="216"    />
+						</mx:FormItem>
+						<mx:FormItem label="CPF:" required="false" >
+							<skins:TextInput_Cpf id="txtcpf" width="216"  />
+						</mx:FormItem>
+						<mx:FormItem label="CNPJ:" required="false" >
+							<skins:TextInput_Cnpj id="txtcnpj" width="216"  />
+						</mx:FormItem>
+						<mx:FormItem label="RG:" required="false">
+							<skins:TextInput_Maiusculo id="txtrg" width="216"   />
+						</mx:FormItem>
+					</mx:Form>
+					<mx:Form id="form_r2" width="50%" height="100%">
+						<mx:FormItem label="Dt. Nascimento:" required="false">
+							<skins:DateField_Data id="txtdtnascimento"/>
+						</mx:FormItem>
+						<mx:FormItem width="60%" label="Sexo:" required="true">
+							<mx:ComboBox id="cbsexo" selectedIndex="0"/>
+						</mx:FormItem>
+						<mx:FormItem width="60%" label="Estado Civil:" required="true">
+							<mx:ComboBox id="cbestadocivil" selectedIndex="0"/>
+						</mx:FormItem>
+						<mx:FormItem label="Email:" required="false">
+							<skins:TextInput_Maiusculo id="txtemail" width="216"   />
+						</mx:FormItem>
+						<mx:FormItem label="Local Trabalho:" required="false">
+							<skins:TextInput_Maiusculo id="txtlocaltrabalho" width="216"   />
+						</mx:FormItem>
+						<mx:FormItem label="Profissão:" required="false">
+							<skins:TextInput_Maiusculo id="txtprofissao" width="200"  />
+						</mx:FormItem>
+					</mx:Form>
+				</mx:HBox>
+				<mx:DataGrid id="dg_resp" width="100%" height="70%" focusEnabled="false" itemClick="setcampos(event)">
+					<mx:columns>
+						<mx:DataGridColumn headerText="Id." width="60" dataField="id_resp"/>
+						<mx:DataGridColumn headerText="Nome" dataField="nome"/>
+						<mx:DataGridColumn headerText="R.G." dataField="rg"/>
+						<mx:DataGridColumn headerText="C.P.F." dataField="cpf"/>
+						<mx:DataGridColumn headerText="Dt. Nascimento" dataField="dt_nascimento" labelFunction="lblfunction_dt"/>
+					</mx:columns>
+				</mx:DataGrid>
+			</mx:VBox>
+	</mx:Canvas>
+	<mx:Canvas id="c_endereco" label="Endereço(s)" width="100%" height="100%">
+    		<mx:VBox height="100%" width="100%">
+				<mx:Label width="100%" id="mensagem_end" text="" styleName="lblerro"/>
+				<mx:HBox width="100%" height="40%">
+					<mx:Form id="form_e1" width="50%" height="100%">
+						<mx:FormItem label="Id.:">
+							<skins:TextInput_Maiusculo id="txtidresp_end" width="82" editable="false"/>
+						</mx:FormItem>
+						<mx:FormItem label="Tipo:" required="true">
+							<mx:ComboBox id="cb_tipoend" selectedIndex="0"/>
+						</mx:FormItem>
+						<mx:FormItem label="Endereço:" required="true" direction="horizontal">
+							<skins:TextInput_Maiusculo id="txtendereco_end"   />
+							<mx:Label text="nº"/>
+							<skins:TextInput_Maiusculo id="txtnumero_end" width="80"   />
+						</mx:FormItem>
+						<mx:FormItem label="Bairro:" required="true">
+							<skins:TextInput_Maiusculo id="txtbairro_end"   />
+						</mx:FormItem>
+					</mx:Form>
+					<mx:Form id="form_e2" width="50%" height="100%">
+						<mx:FormItem label="CEP:" required="true">
+							<skins:TextInput_Cep id="txtcep_end"/>
+						</mx:FormItem>
+						<mx:FormItem label="UF:"  required="true">
+							<mx:ComboBox id="cbuf_end" selectedIndex="0"/>
+						</mx:FormItem>
+						<mx:FormItem label="Cidade:" required="true">
+							<skins:TextInput_Maiusculo id="txtcidade_end" width="161"   />
+						</mx:FormItem>
+						<mx:FormItem label="Complemento:">
+							<skins:TextInput_Maiusculo id="txtcomplemento_end"/>
+						</mx:FormItem>
+					</mx:Form>
+				</mx:HBox>
+				<mx:DataGrid width="100%" height="60%" id="dg_endereco" focusEnabled="false" itemClick="setcampos(event)">
+					<mx:columns>
+						<mx:DataGridColumn headerText="Id." width="60" dataField="id_respend"/>
+						<mx:DataGridColumn headerText="Endereço" dataField="endereco"/>
+						<mx:DataGridColumn headerText="Bairro" dataField="bairro"/>
+						<mx:DataGridColumn headerText="CEP" dataField="cep"/>
+						<mx:DataGridColumn headerText="Cidade" width="200" dataField="cidade"/>
+						<mx:DataGridColumn headerText="UF" dataField="id_estado" labelFunction="lf_estado" />
+					</mx:columns>
+				</mx:DataGrid>	
+			</mx:VBox>	
+	</mx:Canvas>
+	<mx:Canvas id="c_telefone" label="Telefone(s)" width="100%" height="100%">
+		<mx:VBox height="100%" width="100%">
+			<mx:Label width="100%" id="mensagem_tel" text="" styleName="lblerro"/>
+			<mx:HBox width="100%" height="40%">
+				<mx:Form id="form_t1" width="50%" height="100%">
+					<mx:FormItem label="Id.:">
+						<skins:TextInput_Maiusculo id="txtidresp_tel" width="82" editable="false"/>
+					</mx:FormItem>
+					<mx:FormItem label="Descrição:" required="true">
+						<skins:TextInput_Maiusculo id="txtdescricao_tel"   />
+					</mx:FormItem>
+					<mx:FormItem label="DDD:" required="true">
+						<skins:TextInput_Maiusculo id="txtddd_tel" maxChars="3"  />
+					</mx:FormItem>
+					<mx:FormItem label="Número:" required="true">
+						<skins:TextInput_Tel id="txtnumero_tel"  />
+					</mx:FormItem>
+				</mx:Form>
+				<mx:Form id="form_t2" width="50%" height="100%">
+					<mx:FormItem label="Tipo:" required="true">
+						<mx:ComboBox id="cbtipo_tel" selectedIndex="0"/>
+					</mx:FormItem>
+				</mx:Form>
+			</mx:HBox>
+			<mx:DataGrid width="100%" height="60%" id="dg_telefone" focusEnabled="false" itemClick="setcampos(event)">
+				<mx:columns>
+					<mx:DataGridColumn width="60" dataField="id_resptel" headerText="Id." resizable="false"/>
+					<mx:DataGridColumn headerText="Descrição" dataField="descricao"/>
+					<mx:DataGridColumn headerText="Tipo" dataField="id_tipotel" labelFunction="lf_tipotel"/>
+					<mx:DataGridColumn headerText="DDD" dataField="ddd"/> 
+					<mx:DataGridColumn headerText="Número" dataField="numero"/>
+					<mx:DataGridColumn headerText="Imp." width="60" dataField="imp"/>
+				</mx:columns>
+			</mx:DataGrid>		
+					
+		</mx:VBox>
+	</mx:Canvas>
+</mx:Accordion>
+    
+
+<skins:CtrlBar_Buttons id="ctrlbar"/>	
+</MDIWindow>

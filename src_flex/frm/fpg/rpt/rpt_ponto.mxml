@@ -1,0 +1,95 @@
+<?xml version="1.0" encoding="utf-8"?>
+<MDIWindow xmlns="flexmdi.containers.*" xmlns:mx="http://www.adobe.com/2006/mxml" width="500" height="276" 
+	creationComplete="init()" title="Cartão de Ponto" xmlns:skins="skins.*">
+	<mx:Script>
+		<![CDATA[
+			import classes.Util;
+			import classes.UtilMensagens;
+			import classes.UtilNamesPesquisa;
+			import classes.UtilRetornoBanco;
+			
+			import mx.managers.PopUpManager;
+			import mx.rpc.events.FaultEvent;
+			import mx.rpc.events.ResultEvent;
+			
+			import service.ReportService;
+			import service.fpg.Fpg_PontoService;
+			
+			import vo.adm.SystemVO;
+			
+			[Bindable] private var isValid:Boolean = false;
+			public var util:Util = new Util();
+			private var ro_ponto:Fpg_PontoService = Fpg_PontoService.getInstance();
+			private var systemvo:SystemVO = SystemVO.getInstance();
+			private var retorno:UtilRetornoBanco;
+			public function init():void{
+				
+				initCampos();
+				
+			}
+			private function initCampos():void{
+				ctrlbar.bt_imprime.addEventListener(MouseEvent.CLICK,imprime);
+				
+				ctrlbar.addChildAt(ctrlbar.bt_imprime,0);
+				
+				ctrlbar.bt_limpar.addEventListener(MouseEvent.CLICK,limpar);
+				ctrlbar.addChildAt(ctrlbar.bt_limpar,1);
+			}
+			
+			public function imprime(e:Event):void{
+				
+				isValid = util.validateForm(form);
+				if (!isValid){
+					mensagem.text = UtilMensagens.PreenchaCampo;
+				} else {
+					this.enabled = false;
+					mensagem.text = UtilMensagens.RelatorioGerando;
+					
+					var obj:Object = new Object();
+					obj.p_idparceiroini = p_idparceiroini.txt_id.text.length > 0 ? parseInt(p_idparceiroini.txt_id.text) : 0;
+					obj.p_idparceirofin = p_idparceirofin.txt_id.text.length > 0 ? parseInt(p_idparceirofin.txt_id.text) : 0;
+					obj.p_dtinicial = p_dtinicial.selectedDate;
+					obj.p_dtfinal = p_dtfinal.selectedDate;
+					obj.nmoperador = systemvo.nickname;
+					ro_ponto.Report(obj,"PDF","RptPTO_CartaoPonto","pto",imprimeResult,defaultFaultHandler);
+				}
+			}
+			public function imprimeResult(e:ResultEvent):void{
+				this.enabled = true;
+				mensagem.text = UtilMensagens.RelatorioGerado;
+				util.abrepdf(e.result[0]['destinationUrl']);
+			}
+			private function defaultFaultHandler(e:FaultEvent):void{
+				this.enabled = true;
+				mensagem.text = "";
+				retorno = new UtilRetornoBanco;
+				retorno.RetornoBanco(e);
+			}
+			
+			private function limpar(e:Event):void{
+				util.limpar_formulario(form);
+				mensagem.text = '';
+			}
+		]]>
+	</mx:Script>
+	<mx:VBox width="100%" height="100%">
+	<mx:Label width="100%" id="mensagem" text="" styleName="lblerro"/>
+		<mx:HBox width="100%" height="10%">
+			<mx:Form id="form" width="100%" height="100%">
+				<mx:FormItem label="Funcionário Inicial:" required="true">
+					<skins:TextButtonText id="p_idparceiroini" tabela="{UtilNamesPesquisa.fpg_cadfunc}" titulo="Funcionário"/>
+				</mx:FormItem>
+				<mx:FormItem label="Funcionário Final:" required="true">
+					<skins:TextButtonText id="p_idparceirofin" tabela="{UtilNamesPesquisa.fpg_cadfunc}" titulo="Funcionário"/>
+				</mx:FormItem>
+				<mx:FormItem label="Data Inicial:" required="true">
+					<skins:DateField_Data id="p_dtinicial"/>
+				</mx:FormItem>
+				<mx:FormItem label="Data Final:" required="true">
+					<skins:DateField_Data id="p_dtfinal"/>
+				</mx:FormItem>
+			</mx:Form>
+		</mx:HBox>
+	</mx:VBox>
+	<skins:CtrlBar_Buttons id="ctrlbar"/>	
+</MDIWindow>

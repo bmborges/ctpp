@@ -1,0 +1,544 @@
+<?xml version="1.0" encoding="utf-8"?>
+<MDIWindow xmlns:fc="com.flexpernambuco.controls.*" xmlns="flexmdi.containers.*" 
+		   xmlns:mx="http://www.adobe.com/2006/mxml" width="782" height="514" title="Cadastro Menu"
+		   creationComplete="init()" xmlns:s="library://ns.adobe.com/flex/spark">
+	<mx:Script>
+		<![CDATA[
+
+			// ActionScript file
+			import classes.*;
+			
+			import flash.events.Event;
+			import flash.events.KeyboardEvent;
+			import flash.events.MouseEvent;
+			
+			import mx.collections.ArrayCollection;
+			import mx.controls.Alert;
+			import mx.controls.Text;
+			import mx.controls.dataGridClasses.DataGridColumn;
+			import mx.events.IndexChangedEvent;
+			import mx.rpc.events.FaultEvent;
+			import mx.rpc.events.ResultEvent;
+			import mx.validators.Validator;
+			
+			import service.ComboBoxService;
+			import service.adm.Adm_MenuNivel1Service;
+			import service.adm.Adm_MenuNivel2Service;
+			import service.adm.Adm_MenuService;
+			
+			import vo.adm.Adm_menuVO;
+			import vo.adm.Adm_menunivel1VO;
+			import vo.adm.Adm_menunivel2VO;
+			
+			[Bindable] private var ArrayMenu:ArrayCollection;
+			[Bindable] private var ArrayMenunivel1:ArrayCollection;
+			[Bindable] private var isValid:Boolean = false;
+			private var util:Util = new Util();
+			private var retorno:UtilRetornoBanco;
+			
+			private var ro_menu:Adm_MenuService = Adm_MenuService.getInstance();
+			private var ro_menunivel1:Adm_MenuNivel1Service = Adm_MenuNivel1Service.getInstance();
+			private var ro_menunivel2:Adm_MenuNivel2Service = Adm_MenuNivel2Service.getInstance();
+			private var ro_combobox:ComboBoxService = ComboBoxService.getInstance();
+			private var adm_menuVO:Adm_menuVO;
+			private var adm_menunivel1VO:Adm_menunivel1VO;
+			private var adm_menunivel2VO:Adm_menunivel2VO;
+			//private var adm_permissao_progVO:Adm_permissao_progVO;
+			private function init():void{
+				
+				util.limpar_formulario(form_menua);
+				util.limpar_formulario(form_menub);
+				
+				//seta eventos
+				bt_pesquisar.addEventListener(MouseEvent.CLICK,selecionar);
+				bt_inserir.addEventListener(MouseEvent.CLICK,inserir);
+				bt_alterar.addEventListener(MouseEvent.CLICK,alterar);
+				bt_excluir.addEventListener(MouseEvent.CLICK,deletar);
+				bt_limpar.addEventListener(MouseEvent.CLICK,limpar);
+			}
+			private function createArrayMenu(event:ResultEvent):void{
+				ArrayMenu = event.result as ArrayCollection;
+			}
+			private function createArrayMenuNivel1(event:ResultEvent):void{
+				ArrayMenunivel1 = event.result as ArrayCollection;
+			}
+			protected function lf_menu(item:Object, column:DataGridColumn):String{
+				var retorno:Object = util.selecionarCombobox(item.id_menu,ArrayMenu);
+				return retorno.label;
+			}
+			protected function lf_menunivel1(item:Object, column:DataGridColumn):String{
+				var retorno:Object = util.selecionarCombobox(item.id_menunivel1,ArrayMenunivel1);
+				return retorno.label;
+			}
+			private function accordioncomplete(e:IndexChangedEvent):void{
+				var currentIndex:int=e.newIndex;
+				if (currentIndex == 0){
+					c_menunivel1.label = 'Menu Nivel 1';
+					c_menunivel2.label = 'Menu Nivel 2';
+				}else if (currentIndex == 1){
+					util.limpar_formulario(form_nivel1a);
+					util.limpar_formulario(form_nivel1b);
+					if (txtmenu_label.text.length > 0){
+						ro_combobox.Adm_Menu(createArrayMenu,defaultFaultHandler);
+						c_menunivel1.label = 'Menu Nivel 1 - ' + ' ( ' + txtmenu_label.text + ' )';
+					}
+					selecionar(e);
+				}else if (currentIndex == 2){
+					util.limpar_formulario(form_nivel2a);
+					util.limpar_formulario(form_nivel2b);
+					if (txtnivel1_label.text.length > 0){
+						ro_combobox.Adm_MenuNivel1(createArrayMenuNivel1,defaultFaultHandler);
+						c_menunivel2.label = 'Menu Nivel 2 - ' + c_menunivel1.label + ' ( ' + txtnivel1_label.text + ' )';
+					}
+					selecionar(e);
+				}
+			}
+			
+			private function create_DataGrid(e:ResultEvent):void{
+				if(accordion_menu.selectedIndex == 0){
+					dg_menu.dataProvider = e.result;
+				} else if (accordion_menu.selectedIndex == 1){
+					dg_menunivel1.dataProvider = e.result;
+				} else if (accordion_menu.selectedIndex == 2){
+					if(tb_menunivel2.selectedIndex == 0){
+						dg_menunivel2.dataProvider = e.result;
+					} else if (tb_menunivel2.selectedIndex == 1){
+						dg_perm_prog_nivel2.dataProvider = e.result;
+					}
+				}
+			}
+			
+			private function selecionar(e:Event):void{
+				if (accordion_menu.selectedIndex == 0){
+					popular_menu();
+					ro_menu.select(adm_menuVO,create_DataGrid,defaultFaultHandler);
+				} else if (accordion_menu.selectedIndex == 1){
+					popular_menunivel1();
+					ro_menunivel1.select(adm_menunivel1VO,create_DataGrid,defaultFaultHandler);
+				} else if (accordion_menu.selectedIndex == 2){
+					if(tb_menunivel2.selectedIndex == 0){
+						if (txtid_menunivel1.text.length > 0){
+							popular_menunivel2();
+							ro_menunivel2.select(adm_menunivel2VO,create_DataGrid,defaultFaultHandler);
+						}
+					} else if (tb_menunivel2.selectedIndex == 1){
+						if(dg_menunivel2.selectedItem){
+							//				remote.selectTable_permissao_prog(parseInt(dg_menunivel2.selectedItem.id_itemmenu),createDg);
+						}
+					}
+				}
+			}
+			
+			private function inserir(e:Event):void{
+				if (accordion_menu.selectedIndex == 0){
+					isValid = util.validateForm(form_menua);
+					isValid = util.validateForm(form_menub) && isValid;
+					if (!isValid){
+						mensagem_menu.text = UtilMensagens.PreenchaCampo;
+					} else {
+						popular_menu();
+						ro_menu.inserir(adm_menuVO,inserirResult,defaultFaultHandler);
+					}
+				} else if (accordion_menu.selectedIndex == 1){
+					isValid = util.validateForm(form_nivel1a);
+					isValid = util.validateForm(form_nivel1b) && isValid;
+					if (!isValid){
+						mensagem_menunivel1.text = UtilMensagens.PreenchaCampo;
+					} else {
+						popular_menunivel1();
+						ro_menunivel1.inserir(adm_menunivel1VO,inserirResult,defaultFaultHandler);
+					}
+				} else if (accordion_menu.selectedIndex == 2){
+					if(tb_menunivel2.selectedIndex == 0){
+						isValid = util.validateForm(form_nivel2a);
+						isValid = util.validateForm(form_nivel2b) && isValid;
+						if (!isValid){
+							mensagem_menunivel2.text = UtilMensagens.PreenchaCampo;
+						} else {
+							popular_menunivel2();
+							ro_menunivel2.inserir(adm_menunivel2VO, inserirResult,defaultFaultHandler);
+						}
+					} else if (tb_menunivel2.selectedIndex == 1){
+						isValid = util.validateForm(form_perm_nivel2);
+						if (!isValid){
+							mensagem_menunivel2.text = UtilMensagens.PreenchaCampo;				
+						} else {
+							popular_perm_prog_nivel2();
+							//				remote.inserir_permissao_prog(adm_permissao_progVO,inserirResult);
+						}
+					}
+				}
+			}
+			
+			private function inserirResult(e:ResultEvent):void{
+				if (accordion_menu.selectedIndex == 0){
+					txtid_menu.text = e.result.toString();
+				} else if (accordion_menu.selectedIndex == 1 ){
+					txtid_menunivel1.text = e.result.toString();
+				} else if (accordion_menu.selectedIndex == 2){
+					if(tb_menunivel2.selectedIndex == 0){
+						txtid_menunivel2.text = e.result.toString();			
+					} else if (tb_menunivel2.selectedIndex == 1){
+						//			txtid_permissao_prog.text = e.result.id;
+						//			mensagem_menunivel2.text = e.result.msg;
+						//			remote.selectTable_permissao_prog(parseInt(dg_menunivel2.selectedItem.id_itemmenu),createDg);
+					}
+				}
+				selecionar(e);
+			}
+			
+			private function alterar(e:Event):void{
+				if (accordion_menu.selectedIndex == 0){
+					isValid = util.validateForm(form_menua);
+					isValid = util.validateForm(form_menub) && isValid;
+					if (!isValid){
+						mensagem_menu.text = UtilMensagens.PreenchaCampo;
+					} else {
+						popular_menu();
+						ro_menu.atualizar(adm_menuVO,alterarResult,defaultFaultHandler);
+					}
+				} else if (accordion_menu.selectedIndex == 1){
+					isValid = util.validateForm(form_nivel1a);
+					isValid = util.validateForm(form_nivel1b) && isValid;
+					if (!isValid){
+						mensagem_menunivel1.text = UtilMensagens.PreenchaCampo;
+					} else {
+						popular_menunivel1();
+						ro_menunivel1.atualizar(adm_menunivel1VO,alterarResult,defaultFaultHandler);
+					}
+				} else if (accordion_menu.selectedIndex == 2){
+					if(tb_menunivel2.selectedIndex == 0){
+						isValid = util.validateForm(form_nivel2a);
+						isValid = util.validateForm(form_nivel2b) && isValid;
+						if (!isValid){
+							mensagem_menunivel2.text = UtilMensagens.PreenchaCampo;
+						} else {
+							popular_menunivel2();
+							ro_menunivel2.atualizar(adm_menunivel2VO,alterarResult,defaultFaultHandler);
+						}
+					} else if (tb_menunivel2.selectedIndex == 1){
+						isValid = util.validateForm(form_perm_nivel2);
+						if (!isValid){
+							mensagem_menunivel2.text = UtilMensagens.PreenchaCampo;				
+						} else {
+							popular_perm_prog_nivel2();
+							//				 remote.alterar_permissao_prog(adm_permissao_progVO,alterarResult);
+						}
+					}
+				}
+				
+			}
+			private function alterarResult(e:ResultEvent):void{
+				if (accordion_menu.selectedIndex == 0){
+					dg_menu.dataProvider = e.result;
+				} else if (accordion_menu.selectedIndex == 1 ){
+					dg_menunivel1.dataProvider = e.result;
+				} else if (accordion_menu.selectedIndex == 2){
+					if(tb_menunivel2.selectedIndex == 0){
+						dg_menunivel2.dataProvider = e.result;
+					} else if (tb_menunivel2.selectedIndex == 1){
+						dg_perm_prog_nivel2.dataProvider = e.result;
+					}
+				}
+			}
+			private function deletar(e:Event):void{
+				if (accordion_menu.selectedIndex == 0){
+					if (txtid_menu.text.length > 0){
+						popular_menu();
+						ro_menu.deletar(adm_menuVO,deletarResult,defaultFaultHandler);
+						limpar(e);	
+					}
+				} else if (accordion_menu.selectedIndex == 1){
+					if (txtid_menunivel1.text.length > 0){
+						popular_menunivel1();
+						ro_menunivel1.deletar(adm_menunivel1VO,deletarResult,defaultFaultHandler);
+						limpar(e);	
+					}
+				} else if (accordion_menu.selectedIndex == 2){
+					if(tb_menunivel2.selectedIndex == 0){
+						isValid = util.validateForm(form_nivel2a);
+						isValid = util.validateForm(form_nivel2b) && isValid;
+						if (!isValid){
+							mensagem_menunivel2.text = UtilMensagens.SelecioneUmRegistro;
+						} else {
+							popular_menunivel2();
+							ro_menunivel2.deletar(adm_menunivel2VO,deletarResult,defaultFaultHandler);
+							limpar(e);
+						}
+					} else if (tb_menunivel2.selectedIndex == 1){
+						isValid = util.validateForm(form_perm_nivel2);
+						if (!isValid){
+							mensagem_menunivel2.text = UtilMensagens.SelecioneUmRegistro;				
+						} else {
+							popular_perm_prog_nivel2();
+							//				  remote.deletar_permissao_prog(adm_permissao_progVO,deletarResult);
+						}
+					}
+					
+					
+				}
+			}
+			private function deletarResult(e:ResultEvent):void{
+				if (accordion_menu.selectedIndex == 0){
+					dg_menu.dataProvider = e.result;
+				} else if (accordion_menu.selectedIndex == 1 ){
+					dg_menunivel1.dataProvider = e.result;
+				} else if (accordion_menu.selectedIndex == 2){
+					if(tb_menunivel2.selectedIndex == 0){
+						dg_menunivel2.dataProvider = e.result;
+					} else if (tb_menunivel2.selectedIndex == 1){
+						dg_perm_prog_nivel2.dataProvider = e.result;
+					}
+				}
+			}
+			private function popular_perm_prog_nivel2():void{
+				//	adm_permissao_progVO = new Adm_permissao_progVO();
+				//	adm_permissao_progVO.id_permissao_prog = txtid_permissao_prog.text.length <= 0 ? 0 : parseInt(txtid_permissao_prog.text);;
+				//	adm_permissao_progVO.descricao = txtdescricao.text;
+				//	adm_permissao_progVO.id_itemmenu_menu = parseInt(dg_menunivel2.selectedItem.id_itemmenu);
+				
+			}
+			private function popular_menu():void{
+				adm_menuVO = new Adm_menuVO();
+				adm_menuVO.id_menu = txtid_menu.text.length <= 0 ? null : txtid_menu.text;
+				adm_menuVO.label = txtmenu_label.text.length <= 0 ? null : txtmenu_label.text;
+				adm_menuVO.nome = txtmenu_nome.text.length <= 0 ? null :  txtmenu_nome.text;
+				adm_menuVO.ordem = txtmenu_ordem.text.length <= 0 ? null : txtmenu_ordem.text;
+//				adm_menuVO.ativo = "true";
+			}
+			private function popular_menunivel1():void{
+				adm_menunivel1VO = new Adm_menunivel1VO();
+				adm_menunivel1VO.id_menunivel1 = txtid_menunivel1.text.length <= 0 ? null : parseInt(txtid_menunivel1.text);
+				adm_menunivel1VO.label = txtnivel1_label.text.length <= 0 ? null : txtnivel1_label.text;
+				adm_menunivel1VO.icon = txtnivel1_icone.text.length <= 0 ? null : txtnivel1_icone.text;
+				adm_menunivel1VO.nome = txtnivel1_nome.text.length <= 0 ? null : txtnivel1_nome.text;
+				adm_menunivel1VO.ordem = txtnivel1_ordem.text.length <= 0 ? null : txtnivel1_ordem.text;
+				adm_menunivel1VO.id_menu = txtid_menu.text;
+			}
+			private function popular_menunivel2():void{
+				adm_menunivel2VO = new Adm_menunivel2VO();
+				adm_menunivel2VO.id_menunivel2 = txtid_menunivel2.text.length <= 0 ? null : parseInt(txtid_menunivel2.text);
+				adm_menunivel2VO.label = txtnivel2_label.text.length <= 0 ? null : txtnivel2_label.text;
+				adm_menunivel2VO.icon = txtnivel2_icone.text.length <= 0 ? null : txtnivel2_icone.text;
+				adm_menunivel2VO.nome = txtnivel2_nome.text.length <= 0 ? null : txtnivel2_nome.text;
+				adm_menunivel2VO.ordem = txtnivel2_ordem.text.length <= 0 ? null : txtnivel2_ordem.text;
+				adm_menunivel2VO.id_menunivel1 = txtid_menunivel1.text;
+			}
+			
+			private function limpar(e:Event):void{
+				
+				if (accordion_menu.selectedIndex == 0){
+					util.limpar_formulario(form_menua);
+					util.limpar_formulario(form_menub);
+					util.limpar_formulario(form_nivel1a);
+					util.limpar_formulario(form_nivel1b);
+					util.limpar_formulario(form_nivel2a);
+					util.limpar_formulario(form_nivel2b);
+					dg_menu.dataProvider = null;
+					dg_menunivel1.dataProvider = null;
+					dg_menunivel2.dataProvider = null;
+				} else if (accordion_menu.selectedIndex == 1){
+					util.limpar_formulario(form_nivel1a);
+					util.limpar_formulario(form_nivel1b);
+					dg_menunivel1.dataProvider = null;
+				} else if (accordion_menu.selectedIndex == 2){
+					if(tb_menunivel2.selectedIndex == 0){
+						util.limpar_formulario(form_nivel2a);
+						util.limpar_formulario(form_nivel2b);
+						dg_menunivel2.dataProvider = null;
+						
+					} else if (tb_menunivel2.selectedIndex == 1){
+						util.limpar_formulario(form_perm_nivel2);
+						dg_perm_prog_nivel2.dataProvider = null;
+						//			adm_permissao_progVO = null;
+					}
+					mensagem_menunivel2.text = null;	
+				}
+			}
+			private function setcampos(e:Event):void{
+				if (accordion_menu.selectedIndex == 0){
+					txtid_menu.text = dg_menu.selectedItem.id_menu;
+					txtmenu_label.text = dg_menu.selectedItem.label;
+					txtmenu_nome.text = dg_menu.selectedItem.nome;
+					txtmenu_ordem.text = dg_menu.selectedItem.ordem;
+				} else if (accordion_menu.selectedIndex == 1){
+					txtid_menunivel1.text = dg_menunivel1.selectedItem.id_menunivel1;
+					txtnivel1_label.text = dg_menunivel1.selectedItem.label;
+					txtnivel1_icone.text = dg_menunivel1.selectedItem.icon;
+					txtnivel1_nome.text = dg_menunivel1.selectedItem.nome;
+					txtnivel1_ordem.text = dg_menunivel1.selectedItem.ordem;
+				} else if (accordion_menu.selectedIndex == 2){
+					if (tb_menunivel2.selectedIndex == 0){
+						txtid_menunivel2.text = dg_menunivel2.selectedItem.id_menunivel2;
+						txtnivel2_label.text = dg_menunivel2.selectedItem.label;
+						txtnivel2_icone.text = dg_menunivel2.selectedItem.icon;
+						txtnivel2_nome.text = dg_menunivel2.selectedItem.nome;
+						txtnivel2_ordem.text = dg_menunivel2.selectedItem.ordem;
+					} else if (tb_menunivel2.selectedIndex == 1){
+						txtid_permissao_prog.text = dg_perm_prog_nivel2.selectedItem.id_permissao_prog;
+						txtdescricao.text = dg_perm_prog_nivel2.selectedItem.descricao;
+					}
+				}
+				
+			}
+			private function defaultFaultHandler(e:FaultEvent):void{
+				this.enabled = true;
+				retorno = new UtilRetornoBanco;
+				retorno.RetornoBanco(e);
+				
+				if (accordion_menu.selectedIndex == 0){
+					mensagem_menu.text = null;
+				} else if (accordion_menu.selectedIndex == 1){
+					mensagem_menunivel1.text = null;
+				} else if (accordion_menu.selectedIndex == 2){
+					mensagem_menunivel2.text = null;
+				}
+				
+			}
+
+			
+		]]>
+	</mx:Script>
+     <mx:Accordion id="accordion_menu" width="100%" height="100%" change="accordioncomplete(event)" creationPolicy="all">
+    		<mx:Canvas id="c_menu" label="Menu" width="100%" height="100%">
+    		<mx:VBox width="100%" height="100%">
+				<mx:Label width="100%" id="mensagem_menu" text="" styleName="lblerro"/>
+				<mx:HBox width="100%" height="60%">
+					<mx:Form id="form_menua" width="50%" height="100%">
+						<mx:FormItem label="Id.:">
+							<mx:TextInput id="txtid_menu" width="82" editable="false"/>
+						</mx:FormItem>
+						<mx:FormItem label="Label:" required="true">
+							<mx:TextInput id="txtmenu_label" width="216"   />
+						</mx:FormItem>
+						<mx:FormItem label="Nome:" required="false" >
+							<mx:TextInput id="txtmenu_nome" width="216" />
+						</mx:FormItem>
+					</mx:Form>
+					<mx:Form id="form_menub" width="50%" height="100%">
+						<mx:FormItem label="Ordem:" required="true">
+							<mx:TextInput id="txtmenu_ordem" maxChars="30" width="216" />
+						</mx:FormItem>
+					</mx:Form>
+				</mx:HBox>
+				<mx:DataGrid width="100%" height="100%" id="dg_menu" itemClick="setcampos(event)" focusEnabled="false">
+					<mx:columns>
+						<mx:DataGridColumn width="60" dataField="id_menu" headerText="Id."
+										   resizable="false"/>
+						<mx:DataGridColumn dataField="label" headerText="Label" resizable="true"/>
+						<mx:DataGridColumn dataField="nome" headerText="Nome" resizable="true"/>
+						<mx:DataGridColumn width="60" dataField="ordem" headerText="Ordem"
+										   resizable="false"/>
+					</mx:columns>
+				</mx:DataGrid>
+			</mx:VBox>
+	</mx:Canvas>
+	<mx:Canvas id="c_menunivel1" label="Menu Nivel 1" width="100%" height="100%">
+    	<mx:VBox width="100%" height="100%">
+			<mx:Label width="100%" id="mensagem_menunivel1" text="" styleName="lblerro"/>
+			<mx:HBox width="100%" height="40%">
+				<mx:Form id="form_nivel1a" width="50%" height="100%">
+					<mx:FormItem label="Id.:">
+						<mx:TextInput id="txtid_menunivel1" width="82"/>
+					</mx:FormItem>
+					<mx:FormItem label="Label:" required="true">
+						<mx:TextInput id="txtnivel1_label" />
+					</mx:FormItem>
+					<mx:FormItem label="Nome:">
+						<mx:TextInput id="txtnivel1_nome" width="274" />
+					</mx:FormItem>
+				</mx:Form>
+				<mx:Form id="form_nivel1b" width="50%" height="100%">
+					<mx:FormItem label="Ordem:" required="true">
+						<mx:TextInput id="txtnivel1_ordem" />
+					</mx:FormItem>
+					<mx:FormItem label="Icone:">
+						<mx:TextInput id="txtnivel1_icone" maxChars="30" />
+					</mx:FormItem>
+				</mx:Form>
+			</mx:HBox>
+			<mx:DataGrid width="100%" height="100%" id="dg_menunivel1" itemClick="setcampos(event)">
+				<mx:columns>
+					<mx:DataGridColumn headerText="Id." width="60" dataField="id_menunivel1"/>
+					<mx:DataGridColumn headerText="Label" dataField="label"/>
+					<mx:DataGridColumn headerText="Menu" dataField="id_menu" labelFunction="lf_menu"/>
+					<mx:DataGridColumn headerText="Ordem" width="60" dataField="ordem"/>
+					<mx:DataGridColumn headerText="Icone" width="200" dataField="icon"/>
+				</mx:columns>
+			</mx:DataGrid>	
+		</mx:VBox>
+	</mx:Canvas>
+	<mx:Canvas id="c_menunivel2" label="Menu Nivel 2" width="100%" height="100%">
+		<mx:VBox width="100%" height="100%">
+		<mx:Label width="100%" id="mensagem_menunivel2" text="" styleName="lblerro"/>
+		<mx:TabNavigator width="100%" height="100%" id="tb_menunivel2">
+		<mx:Canvas label="Cadastro Programa" width="100%" height="100%">
+		<mx:VBox width="100%" height="100%">
+			<mx:HBox width="100%" height="40%">
+				<mx:Form id="form_nivel2a" width="50%" height="100%">
+					<mx:FormItem label="Id.:">
+						<mx:TextInput id="txtid_menunivel2" width="82" editable="false"/>
+					</mx:FormItem>
+					<mx:FormItem label="Label:" required="true">
+						<mx:TextInput id="txtnivel2_label" />
+					</mx:FormItem>
+					<mx:FormItem label="Nome:" required="true">
+						<mx:TextInput id="txtnivel2_nome" />
+					</mx:FormItem>
+					<mx:FormItem label="Icone:" required="false">
+						<mx:TextInput id="txtnivel2_icone" maxChars="30"/>
+					</mx:FormItem>
+				</mx:Form>
+				<mx:Form id="form_nivel2b" width="50%" height="100%">
+					<mx:FormItem label="Ordem:" required="true">
+						<mx:TextInput id="txtnivel2_ordem" />
+					</mx:FormItem>
+				</mx:Form>
+			</mx:HBox>
+			<mx:DataGrid id="dg_menunivel2" width="100%" height="100%" focusEnabled="false"
+						 itemClick="setcampos(event)" variableRowHeight="true">
+				<mx:columns>
+					<mx:DataGridColumn headerText="Id." width="60" dataField="id_menunivel2"/>
+					<mx:DataGridColumn dataField="id_menunivel1" headerText="Menu Nivel1" labelFunction="lf_menunivel1"/>
+					<mx:DataGridColumn headerText="Label" dataField="label"/>
+					<mx:DataGridColumn headerText="Nome" dataField="nome"/>
+					<mx:DataGridColumn headerText="Icone" dataField="icon"/>
+					<mx:DataGridColumn headerText="Ordem" width="60" dataField="ordem"/>
+				</mx:columns>
+			</mx:DataGrid>		
+		</mx:VBox>
+		</mx:Canvas>
+		<mx:Canvas label="Permissões Programa" width="100%" height="100%">
+			<mx:VBox width="100%" height="100%">
+				<mx:Form id="form_perm_nivel2" width="100%" height="30%">
+					<mx:FormItem label="Id.:">
+						<mx:TextInput id="txtid_permissao_prog" width="82" editable="false"/>
+					</mx:FormItem>
+					<mx:FormItem label="Descrição:" required="true">
+						<mx:TextInput id="txtdescricao" width="492"/>
+					</mx:FormItem>
+				</mx:Form>
+				
+				<mx:DataGrid id="dg_perm_prog_nivel2" width="100%" height="100%" focusEnabled="false"
+							 itemClick="setcampos(event)" variableRowHeight="true">
+					<mx:columns>
+						<mx:DataGridColumn headerText="Id." width="60" dataField="id_permissao_prog"/>
+						<mx:DataGridColumn headerText="ItemMenu" dataField="id_itemmenu"/>
+						<mx:DataGridColumn headerText="Descrição" dataField="descricao"/>
+					</mx:columns>
+				</mx:DataGrid>	
+			</mx:VBox> 
+		</mx:Canvas>	
+		</mx:TabNavigator>
+		</mx:VBox>
+	</mx:Canvas>
+</mx:Accordion>
+    
+<mx:ControlBar width="100%" horizontalAlign="center" id="ctrlbar">
+    <mx:Button id="bt_pesquisar" label="Pesquisar" styleName="searchButton"/>
+	<mx:Button id="bt_inserir" label="Inserir" styleName="addButton"/>
+	<mx:Button id="bt_alterar" label="Alterar" styleName="editButton"/>
+	<mx:Button id="bt_excluir" label="Excluir" styleName="deleteButton"/>
+	<mx:Button id="bt_limpar" label="Limpar" styleName="clearButton"/>
+</mx:ControlBar>
+</MDIWindow>

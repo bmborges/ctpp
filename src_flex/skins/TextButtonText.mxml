@@ -1,0 +1,147 @@
+<?xml version="1.0" encoding="utf-8"?>
+<s:Group xmlns:fx="http://ns.adobe.com/mxml/2009" 
+		 xmlns:s="library://ns.adobe.com/flex/spark" 
+		 xmlns:mx="library://ns.adobe.com/flex/mx" width="300" height="25">
+	<s:layout>
+		<s:HorizontalLayout verticalAlign="middle"/>
+	</s:layout>
+	<fx:Script>
+		<![CDATA[
+			import classes.UtilNamesPesquisa;
+			
+			import frm.frm_pesquisar;
+			
+			import mx.controls.Alert;
+			import mx.core.FlexGlobals;
+			import mx.managers.PopUpManager;
+			import mx.rpc.Responder;
+			import mx.rpc.events.ResultEvent;
+			
+			import service.Frm_PesquisaService;
+			public var tabela:String;
+			public var titulo:String;
+			[Bindable] public var habilitado:Boolean = true;
+			[Bindable] public var txt_idold:String;
+			public var estado:String = "com_pesquisa";
+			private var ro_pesquisa:Frm_PesquisaService = Frm_PesquisaService.getInstance();
+			
+			public var pesquisatitlewindow:frm_pesquisar;
+			
+			// abre pop up pesquisa                
+			private function openpesquisa(tablename:String,title:String,c:TextInput,r:TextInput):void{
+				
+				pesquisatitlewindow = PopUpManager.createPopUp(this,frm_pesquisar,true) as frm_pesquisar;
+				PopUpManager.centerPopUp(pesquisatitlewindow);
+				
+				var X:Number = pesquisatitlewindow.width / 2;
+				var Y:Number = pesquisatitlewindow.height / 2;
+				
+				var newX:Number = FlexGlobals.topLevelApplication.mdiCanvas.width / 2;
+				var newY:Number = FlexGlobals.topLevelApplication.mdiCanvas.height / 2;
+				
+				pesquisatitlewindow.x = newX - X;
+				pesquisatitlewindow.y = newY - Y;
+				
+				pesquisatitlewindow.title = "Pesquisa " + title;
+				pesquisatitlewindow.tablename = tablename;
+				pesquisatitlewindow.currentState = estado;
+				
+				pesquisatitlewindow["list_data_grid"].addEventListener(MouseEvent.DOUBLE_CLICK,closePopUpWindow(tablename,c,r));
+				
+			}
+			private function closePopUpWindow(tablename:String,c:TextInput,r:TextInput):Function {
+				return function(evt:MouseEvent):void{
+					if (tablename == UtilNamesPesquisa.crs_turma || tablename == UtilNamesPesquisa.contratoAcademico){
+						c.text = pesquisatitlewindow.list_data_grid.selectedItem.id_turma;
+						r.text = pesquisatitlewindow.list_data_grid.selectedItem.nmturma;
+					} else if (tablename == UtilNamesPesquisa.alu_aluno){
+						c.text = String(pesquisatitlewindow.list_data_grid.selectedItem.id_aluno);
+						r.text = String(pesquisatitlewindow.list_data_grid.selectedItem.nome);
+					} else if (tablename == UtilNamesPesquisa.adm_operador){
+						c.text = String(pesquisatitlewindow.list_data_grid.selectedItem.id_operador);
+						r.text = String(pesquisatitlewindow.list_data_grid.selectedItem.nmoperador);
+					} else if (tablename == UtilNamesPesquisa.ctr_contrato){
+						c.text = String(pesquisatitlewindow.list_data_grid.selectedItem.id_contrato);
+						r.text = String(pesquisatitlewindow.list_data_grid.selectedItem.nome);
+					} else if (tablename == UtilNamesPesquisa.pdg_diario){
+						c.text = String(pesquisatitlewindow.list_data_grid.selectedItem.id_diario);
+						r.text = String(pesquisatitlewindow.list_data_grid.selectedItem.nmmateria);
+					} else if (tablename == UtilNamesPesquisa.cdc_centrocusto){
+						c.text = String(pesquisatitlewindow.list_data_grid.selectedItem.id_centrocusto);
+						r.text = String(pesquisatitlewindow.list_data_grid.selectedItem.nmcentrocusto);
+					} else if (tablename == UtilNamesPesquisa.fpg_funcao){
+						c.text = String(pesquisatitlewindow.list_data_grid.selectedItem.id_funcao);
+						r.text = String(pesquisatitlewindow.list_data_grid.selectedItem.nmfuncao);
+					} else if (tablename == UtilNamesPesquisa.fpg_cadfunc){
+						c.text = String(pesquisatitlewindow.list_data_grid.selectedItem.id_parceiro);
+						r.text = String(pesquisatitlewindow.list_data_grid.selectedItem.nmfuncionario);
+					} else if (tablename == UtilNamesPesquisa.fpg_justificativa){
+						c.text = String(pesquisatitlewindow.list_data_grid.selectedItem.id_justificativa);
+						r.text = String(pesquisatitlewindow.list_data_grid.selectedItem.descricao);
+					} else if (tablename == UtilNamesPesquisa.crs_curso){
+						c.text = String(pesquisatitlewindow.list_data_grid.selectedItem.id_curso);
+						r.text = String(pesquisatitlewindow.list_data_grid.selectedItem.nmcurso);
+					} else if (tablename == UtilNamesPesquisa.bco_alinea){
+						c.text = String(pesquisatitlewindow.list_data_grid.selectedItem.id_alinea);
+						r.text = String(pesquisatitlewindow.list_data_grid.selectedItem.nmalinea);
+					} else if (tablename == UtilNamesPesquisa.fpg_horario){
+						c.text = String(pesquisatitlewindow.list_data_grid.selectedItem.id_horario);
+						r.text = String(pesquisatitlewindow.list_data_grid.selectedItem.nmhorario);
+					} else if (tablename == "bco_banco"){
+						c.text = String(pesquisatitlewindow.list_data_grid.selectedItem.cdbanco);
+						r.text = String(pesquisatitlewindow.list_data_grid.selectedItem.nmbanco);
+					}
+					
+					PopUpManager.removePopUp(pesquisatitlewindow);
+					
+				}
+			}
+			
+			
+			protected function txt_id_focusOutHandler(event:FocusEvent):void
+			{
+				// TODO Auto-generated method stub
+				if((txt_nome.text.length <= 0 || txt_id.text != txt_idold) && txt_id.text.length > 0){
+					if (tabela == UtilNamesPesquisa.crs_turma){
+						ro_pesquisa.ConsultaRel(UtilNamesPesquisa.crs_turma,"nmturma","id_turma",parseInt(txt_id.text),ConsultaRelResult);
+					} else if (tabela == UtilNamesPesquisa.alu_aluno){
+						ro_pesquisa.ConsultaRel(UtilNamesPesquisa.alu_aluno,"nome","id_aluno",parseInt(txt_id.text),ConsultaRelResult);
+					} else if (tabela == UtilNamesPesquisa.adm_operador){
+						ro_pesquisa.ConsultaRel(UtilNamesPesquisa.adm_operador,"nmoperador","id_operador",parseInt(txt_id.text),ConsultaRelResult);
+					} else if (tabela == UtilNamesPesquisa.pdg_diario){
+						ro_pesquisa.ConsultaRel(UtilNamesPesquisa.view_pdg_diario,"nmmateria","id_diario",parseInt(txt_id.text),ConsultaRelResult);
+					} else if (tabela == UtilNamesPesquisa.ctr_contrato){
+						ro_pesquisa.ConsultaRel("view_ctr_contrato_aluno","nome","id_contrato",parseInt(txt_id.text),ConsultaRelResult);
+					} else if (tabela == UtilNamesPesquisa.cdc_centrocusto){
+						ro_pesquisa.ConsultaRel(UtilNamesPesquisa.cdc_centrocusto,"nmcentrocusto","id_centrocusto",parseInt(txt_id.text),ConsultaRelResult);
+					} else if (tabela == UtilNamesPesquisa.fpg_funcao){
+						ro_pesquisa.ConsultaRel(UtilNamesPesquisa.fpg_funcao,"nmfuncao","id_funcao",parseInt(txt_id.text),ConsultaRelResult);
+					} else if (tabela == UtilNamesPesquisa.fpg_cadfunc){
+						ro_pesquisa.ConsultaRel(UtilNamesPesquisa.fpg_cadfunc,"nmfuncionario","id_parceiro",parseInt(txt_id.text),ConsultaRelResult);
+					} else if (tabela == UtilNamesPesquisa.fpg_justificativa){
+						ro_pesquisa.ConsultaRel(UtilNamesPesquisa.fpg_justificativa,"descricao","id_justificativa",parseInt(txt_id.text),ConsultaRelResult);
+					} else if (tabela == UtilNamesPesquisa.crs_curso){
+						ro_pesquisa.ConsultaRel(UtilNamesPesquisa.crs_curso,"nmcurso","id_curso",parseInt(txt_id.text),ConsultaRelResult);
+					} else if (tabela == UtilNamesPesquisa.bco_alinea){
+						ro_pesquisa.ConsultaRel(UtilNamesPesquisa.bco_alinea,"nmalinea","id_alinea",parseInt(txt_id.text),ConsultaRelResult);
+					} else if (tabela == UtilNamesPesquisa.fpg_horario){
+						ro_pesquisa.ConsultaRel(UtilNamesPesquisa.fpg_horario,"nmhorario","id_horario",parseInt(txt_id.text),ConsultaRelResult);
+					} else if (tabela == "bco_banco"){
+						ro_pesquisa.ConsultaRel("bco_banco","nmbanco","cdbanco",parseInt(txt_id.text),ConsultaRelResult);
+					}
+				} else if (txt_id.text.length <= 0){
+					txt_nome.text = "";
+				}
+			}
+			protected function ConsultaRelResult(e:ResultEvent):void{
+				txt_nome.text = e.result.toString();
+				txt_idold = txt_id.text;
+			}
+			
+		]]>
+	</fx:Script>
+	<mx:TextInput id="txt_id" width="70" enabled="{habilitado}" focusOut="txt_id_focusOutHandler(event)"/>
+	<mx:Button id="bt" width="30" styleName="btpesquisa" click="openpesquisa(tabela,titulo,txt_id,txt_nome)"/>
+	<mx:TextInput id="txt_nome" editable="false" width="100%" maxChars="20"/>
+	
+</s:Group>

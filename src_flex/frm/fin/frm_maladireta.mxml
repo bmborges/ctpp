@@ -1,0 +1,315 @@
+<?xml version="1.0" encoding="utf-8"?>
+<MDIWindow xmlns="flexmdi.containers.*"
+		   xmlns:mx="http://www.adobe.com/2006/mxml"
+		   xmlns:s="library://ns.adobe.com/flex/spark"
+		   xmlns:skins="skins.*"
+		   width="846" height="514" creationComplete="init()"
+		   title="Gera Mala Direta">
+<mx:Script>
+	<![CDATA[
+		import classes.Util;
+		import classes.UtilMensagens;
+		import classes.UtilRetornoBanco;
+		
+		import mx.collections.ArrayCollection;
+		import mx.controls.Alert;
+		import mx.controls.Button;
+		import mx.core.FlexGlobals;
+		import mx.events.CloseEvent;
+		import mx.events.IndexChangedEvent;
+		import mx.rpc.events.FaultEvent;
+		import mx.rpc.events.ResultEvent;
+		
+		import service.adm.Adm_AtivoService;
+		import service.adm.Adm_OperadorService;
+		import service.fin.Fin_MalaDiretaService;
+		import service.fin.Fin_TipoMalaDiretaService;
+		import service.fin.Fin_TxtMalaDiretaService;
+		import service.procedure.Fin_Gera_MalaDiretaService;
+		import service.view.View_Fin_MalaDiretaService;
+		
+		import vo.adm.SystemVO;
+		import vo.fin.Fin_MalaDiretaVO;
+		import vo.fin.Fin_TxtMalaDiretaVO;
+		import vo.procedure.Fin_Gera_MalaDiretaVO;
+		import vo.view.View_Fin_MalaDiretaVO;
+		
+		private var util:Util = new Util();
+		private var retorno:UtilRetornoBanco;
+
+		[Bindable] private var ArrayOperador:ArrayCollection;
+		[Bindable] private var ArrayAtivo:ArrayCollection;
+		
+		private var view_maladiretaVO:View_Fin_MalaDiretaVO;
+		private var fin_maladiretaVO:Fin_MalaDiretaVO;
+		private var fin_geramaladiretaVO:Fin_Gera_MalaDiretaVO;
+		
+		private var systemvo:SystemVO = SystemVO.getInstance();
+		private var ro_viewmaladireta:View_Fin_MalaDiretaService = View_Fin_MalaDiretaService.getInstance();
+		private var ro_maladireta:Fin_MalaDiretaService = Fin_MalaDiretaService.getInstance();
+		private var ro_operador:Adm_OperadorService = Adm_OperadorService.getInstance();
+		private var ro_tipomaladireta:Fin_TipoMalaDiretaService = Fin_TipoMalaDiretaService.getInstance();
+		private var ro_geramaladireta:Fin_Gera_MalaDiretaService = Fin_Gera_MalaDiretaService.getInstance();
+		
+		[Bindable] private var isValid:Boolean = false;
+		
+		private function addButtons():void{
+			ctrlbar.removeAllChildren();
+			if(tbnav.selectedIndex == 0){
+				ctrlbar.addChildAt(ctrlbar.bt_pesquisar,0);
+				ctrlbar.addChildAt(ctrlbar.bt_excluir,1);
+				
+				var bt_gerar:Button = new Button;
+				bt_gerar.label = "Gerar Carta";
+				bt_gerar.styleName = "editButton";
+				bt_gerar.addEventListener(MouseEvent.CLICK,GerarCarta);
+				ctrlbar.addChildAt(bt_gerar,2);
+			} else if (tbnav.selectedIndex == 1){
+			} 
+			
+		}
+		private function GerarCarta(e:Event):void{
+			isValid = util.validateForm(form);
+			if (!isValid){
+				mensagem_tipo.text = UtilMensagens.PreenchaCampo;
+			} else {
+				this.enabled = false;
+				fin_geramaladiretaVO = new Fin_Gera_MalaDiretaVO;
+				fin_geramaladiretaVO.id_tipomaladireta = cbtipo_maladireta.selectedItem.data;
+				fin_geramaladiretaVO.id_operador = systemvo.id_operador;
+				
+				ro_geramaladireta.Procedure(fin_geramaladiretaVO,selecionar,defaultFaultHandler);
+			}
+		}
+		
+		private function init():void{
+			
+			
+			this.width = FlexGlobals.topLevelApplication.mdiCanvas.width;
+			this.height = FlexGlobals.topLevelApplication.mdiCanvas.height;
+			
+			this.x = 0;
+			this.y = 0;
+			
+			addButtons();
+			
+			ctrlbar.bt_pesquisar.addEventListener(MouseEvent.CLICK,selecionar);
+//			ctrlbar.bt_inserir.addEventListener(MouseEvent.CLICK,inserir);
+//			ctrlbar.bt_alterar.addEventListener(MouseEvent.CLICK,alterar);
+			ctrlbar.bt_excluir.addEventListener(MouseEvent.CLICK,deletar);
+			
+			ro_operador.ComboBox("nickname","id_operador",createarrayoperador,defaultFaultHandler);
+			ro_tipomaladireta.ComboBox("nmtipomaladireta","id_tipomaladireta",createcbtipomala,defaultFaultHandler);
+			
+		}
+		private function createcbtipomala(e:ResultEvent):void{
+			cbtipo_maladireta.dataProvider = e.result;
+		}
+		private function createarrayoperador(e:ResultEvent):void{
+			ArrayOperador = e.result as ArrayCollection;
+		}
+		protected function lf_operador(item:Object, column:DataGridColumn):String
+		{
+			var retorno:Object = util.selecionarCombobox(item.id_operador,ArrayOperador);
+			if (retorno == null){
+				return "";	
+			}
+			return retorno.label;
+		}
+		protected function lf_ativo(item:Object, column:DataGridColumn):String
+		{
+			var retorno:Object = util.selecionarCombobox(item.id_ativo,ArrayAtivo);
+			if (retorno == null){
+				return "";	
+			}
+			return retorno.label;
+		}
+		protected function lb_texto(item:Object, column:DataGridColumn):String
+		{
+			var texto:String = item.texto;
+			return texto.substr(0,80)+"...";
+		}
+		protected function lb_dtsistema(item:Object, column:DataGridColumn):String
+		{
+			return util.formatData_DDMMYYYY(item.dt_sistema);	
+		}
+		private function tbcomplete(event:IndexChangedEvent):void{
+			var currentIndex:int=event.newIndex;
+			addButtons();
+			this.title = "Gera Mala Direta";
+			if (currentIndex == 0){
+				
+			}else if (currentIndex == 1){
+				this.title = "Mala Direta: " + dg_maladireta.selectedItem.nmtipomaladireta+ " Data: "+ util.formatData_DDMMYYYY(dg_maladireta.selectedItem.dt_sistema);
+				util.limpar_formulario(form_txt);
+				selecionar(event);
+			}
+		}
+		private function selecionar(e:Event):void{
+			this.enabled = false;
+			if (tbnav.selectedIndex == 0){
+				view_maladiretaVO = new View_Fin_MalaDiretaVO;
+				var order:Array = ['dt_sistema desc'];
+				ro_viewmaladireta.select(view_maladiretaVO,createDataGrid,defaultFaultHandler, null, order);
+			} else if (tbnav.selectedIndex == 1){
+				fin_maladiretaVO = new Fin_MalaDiretaVO;
+				fin_maladiretaVO.dt_sistema = dg_maladireta.selectedItem.dt_sistema;
+				ro_maladireta.select(fin_maladiretaVO,createDataGrid,defaultFaultHandler);
+			}
+		}
+		private function createDataGrid(e:ResultEvent):void{
+			this.enabled = true;
+			if (tbnav.selectedIndex == 0){
+				dg_maladireta.dataProvider = e.result;
+			} else if (tbnav.selectedIndex == 1){
+				dg_txt.dataProvider = e.result;					
+			}
+		}
+		
+		public function deletar(e:Event):void{
+			Alert.yesLabel = "Sim";
+			Alert.noLabel = "Não";
+			Alert.show('Confirmar ?','Deseja Realmente Deletar esse Registro',Alert.YES|Alert.NO,this,confirmDeletar);
+		}
+		private function confirmDeletar(e:CloseEvent):void{
+			if (e.detail == Alert.YES){
+				if (tbnav.selectedIndex == 0){
+					this.enabled = false;
+//					ro_tipomaladireta.deletar(fin_tipomaladiretaVO,deletarResult,defaultFaultHandler);
+				} else if (tbnav.selectedIndex == 1){
+					isValid = util.validateForm(form_txt);
+					if (!isValid){
+						mensagem_txt.text = UtilMensagens.PreenchaCampo;
+					} else {
+						this.enabled = false;
+					}
+				}
+			}	
+		}
+		private function deletarResult(e:ResultEvent):void{
+			this.enabled = true;
+			if (tbnav.selectedIndex == 0){
+				dg_maladireta.dataProvider = e.result;
+			} else if (tbnav.selectedIndex == 1){
+				dg_txt.dataProvider = e.result;
+			}
+			limpar(e);
+		}
+		private function limpar(e:Event):void{
+			if (tbnav.selectedIndex == 0){
+			} else if (tbnav.selectedIndex == 1){
+				util.limpar_formulario(form_txt);
+				dg_txt.dataProvider = null;
+				mensagem_txt.text = null;
+				selecionar(e);
+			}
+		}
+		private function setcampos(e:Event):void{
+			if (tbnav.selectedIndex == 0){
+			} else if (tbnav.selectedIndex == 1){
+				txttexto.text = dg_txt.selectedItem.texto;
+			}
+		}
+		public function imprimir_todas(dt_sistema:Object):void{
+			mensagem_tipo.text = UtilMensagens.RelatorioGerando;
+			this.enabled = false;
+			
+			var obj:Object = new Object();
+			obj.p_dtsistema = dt_sistema;
+			obj.p_idmaladireta = parseInt("0");
+			
+			
+			ro_viewmaladireta.Report(obj,"PDF","Rpt_MalaDireta","fin",imprimeResult,defaultFaultHandler);
+			
+		}
+		public function imprimeResult(e:ResultEvent):void{
+			this.enabled = true;
+			mensagem_tipo.text = UtilMensagens.RelatorioGerado;
+			util.abrepdf(e.result[0]['destinationUrl']);
+		}
+		public function imprime_selecionada(id_maladireta:Object):void
+		{
+			mensagem_txt.text = UtilMensagens.RelatorioGerando;
+			this.enabled = false;
+			
+			var obj:Object = new Object();
+			obj.p_idmaladireta = id_maladireta;
+			obj.nmoperador = systemvo.nickname;
+				
+			ro_viewmaladireta.Report(obj,"PDF","Rpt_MalaDireta","fin",imprimeResult2,defaultFaultHandler);
+		}
+		public function imprimeResult2(e:ResultEvent):void{
+			this.enabled = true;
+			mensagem_txt.text = UtilMensagens.RelatorioGerado;
+			util.abrepdf(e.result[0]['destinationUrl']);
+		}
+		private function defaultFaultHandler(e:FaultEvent):void{
+			this.enabled = true;
+			retorno = new UtilRetornoBanco;
+			retorno.RetornoBanco(e);
+			
+			if (tbnav.selectedIndex == 0){
+				mensagem_tipo.text = "";
+			} else if (tbnav.selectedIndex == 1){
+				mensagem_txt.text = "";
+			}
+		}
+	]]>
+</mx:Script>
+	<mx:TabNavigator id="tbnav" width="100%" height="100%" change="tbcomplete(event)" creationPolicy="all">
+		<mx:Canvas id="c_maladireta" label="Mala Direta" width="100%" height="100%">
+    		<mx:VBox width="100%" height="100%">
+				<mx:Label width="100%" id="mensagem_tipo" text="" styleName="lblerro"/>
+					<mx:Form id="form" width="100%">
+						<mx:FormItem label="Tipo:" required="true">
+							<mx:ComboBox id="cbtipo_maladireta" selectedIndex="0"/>
+						</mx:FormItem>
+					</mx:Form>
+				<mx:DataGrid width="100%" height="100%" id="dg_maladireta" itemClick="setcampos(event)" focusEnabled="false">
+					<mx:columns>
+						<mx:DataGridColumn headerText="Imprimir" width="60"  >
+							<mx:itemRenderer>
+								<mx:Component>
+									<mx:VBox horizontalAlign="center">
+										<mx:Image buttonMode="true" source="@Embed('/assets/icons/small-printer.png')" click="parentDocument.imprimir_todas(data.dt_sistema)" />
+									</mx:VBox>
+								</mx:Component>
+							</mx:itemRenderer>
+						</mx:DataGridColumn>
+						<mx:DataGridColumn headerText="Data" width="100" dataField="dt_sistema" labelFunction="lb_dtsistema"/>
+						<mx:DataGridColumn headerText="Tipo Mala Direta" dataField="nmtipomaladireta"/>
+						<mx:DataGridColumn headerText="Operador" width="120" dataField="id_operador" labelFunction="lf_operador"/>
+					</mx:columns>
+				</mx:DataGrid>
+			</mx:VBox>
+		</mx:Canvas>
+		<mx:Canvas id="c_txt" label="Carta(s)" width="100%" height="100%" enabled="{dg_maladireta.selectedItem ? true : false}">
+			<mx:VBox width="100%" height="100%">
+				<mx:Label width="100%" id="mensagem_txt" text="" styleName="lblerro"/>
+				<mx:HBox width="100%" height="100%">
+					<mx:Form id="form_txt" width="100%" height="100%">
+						<mx:FormItem label="Texto:" required="true"  width="100%" height="100%">
+							<mx:TextArea id="txttexto"  width="100%" height="100%" editable="false"/>
+						</mx:FormItem>
+					</mx:Form>
+				</mx:HBox>
+				<mx:DataGrid width="100%" height="40%" id="dg_txt" itemClick="setcampos(event)" focusEnabled="false">
+					<mx:columns>
+						<!--<mx:DataGridColumn headerText="Id." width="60" dataField="id_maladireta"/>-->
+						<mx:DataGridColumn headerText="Imprimir" width="60"  >
+							<mx:itemRenderer>
+								<mx:Component>
+									<mx:VBox horizontalAlign="center">
+										<mx:Image buttonMode="true" source="@Embed('/assets/icons/small-printer.png')" click="parentDocument.imprime_selecionada(data.id_maladireta)" />
+									</mx:VBox>
+								</mx:Component>
+							</mx:itemRenderer>
+						</mx:DataGridColumn>
+						<mx:DataGridColumn headerText="Texto" dataField="texto" labelFunction="lb_texto"/>
+					</mx:columns>
+				</mx:DataGrid>
+			</mx:VBox>
+		</mx:Canvas>
+	</mx:TabNavigator>
+<skins:CtrlBar_Buttons id="ctrlbar"/>
+</MDIWindow>

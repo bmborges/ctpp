@@ -1,0 +1,62 @@
+<?xml version="1.0" encoding="utf-8"?>
+<mx:Canvas
+	xmlns:mx="http://www.adobe.com/2006/mxml"
+	width="100%"
+	backgroundColor="#1265FD"
+	initialize="init()"
+	resizeEffect="Resize">
+	
+	<mx:Script>
+		<![CDATA[
+			
+			private var HEIGHT:int = 30;
+			[Bindable]
+			private var mensagem:String;
+			
+			public static const ERROR:String = "error";
+			public static const HELP:String = "help";
+			public static const INFO:String = "info";
+			public static const OK:String = "ok";
+			public static const WARNING:String = "warning";
+			
+			private var timer:Timer;
+			
+			private function init():void
+			{
+				this.height = 0;
+				timer = new Timer(4000);
+				timer.addEventListener(TimerEvent.TIMER, timerComplete);
+			}
+			
+			public function show(tipo:String, mensagem:String):void
+			{
+				this.height = HEIGHT;
+				timer.start();
+				this.mensagem = mensagem;
+				lbl_mensagem.setStyle("color","#FFFFFF");
+				if (tipo==ERROR) {
+					lbl_mensagem.setStyle("color","#FF0000");
+//					imgAlert.source = "imagens/error.png";
+				} else if (tipo==HELP) {
+//					imgAlert.source = "imagens/help.png";
+				} else if (tipo==INFO) {
+//					imgAlert.source = "imagens/info.png";
+				} else if (tipo==OK) {
+//					imgAlert.source = "imagens/ok.png";
+				} else if (tipo==WARNING) {
+//					imgAlert.source = "imagens/warning.png";
+				}
+			}
+			
+			private function timerComplete(event:TimerEvent):void
+			{
+				this.height = 0;
+				timer.stop();
+			}
+		]]>
+	</mx:Script>
+	
+	<mx:Label id="lbl_mensagem" left="98" right="10" fontSize="16" fontWeight="bold" text="{mensagem}"
+			  verticalCenter="0"/>
+	
+</mx:Canvas>
